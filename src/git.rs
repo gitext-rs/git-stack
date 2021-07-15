@@ -1,3 +1,5 @@
+pub static NO_BRANCH: &str = "<>";
+
 pub fn default_branch<'c>(config: &'c git2::Config) -> &'c str {
     config.get_str("init.defaultBranch").ok().unwrap_or("main")
 }

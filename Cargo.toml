@@ -19,3 +19,4 @@ atty = "0.2"
 itertools = "0.10"
 serde = { version = "1", features = ["derive"] }
 toml = "0.5"
+ignore = "0.4"

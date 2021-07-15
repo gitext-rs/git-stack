@@ -7,7 +7,7 @@ pub struct RepoConfig {
 }
 
 static PROTECTED_BRANCH_FIELD: &str = "stack.protected-branch";
-static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["/main", "/master", "/dev", "/stable"];
+static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
 
 impl RepoConfig {
     pub fn from_all(repo: &git2::Repository) -> eyre::Result<Self> {
@@ -56,7 +56,7 @@ impl RepoConfig {
         match git2::Config::open_default() {
             Ok(config) => {
                 let default_branch = crate::git::default_branch(&config);
-                let default_branch_ignore = format!("/{}", default_branch);
+                let default_branch_ignore = default_branch.to_owned();
                 protected_branches.push(default_branch_ignore);
             }
             Err(err) => {

@@ -1,14 +1,15 @@
 pub fn graph<'r>(
     repo: &'r git2::Repository,
-    base_branch: git2::Branch<'r>,
+    base_branch: Option<git2::Branch<'r>>,
     head_branch: git2::Branch<'r>,
     dependents: bool,
+    protected_branches: &ignore::gitignore::Gitignore,
 ) -> Result<Node<'r>, git2::Error> {
     log::debug!("Loading branches");
     let mut possible_branches = std::collections::BTreeMap::new();
     for branch in repo.branches(Some(git2::BranchType::Local))? {
         let (branch, _) = branch?;
-        let branch_name = branch.name()?.unwrap_or("<>");
+        let branch_name = branch.name()?.unwrap_or(crate::git::NO_BRANCH);
         if let Some(branch_oid) = branch.get().target() {
             log::debug!("Resolved branch {} as {}", branch_name, branch_oid);
             possible_branches
@@ -19,6 +20,65 @@ pub fn graph<'r>(
             log::debug!("Could not resolve branch {}", branch_name);
         }
     }
+
+    let protected_oids: std::collections::HashMap<_, _> = possible_branches
+        .iter()
+        .filter_map(|(oid, branches)| {
+            let branch_name = branches
+                .iter()
+                .filter_map(|b| {
+                    let branch_name = b
+                        .name()
+                        .ok()
+                        .flatten()
+                        .unwrap_or(crate::git::NO_BRANCH)
+                        .to_owned();
+                    let branch_match = protected_branches.matched(&branch_name, false);
+                    if branch_match.is_ignore() {
+                        log::debug!("Branch {} is protected", branch_name);
+                        Some(branch_name)
+                    } else {
+                        None
+                    }
+                })
+                .next();
+            branch_name.map(|branch_name| (*oid, branch_name))
+        })
+        .collect();
+
+    let base_branch = base_branch.map(Ok).unwrap_or_else(|| {
+        let head_name = head_branch.name()?.unwrap_or(crate::git::NO_BRANCH);
+        let head_oid = head_branch.get().target().ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                format!("could not resolve HEAD ({})", head_name),
+            )
+        })?;
+        let protected_base_oids: std::collections::HashMap<_, _> = protected_oids
+            .iter()
+            .filter_map(|(oid, name)| {
+                repo.merge_base(head_oid, *oid)
+                    .ok()
+                    .map(|base_oid| (base_oid, name))
+            })
+            .collect();
+        crate::git::commits_from(&repo, head_oid)?
+            .filter_map(|commit| {
+                protected_base_oids.get(&commit.id()).map(|branch_name| {
+                    log::debug!("Base is recent protected branch {}", branch_name);
+                    repo.find_branch(branch_name, git2::BranchType::Local)
+                })
+            })
+            .next()
+            .unwrap_or_else(|| {
+                Err(git2::Error::new(
+                    git2::ErrorCode::NotFound,
+                    git2::ErrorClass::Reference,
+                    "could not find a protected branch to use as a base",
+                ))
+            })
+    })?;
 
     let mut root = Node::populate(
         repo,
@@ -43,7 +103,7 @@ impl<'r> Node<'r> {
         head_branch: Vec<git2::Branch<'r>>,
         branches: &mut std::collections::BTreeMap<git2::Oid, Vec<git2::Branch<'r>>>,
     ) -> Result<Self, git2::Error> {
-        let base_name = base_branch.name()?.unwrap_or("<>");
+        let base_name = base_branch.name()?.unwrap_or(crate::git::NO_BRANCH);
         log::debug!("Populating data for {}", base_name);
         let base_oid = base_branch.get().target().ok_or_else(|| {
             git2::Error::new(
@@ -53,7 +113,11 @@ impl<'r> Node<'r> {
             )
         })?;
 
-        let head_name = head_branch.first().unwrap().name()?.unwrap_or("<>");
+        let head_name = head_branch
+            .first()
+            .unwrap()
+            .name()?
+            .unwrap_or(crate::git::NO_BRANCH);
         let head_oid = head_branch.first().unwrap().get().target().ok_or_else(|| {
             git2::Error::new(
                 git2::ErrorCode::NotFound,

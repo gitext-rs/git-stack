@@ -90,20 +90,37 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     log::debug!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
-    let git_config = git2::Config::open_default().with_code(proc_exit::Code::CONFIG_ERR)?;
 
-    let base_name = args
+    let repo_config =
+        git_stack::config::RepoConfig::from_all(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
+    let mut protected_branches = ignore::gitignore::GitignoreBuilder::new("");
+    for branch in repo_config.protected_branches.iter().flatten() {
+        protected_branches
+            .add_line(None, branch)
+            .with_code(proc_exit::Code::CONFIG_ERR)?;
+    }
+    let protected_branches = protected_branches
+        .build()
+        .with_code(proc_exit::Code::CONFIG_ERR)?;
+
+    let base_branch = args
         .base
         .as_deref()
-        .unwrap_or_else(|| git_stack::git::default_branch(&git_config));
-    let base_branch =
-        git_stack::git::resolve_branch(&repo, base_name).with_code(proc_exit::Code::USAGE_ERR)?;
+        .map(|name| git_stack::git::resolve_branch(&repo, name))
+        .transpose()
+        .with_code(proc_exit::Code::USAGE_ERR)?;
 
     let head_branch =
         git_stack::git::resolve_head_branch(&repo).with_code(proc_exit::Code::USAGE_ERR)?;
 
-    let root = git_stack::dag::graph(&repo, base_branch, head_branch, args.dependents)
-        .with_code(proc_exit::Code::CONFIG_ERR)?;
+    let root = git_stack::dag::graph(
+        &repo,
+        base_branch,
+        head_branch,
+        args.dependents,
+        &protected_branches,
+    )
+    .with_code(proc_exit::Code::CONFIG_ERR)?;
 
     let mut tree = treeline::Tree::root(RenderNode { node: Some(&root) });
     to_tree(root.children.as_slice(), &mut tree, colored_stdout);
