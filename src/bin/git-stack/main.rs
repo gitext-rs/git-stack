@@ -120,6 +120,7 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         base_branch,
         head_branch,
         args.dependents,
+        args.all,
         &protected_branches,
     )
     .with_code(proc_exit::Code::CONFIG_ERR)?;
@@ -290,6 +291,10 @@ struct Args {
     /// Include all dependent branches as well
     #[structopt(short, long)]
     dependents: bool,
+
+    /// Include all branches
+    #[structopt(short, long)]
+    all: bool,
 
     /// Branch to evaluate from (default: last protected branch)
     #[structopt(long)]
