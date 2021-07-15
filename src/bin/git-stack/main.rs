@@ -23,16 +23,6 @@ fn run() -> proc_exit::ExitResult {
         }
     };
 
-    if let Some(output_path) = args.dump_config.as_deref() {
-        dump_config(&args, output_path)?;
-    } else if args.show {
-        show(&args)?;
-    }
-
-    Ok(())
-}
-
-fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
     let colored = args.color.colored().or_else(git_stack::color::colored_env);
     let mut colored_stdout = colored
         .or_else(git_stack::color::colored_stdout)
@@ -47,6 +37,18 @@ fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitRes
 
     git_stack::log::init_logging(args.verbose.log_level(), colored_stderr);
 
+    if let Some(output_path) = args.dump_config.as_deref() {
+        dump_config(&args, output_path)?;
+    } else if let Some(ignore) = args.protect.as_deref() {
+        protect(&args, ignore)?;
+    } else if args.show {
+        show(&args, colored_stdout)?;
+    }
+
+    Ok(())
+}
+
+fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
     log::debug!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -65,21 +67,26 @@ fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitRes
     Ok(())
 }
 
-fn show(args: &Args) -> proc_exit::ExitResult {
-    let colored = args.color.colored().or_else(git_stack::color::colored_env);
-    let mut colored_stdout = colored
-        .or_else(git_stack::color::colored_stdout)
-        .unwrap_or(true);
-    let mut colored_stderr = colored
-        .or_else(git_stack::color::colored_stderr)
-        .unwrap_or(true);
-    if (colored_stdout || colored_stderr) && !yansi::Paint::enable_windows_ascii() {
-        colored_stdout = false;
-        colored_stderr = false;
-    }
+fn protect(args: &Args, ignore: &str) -> proc_exit::ExitResult {
+    log::debug!("Initializing");
+    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
+    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
 
-    git_stack::log::init_logging(args.verbose.log_level(), colored_stderr);
+    let mut repo_config =
+        git_stack::config::RepoConfig::from_repo(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
+    repo_config
+        .protected_branches
+        .get_or_insert_with(Vec::new)
+        .push(ignore.to_owned());
 
+    repo_config
+        .write_repo(&repo)
+        .with_code(proc_exit::Code::FAILURE)?;
+
+    Ok(())
+}
+
+fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     log::debug!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -166,6 +173,10 @@ struct Args {
     /// Write the current configuration to file with `-` for stdout
     #[structopt(long, group = "mode")]
     dump_config: Option<std::path::PathBuf>,
+
+    /// Append a protected branch to the repository's config (gitignore syntax)
+    #[structopt(long, group = "mode")]
+    protect: Option<String>,
 
     /// Visually edit history in your $EDITOR`
     #[structopt(short, long)]

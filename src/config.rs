@@ -3,10 +3,11 @@ use eyre::WrapErr;
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RepoConfig {
-    protected_branches: Option<Vec<String>>,
+    pub protected_branches: Option<Vec<String>>,
 }
 
-const DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["/main", "/master", "/dev", "/stable"];
+static PROTECTED_BRANCH_FIELD: &str = "stack.protected-branch";
+static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["/main", "/master", "/dev", "/stable"];
 
 impl RepoConfig {
     pub fn from_all(repo: &git2::Repository) -> eyre::Result<Self> {
@@ -85,7 +86,7 @@ impl RepoConfig {
 
     pub fn from_gitconfig(config: &git2::Config) -> Self {
         let protected_branches = config
-            .multivar("stack.protected-branch", None)
+            .multivar(PROTECTED_BRANCH_FIELD, None)
             .map(|entries| {
                 let entries_ref = &entries;
                 let protected_branches: Vec<_> = entries_ref
@@ -103,6 +104,29 @@ impl RepoConfig {
         Self {
             protected_branches: protected_branches,
         }
+    }
+
+    pub fn write_repo(&self, repo: &git2::Repository) -> eyre::Result<()> {
+        let workdir = repo
+            .workdir()
+            .ok_or_else(|| eyre::eyre!("Cannot read config in bare repository."))?;
+        let config_path = workdir.join(".git/config");
+        log::debug!("Loading {}", config_path.display());
+        let mut config = git2::Config::open(&config_path)?;
+        log::info!("Writing {}", config_path.display());
+        self.to_gitconfig(&mut config)?;
+        Ok(())
+    }
+
+    pub fn to_gitconfig(&self, config: &mut git2::Config) -> eyre::Result<()> {
+        if let Some(protected_branches) = self.protected_branches.as_ref() {
+            // Ignore errors if there aren't keys to remove
+            let _ = config.remove_multivar(PROTECTED_BRANCH_FIELD, ".*");
+            for branch in protected_branches {
+                config.set_multivar(PROTECTED_BRANCH_FIELD, "^$", branch)?;
+            }
+        }
+        Ok(())
     }
 
     pub fn merge(mut self, other: Self) -> Self {
