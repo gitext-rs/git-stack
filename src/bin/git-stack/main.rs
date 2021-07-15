@@ -123,7 +123,12 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     .with_code(proc_exit::Code::CONFIG_ERR)?;
 
     let mut tree = treeline::Tree::root(RenderNode { node: Some(&root) });
-    to_tree(root.children.as_slice(), &mut tree, colored_stdout);
+    to_tree(
+        root.children.as_slice(),
+        &mut tree,
+        colored_stdout,
+        args.show_all,
+    );
     writeln!(std::io::stdout(), "{}", tree)?;
 
     Ok(())
@@ -133,16 +138,17 @@ fn to_tree<'r, 'n>(
     nodes: &'n [Vec<git_stack::dag::Node<'r>>],
     tree: &mut treeline::Tree<RenderNode<'r, 'n>>,
     colored: bool,
+    show_all: bool,
 ) {
     for branch in nodes {
         let mut branch_root = treeline::Tree::root(RenderNode { node: None });
         for node in branch {
-            if node.branches.is_empty() && node.children.is_empty() {
+            if node.branches.is_empty() && node.children.is_empty() && !show_all {
                 log::trace!("Skipping commit {}", node.local_commit.id());
                 continue;
             }
             let mut child_tree = treeline::Tree::root(RenderNode { node: Some(node) });
-            to_tree(node.children.as_slice(), &mut child_tree, colored);
+            to_tree(node.children.as_slice(), &mut child_tree, colored, show_all);
             branch_root.push(child_tree);
         }
         tree.push(branch_root);
@@ -186,6 +192,10 @@ struct Args {
     /// Show stack relationship
     #[structopt(short, long, group = "mode")]
     show: bool,
+
+    /// Show all commits
+    #[structopt(long)]
+    show_all: bool,
 
     /// Write the current configuration to file with `-` for stdout
     #[structopt(long, group = "mode")]
