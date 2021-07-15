@@ -15,3 +15,4 @@ yansi = "0.5.0"
 treeline = "0.1"
 env_logger = { version = "0.8", default-features = false, features = ["termcolor"] }
 atty = "0.2"
+itertools = "0.10"
