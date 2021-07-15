@@ -23,14 +23,16 @@ fn run() -> proc_exit::ExitResult {
         }
     };
 
-    if args.show {
-        show(args)?;
+    if let Some(output_path) = args.dump_config.as_deref() {
+        dump_config(&args, output_path)?;
+    } else if args.show {
+        show(&args)?;
     }
 
     Ok(())
 }
 
-fn show(args: Args) -> proc_exit::ExitResult {
+fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
     let colored = args.color.colored().or_else(git_stack::color::colored_env);
     let mut colored_stdout = colored
         .or_else(git_stack::color::colored_stdout)
@@ -48,12 +50,45 @@ fn show(args: Args) -> proc_exit::ExitResult {
     log::debug!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
-    let config = git2::Config::open_default().with_code(proc_exit::Code::CONFIG_ERR)?;
+
+    let repo_config =
+        git_stack::config::RepoConfig::from_all(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
+
+    let output = toml::to_string_pretty(&repo_config).with_code(proc_exit::Code::FAILURE)?;
+
+    if output_path == std::path::Path::new("-") {
+        std::io::stdout().write_all(output.as_bytes())?;
+    } else {
+        std::fs::write(output_path, &output)?;
+    }
+
+    Ok(())
+}
+
+fn show(args: &Args) -> proc_exit::ExitResult {
+    let colored = args.color.colored().or_else(git_stack::color::colored_env);
+    let mut colored_stdout = colored
+        .or_else(git_stack::color::colored_stdout)
+        .unwrap_or(true);
+    let mut colored_stderr = colored
+        .or_else(git_stack::color::colored_stderr)
+        .unwrap_or(true);
+    if (colored_stdout || colored_stderr) && !yansi::Paint::enable_windows_ascii() {
+        colored_stdout = false;
+        colored_stderr = false;
+    }
+
+    git_stack::log::init_logging(args.verbose.log_level(), colored_stderr);
+
+    log::debug!("Initializing");
+    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
+    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
+    let git_config = git2::Config::open_default().with_code(proc_exit::Code::CONFIG_ERR)?;
 
     let base_name = args
         .base
         .as_deref()
-        .unwrap_or_else(|| git_stack::git::default_branch(&config));
+        .unwrap_or_else(|| git_stack::git::default_branch(&git_config));
     let base_branch =
         git_stack::git::resolve_branch(&repo, base_name).with_code(proc_exit::Code::USAGE_ERR)?;
 
@@ -117,10 +152,20 @@ impl<'r, 'n> std::fmt::Display for RenderNode<'r, 'n> {
 }
 
 #[derive(structopt::StructOpt)]
+#[structopt(
+        setting = structopt::clap::AppSettings::UnifiedHelpMessage,
+        setting = structopt::clap::AppSettings::DeriveDisplayOrder,
+        setting = structopt::clap::AppSettings::DontCollapseArgsInUsage
+    )]
+#[structopt(group = structopt::clap::ArgGroup::with_name("mode").multiple(false))]
 struct Args {
     /// Show stack relationship
-    #[structopt(short, long)]
+    #[structopt(short, long, group = "mode")]
     show: bool,
+
+    /// Write the current configuration to file with `-` for stdout
+    #[structopt(long, group = "mode")]
+    dump_config: Option<std::path::PathBuf>,
 
     /// Visually edit history in your $EDITOR`
     #[structopt(short, long)]
