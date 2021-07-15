@@ -22,7 +22,7 @@ impl RepoConfig {
             .workdir()
             .ok_or_else(|| eyre::eyre!("Cannot read config in bare repository."))?;
         let config_path = workdir.join(".git/config");
-        log::debug!("Loading {}", config_path.display());
+        log::trace!("Loading {}", config_path.display());
         if config_path.exists() {
             match git2::Config::open(&config_path) {
                 Ok(config) => Ok(Self::from_gitconfig(&config)),
@@ -41,7 +41,7 @@ impl RepoConfig {
             .workdir()
             .ok_or_else(|| eyre::eyre!("Cannot read config in bare repository."))?;
         let config_path = workdir.join(".git-stack.toml");
-        log::debug!("Loading {}", config_path.display());
+        log::trace!("Loading {}", config_path.display());
         if config_path.exists() {
             Self::from_path(&config_path)
         } else {
@@ -52,7 +52,7 @@ impl RepoConfig {
     pub fn from_defaults() -> Self {
         let mut protected_branches: Vec<String> = Vec::new();
 
-        log::debug!("Loading gitconfig");
+        log::trace!("Loading gitconfig");
         match git2::Config::open_default() {
             Ok(config) => {
                 let default_branch = crate::git::default_branch(&config);
@@ -111,7 +111,7 @@ impl RepoConfig {
             .workdir()
             .ok_or_else(|| eyre::eyre!("Cannot read config in bare repository."))?;
         let config_path = workdir.join(".git/config");
-        log::debug!("Loading {}", config_path.display());
+        log::trace!("Loading {}", config_path.display());
         let mut config = git2::Config::open(&config_path)?;
         log::info!("Writing {}", config_path.display());
         self.to_gitconfig(&mut config)?;

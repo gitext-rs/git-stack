@@ -5,13 +5,13 @@ pub fn graph<'r>(
     dependents: bool,
     protected_branches: &ignore::gitignore::Gitignore,
 ) -> Result<Node<'r>, git2::Error> {
-    log::debug!("Loading branches");
+    log::trace!("Loading branches");
     let mut possible_branches = std::collections::BTreeMap::new();
     for branch in repo.branches(Some(git2::BranchType::Local))? {
         let (branch, _) = branch?;
         let branch_name = branch.name()?.unwrap_or(crate::git::NO_BRANCH);
         if let Some(branch_oid) = branch.get().target() {
-            log::debug!("Resolved branch {} as {}", branch_name, branch_oid);
+            log::trace!("Resolved branch {} as {}", branch_name, branch_oid);
             possible_branches
                 .entry(branch_oid)
                 .or_insert_with(|| Vec::new())
@@ -35,7 +35,7 @@ pub fn graph<'r>(
                         .to_owned();
                     let branch_match = protected_branches.matched(&branch_name, false);
                     if branch_match.is_ignore() {
-                        log::debug!("Branch {} is protected", branch_name);
+                        log::trace!("Branch {} is protected", branch_name);
                         Some(branch_name)
                     } else {
                         None
@@ -104,7 +104,7 @@ impl<'r> Node<'r> {
         branches: &mut std::collections::BTreeMap<git2::Oid, Vec<git2::Branch<'r>>>,
     ) -> Result<Self, git2::Error> {
         let base_name = base_branch.name()?.unwrap_or(crate::git::NO_BRANCH);
-        log::debug!("Populating data for {}", base_name);
+        log::trace!("Populating data for {}", base_name);
         let base_oid = base_branch.get().target().ok_or_else(|| {
             git2::Error::new(
                 git2::ErrorCode::NotFound,

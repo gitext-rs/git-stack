@@ -49,7 +49,7 @@ fn run() -> proc_exit::ExitResult {
 }
 
 fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
-    log::debug!("Initializing");
+    log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
 
@@ -68,7 +68,7 @@ fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitRes
 }
 
 fn protect(args: &Args, ignore: &str) -> proc_exit::ExitResult {
-    log::debug!("Initializing");
+    log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
 
@@ -87,7 +87,7 @@ fn protect(args: &Args, ignore: &str) -> proc_exit::ExitResult {
 }
 
 fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
-    log::debug!("Initializing");
+    log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
 
@@ -138,7 +138,7 @@ fn to_tree<'r, 'n>(
         let mut branch_root = treeline::Tree::root(RenderNode { node: None });
         for node in branch {
             if node.branches.is_empty() && node.children.is_empty() {
-                log::debug!("Skipping commit {}", node.local_commit.id());
+                log::trace!("Skipping commit {}", node.local_commit.id());
                 continue;
             }
             let mut child_tree = treeline::Tree::root(RenderNode { node: Some(node) });

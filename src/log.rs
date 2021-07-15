@@ -13,16 +13,15 @@ pub fn init_logging(mut level: clap_verbosity_flag::Verbosity, colored: bool) {
 
         builder.filter(None, level.to_level_filter());
 
-        if level == log::LevelFilter::Trace {
+        if level == log::LevelFilter::Trace || level == log::LevelFilter::Debug {
             builder.format_timestamp_secs();
         } else {
             builder.format(|f, record| {
-                writeln!(
-                    f,
-                    "[{}] {}",
-                    record.level().to_string().to_lowercase(),
-                    record.args()
-                )
+                if record.level() == log::LevelFilter::Info {
+                    writeln!(f, "{}", record.args())
+                } else {
+                    writeln!(f, "[{}] {}", record.level(), record.args())
+                }
             });
         }
 
