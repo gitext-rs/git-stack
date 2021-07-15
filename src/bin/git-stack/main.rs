@@ -35,7 +35,7 @@ fn run() -> proc_exit::ExitResult {
         colored_stderr = false;
     }
 
-    git_stack::log::init_logging(args.verbose.log_level(), colored_stderr);
+    git_stack::log::init_logging(args.verbose.clone(), colored_stderr);
 
     if let Some(output_path) = args.dump_config.as_deref() {
         dump_config(&args, output_path)?;
