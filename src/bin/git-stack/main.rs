@@ -63,7 +63,7 @@ fn show(args: Args) -> proc_exit::ExitResult {
     let root = git_stack::dag::graph(&repo, base_branch, head_branch, args.dependents)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-    let mut tree = treeline::Tree::root(RenderNode { node: &root });
+    let mut tree = treeline::Tree::root(RenderNode { node: Some(&root) });
     to_tree(root.children.as_slice(), &mut tree, colored_stdout);
     writeln!(std::io::stdout(), "{}", tree)?;
 
@@ -76,36 +76,41 @@ fn to_tree<'r, 'n>(
     colored: bool,
 ) {
     for branch in nodes {
+        let mut branch_root = treeline::Tree::root(RenderNode { node: None });
         for node in branch {
             if node.branches.is_empty() && node.children.is_empty() {
                 log::debug!("Skipping commit {}", node.local_commit.id());
                 continue;
             }
-            let mut child_tree = treeline::Tree::root(RenderNode { node });
+            let mut child_tree = treeline::Tree::root(RenderNode { node: Some(node) });
             to_tree(node.children.as_slice(), &mut child_tree, colored);
-            tree.push(child_tree);
+            branch_root.push(child_tree);
         }
+        tree.push(branch_root);
     }
 }
 
 struct RenderNode<'r, 'n> {
-    node: &'n git_stack::dag::Node<'r>,
+    node: Option<&'n git_stack::dag::Node<'r>>,
 }
 
 impl<'r, 'n> std::fmt::Display for RenderNode<'r, 'n> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        if self.node.branches.is_empty() {
-            write!(f, "{}", self.node.local_commit.id())?;
+        if let Some(node) = self.node.as_ref() {
+            if node.branches.is_empty() {
+                write!(f, "{}", node.local_commit.id())?;
+            } else {
+                write!(
+                    f,
+                    "{}",
+                    node.branches
+                        .iter()
+                        .map(|b| { b.name().ok().flatten().unwrap_or("<>") })
+                        .join(", ")
+                )?;
+            }
         } else {
-            write!(
-                f,
-                "{}",
-                self.node
-                    .branches
-                    .iter()
-                    .map(|b| { b.name().ok().flatten().unwrap_or("<>") })
-                    .join(", ")
-            )?;
+            write!(f, "o")?;
         }
         Ok(())
     }
