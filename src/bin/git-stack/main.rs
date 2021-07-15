@@ -122,62 +122,119 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     )
     .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-    let mut tree = treeline::Tree::root(RenderNode { node: Some(&root) });
-    to_tree(
-        root.children.as_slice(),
-        &mut tree,
-        colored_stdout,
-        args.show_all,
-    );
+    let palette = if colored_stdout {
+        Palette::colored()
+    } else {
+        Palette::plain()
+    };
+
+    let mut tree = treeline::Tree::root(RenderNode {
+        node: Some(&root),
+        palette: &palette,
+    });
+    to_tree(root.children.as_slice(), &mut tree, &palette, args.show_all);
     writeln!(std::io::stdout(), "{}", tree)?;
 
     Ok(())
 }
 
-fn to_tree<'r, 'n>(
+fn to_tree<'r, 'n, 'p>(
     nodes: &'n [Vec<git_stack::dag::Node<'r>>],
-    tree: &mut treeline::Tree<RenderNode<'r, 'n>>,
-    colored: bool,
+    tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
+    palette: &'p Palette,
     show_all: bool,
 ) {
     for branch in nodes {
-        let mut branch_root = treeline::Tree::root(RenderNode { node: None });
+        let mut branch_root = treeline::Tree::root(RenderNode {
+            node: None,
+            palette,
+        });
         for node in branch {
             if node.branches.is_empty() && node.children.is_empty() && !show_all {
                 log::trace!("Skipping commit {}", node.local_commit.id());
                 continue;
             }
-            let mut child_tree = treeline::Tree::root(RenderNode { node: Some(node) });
-            to_tree(node.children.as_slice(), &mut child_tree, colored, show_all);
+            let mut child_tree = treeline::Tree::root(RenderNode {
+                node: Some(node),
+                palette,
+            });
+            to_tree(node.children.as_slice(), &mut child_tree, palette, show_all);
             branch_root.push(child_tree);
         }
         tree.push(branch_root);
     }
 }
 
-struct RenderNode<'r, 'n> {
+struct RenderNode<'r, 'n, 'p> {
     node: Option<&'n git_stack::dag::Node<'r>>,
+    palette: &'p Palette,
 }
 
-impl<'r, 'n> std::fmt::Display for RenderNode<'r, 'n> {
+impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
-                write!(f, "{}", node.local_commit.id())?;
+                write!(
+                    f,
+                    "{} {}",
+                    self.palette.commit.paint(node.local_commit.id()),
+                    self.palette
+                        .summary
+                        .paint(node.local_commit.summary().unwrap_or("<No summary>"))
+                )?;
             } else {
                 write!(
                     f,
-                    "{}",
-                    node.branches
-                        .iter()
-                        .map(|b| { b.name().ok().flatten().unwrap_or("<>") })
-                        .join(", ")
+                    "{} {}",
+                    self.palette.branch.paint(
+                        node.branches
+                            .iter()
+                            .map(|b| { b.name().ok().flatten().unwrap_or("<>") })
+                            .join(", ")
+                    ),
+                    self.palette
+                        .summary
+                        .paint(node.local_commit.summary().unwrap_or("<No summary>"))
                 )?;
             }
         } else {
             write!(f, "o")?;
         }
         Ok(())
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+pub struct Palette {
+    error: yansi::Style,
+    warn: yansi::Style,
+    info: yansi::Style,
+    branch: yansi::Style,
+    commit: yansi::Style,
+    summary: yansi::Style,
+}
+
+impl Palette {
+    pub fn colored() -> Self {
+        Self {
+            error: yansi::Style::new(yansi::Color::Red),
+            warn: yansi::Style::new(yansi::Color::Yellow),
+            info: yansi::Style::new(yansi::Color::Blue),
+            branch: yansi::Style::new(yansi::Color::Green),
+            commit: yansi::Style::new(yansi::Color::Blue),
+            summary: yansi::Style::new(yansi::Color::Blue).dimmed(),
+        }
+    }
+
+    pub fn plain() -> Self {
+        Self {
+            error: yansi::Style::default(),
+            warn: yansi::Style::default(),
+            info: yansi::Style::default(),
+            branch: yansi::Style::default(),
+            commit: yansi::Style::default(),
+            summary: yansi::Style::default(),
+        }
     }
 }
 
