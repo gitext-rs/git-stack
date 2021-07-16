@@ -110,13 +110,28 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         .map(|name| git_stack::git::resolve_branch(&repo, name))
         .transpose()
         .with_code(proc_exit::Code::USAGE_ERR)?;
+    let base_oid = base_branch
+        .map(|b| {
+            b.get().target().ok_or_else(|| {
+                git2::Error::new(
+                    git2::ErrorCode::NotFound,
+                    git2::ErrorClass::Reference,
+                    format!(
+                        "could not resolve {}",
+                        b.name().ok().flatten().unwrap_or(git_stack::git::NO_BRANCH)
+                    ),
+                )
+            })
+        })
+        .transpose()
+        .with_code(proc_exit::Code::USAGE_ERR)?;
 
     let head_branch =
         git_stack::git::resolve_head_branch(&repo).with_code(proc_exit::Code::USAGE_ERR)?;
 
     let root = git_stack::dag::graph(
         &repo,
-        base_branch,
+        base_oid,
         head_branch,
         args.dependents,
         args.all,
