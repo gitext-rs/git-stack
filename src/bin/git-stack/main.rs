@@ -159,8 +159,14 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         branches.branch(&repo, merge_base_oid, head_oid)
     };
 
-    let mut root = git_stack::dag::graph(&repo, base_oid, head_oid, graphed_branches)
-        .with_code(proc_exit::Code::CONFIG_ERR)?;
+    let mut root = git_stack::dag::graph(
+        &repo,
+        base_oid,
+        head_oid,
+        &protected_branches,
+        graphed_branches,
+    )
+    .with_code(proc_exit::Code::CONFIG_ERR)?;
     git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
 
@@ -255,8 +261,14 @@ fn rewrite(args: &Args) -> proc_exit::ExitResult {
         branches.branch(&repo, merge_base_oid, head_oid)
     };
 
-    let mut root = git_stack::dag::graph(&repo, base_oid, head_oid, graphed_branches)
-        .with_code(proc_exit::Code::CONFIG_ERR)?;
+    let mut root = git_stack::dag::graph(
+        &repo,
+        base_oid,
+        head_oid,
+        &protected_branches,
+        graphed_branches,
+    )
+    .with_code(proc_exit::Code::CONFIG_ERR)?;
     git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
     git_stack::dag::rebase_branches(&mut root, base_oid).with_code(proc_exit::Code::CONFIG_ERR)?;

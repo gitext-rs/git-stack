@@ -4,6 +4,7 @@ pub fn graph<'r>(
     repo: &'r git2::Repository,
     mut base_oid: git2::Oid,
     head_oid: git2::Oid,
+    protected_branches: &crate::branches::Branches<'r>,
     mut graph_branches: crate::branches::Branches<'r>,
 ) -> Result<Node<'r>, git2::Error> {
     let mut root = Node::populate(repo, base_oid, head_oid, &mut graph_branches)?;
@@ -11,6 +12,10 @@ pub fn graph<'r>(
     if !graph_branches.is_empty() {
         let branch_oids: Vec<_> = graph_branches.oids().collect();
         for branch_oid in branch_oids {
+            if protected_branches.contains_oid(branch_oid) {
+                continue;
+            }
+
             let branches = if let Some(branches) = graph_branches.get(branch_oid) {
                 branches
             } else {
