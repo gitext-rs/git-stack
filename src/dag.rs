@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 pub fn graph<'r>(
     repo: &'r git2::Repository,
     base_branch: Option<git2::Branch<'r>>,
@@ -86,6 +88,13 @@ pub fn graph<'r>(
         vec![head_branch],
         &mut possible_branches,
     )?;
+
+    let unused_branches = possible_branches
+        .iter()
+        .flat_map(|(_, branches)| branches)
+        .filter_map(|branch| branch.name().ok().flatten())
+        .join(", ");
+    log::debug!("Unaffected branches: {}", unused_branches);
 
     Ok(root)
 }
