@@ -43,12 +43,14 @@ fn run() -> proc_exit::ExitResult {
         protect(&args, ignore)?;
     } else if args.show {
         show(&args, colored_stdout)?;
+    } else {
+        rewrite(&args)?;
     }
 
     Ok(())
 }
 
-fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
+fn dump_config(_args: &Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -67,7 +69,7 @@ fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitRes
     Ok(())
 }
 
-fn protect(args: &Args, ignore: &str) -> proc_exit::ExitResult {
+fn protect(_args: &Args, ignore: &str) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -134,6 +136,21 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     });
     to_tree(root.children.as_slice(), &mut tree, &palette, args.show_all);
     writeln!(std::io::stdout(), "{}", tree)?;
+
+    Ok(())
+}
+
+fn rewrite(args: &Args) -> proc_exit::ExitResult {
+    if args.interactive {
+        log::debug!("--interactive is not implemented yet");
+    }
+    if args.fix {
+        log::debug!("--fix is not implemented yet");
+    }
+    if args.onto.is_some() {
+        log::debug!("--onto is not implemented yet");
+    }
+    eyre::eyre!("Not implemented yet");
 
     Ok(())
 }
