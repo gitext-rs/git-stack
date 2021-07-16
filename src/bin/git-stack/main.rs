@@ -192,34 +192,48 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
-                write!(
-                    f,
-                    "{} {}",
-                    self.palette.commit.paint(node.local_commit.id()),
-                    self.palette
-                        .summary
-                        .paint(node.local_commit.summary().unwrap_or("<No summary>"))
-                )?;
+                write!(f, "{} ", self.palette.commit.paint(node.local_commit.id()),)?;
             } else {
                 write!(
                     f,
-                    "{} {}",
+                    "{} ",
                     self.palette.branch.paint(
                         node.branches
                             .iter()
                             .map(|b| { b.name().ok().flatten().unwrap_or("<>") })
                             .join(", ")
                     ),
-                    self.palette
-                        .summary
-                        .paint(node.local_commit.summary().unwrap_or("<No summary>"))
                 )?;
+            }
+
+            let summary = node.local_commit.summary().unwrap_or("<No summary>");
+            if 1 < node.local_commit.parent_count() {
+                write!(f, "{}", self.palette.error.paint("merge commit"))?;
+            } else if node.branches.is_empty() && !node.children.is_empty() {
+                // Branches should be off of other branches
+                write!(f, "{}", self.palette.warn.paint(summary))?;
+            } else if git_stack::git::get_fixup_target_summary(&summary).is_some() {
+                // Needs to be squashed
+                write!(f, "{}", self.palette.warn.paint(summary))?;
+            } else if is_wip(&summary) {
+                // Not for pushing implicitly
+                write!(f, "{}", self.palette.error.paint(summary))?;
+            } else {
+                write!(f, "{}", self.palette.summary.paint(summary))?;
             }
         } else {
             write!(f, "o")?;
         }
         Ok(())
     }
+}
+
+static WIP_PREFIXES: &[&str] = &["WIP:", "draft:", "Draft:"];
+
+fn is_wip(summary: &str) -> bool {
+    WIP_PREFIXES
+        .iter()
+        .any(|prefix| summary.starts_with(prefix))
 }
 
 #[derive(Copy, Clone, Debug)]
