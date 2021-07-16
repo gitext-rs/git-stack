@@ -36,7 +36,8 @@ pub fn graph<'r>(
                         .flatten()
                         .unwrap_or(crate::git::NO_BRANCH)
                         .to_owned();
-                    let branch_match = protected_branches.matched(&branch_name, false);
+                    let branch_match =
+                        protected_branches.matched_path_or_any_parents(&branch_name, false);
                     if branch_match.is_ignore() {
                         log::trace!("Branch {} is protected", branch_name);
                         Some(branch_name)
