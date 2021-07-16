@@ -3,90 +3,40 @@ use itertools::Itertools;
 pub fn graph<'r>(
     repo: &'r git2::Repository,
     base_oid: git2::Oid,
-    head_branch: git2::Branch<'r>,
-    dependents: bool,
-    all: bool,
+    head_oid: git2::Oid,
+    mut graph_branches: crate::branches::Branches<'r>,
 ) -> Result<Node<'r>, git2::Error> {
-    log::trace!("Loading branches");
-    let mut possible_branches = std::collections::BTreeMap::new();
-    for branch in repo.branches(Some(git2::BranchType::Local))? {
-        let (branch, _) = branch?;
-        let branch_name = branch.name()?.unwrap_or(crate::git::NO_BRANCH);
-        if let Some(branch_oid) = branch.get().target() {
-            log::trace!("Resolved branch {} as {}", branch_name, branch_oid);
-            possible_branches
-                .entry(branch_oid)
-                .or_insert_with(|| Vec::new())
-                .push(branch);
-        } else {
-            log::debug!("Could not resolve branch {}", branch_name);
-        }
-    }
+    let mut root = Node::populate(repo, base_oid, head_oid, &mut graph_branches)?;
 
-    let head_oid = head_branch.get().target().ok_or_else(|| {
-        git2::Error::new(
-            git2::ErrorCode::NotFound,
-            git2::ErrorClass::Reference,
-            format!("could not resolve HEAD"),
-        )
-    })?;
-
-    let mut root = Node::populate(repo, base_oid, head_branch, &mut possible_branches)?;
-
-    if dependents {
-        let possible_branch_oids: Vec<_> = possible_branches.keys().cloned().collect();
-        for branch_oid in possible_branch_oids {
-            let branch_head_base = match repo.merge_base(branch_oid, head_oid) {
-                Ok(branch_head_base) => branch_head_base,
-                Err(err) => {
-                    log::trace!("Branch {} looks irrelevant: {}", branch_oid, err);
-                    continue;
-                }
-            };
-            if branch_head_base == base_oid {
-                log::trace!("Branch {} looks irrelevant (shared base)", branch_oid);
-                continue;
-            }
-
-            let branch_base_base = match repo.merge_base(branch_oid, base_oid) {
-                Ok(branch_base_base) => branch_base_base,
-                Err(err) => {
-                    log::trace!("Branch {} looks irrelevant: {}", branch_oid, err);
-                    continue;
-                }
-            };
-            if branch_base_base != base_oid {
-                log::trace!("Branch {} looks irrelevant (too early)", branch_oid);
-                continue;
-            }
-
-            let branches = possible_branches.get(&branch_oid).unwrap();
+    if !graph_branches.is_empty() {
+        let branch_oids: Vec<_> = graph_branches.oids().collect();
+        for branch_oid in branch_oids {
+            let branches = graph_branches.get(branch_oid).unwrap();
             let branch_name = branches
                 .first()
                 .unwrap()
                 .name()?
                 .unwrap_or(crate::git::NO_BRANCH)
                 .to_owned();
-            let branch = repo
-                .find_branch(&branch_name, git2::BranchType::Local)
-                .unwrap();
-            match Node::populate(repo, base_oid, branch, &mut possible_branches) {
+            match Node::populate(repo, base_oid, branch_oid, &mut graph_branches) {
                 Ok(branch_root) => {
                     root.merge(branch_root);
                 }
                 Err(err) => {
-                    log::debug!("Branch {} looks irrelevant: {}", branch_name, err);
+                    log::error!("Unhandled branch {}: {}", branch_name, err);
                 }
             }
         }
     }
 
-    let unused_branches = possible_branches
-        .iter()
-        .flat_map(|(_, branches)| branches)
-        .filter_map(|branch| branch.name().ok().flatten())
-        .join(", ");
-    log::debug!("Unaffected branches: {}", unused_branches);
+    if !graph_branches.is_empty() {
+        let unused_branches = graph_branches
+            .iter()
+            .flat_map(|(_, branches)| branches)
+            .filter_map(|branch| branch.name().ok().flatten())
+            .join(", ");
+        log::error!("Unhandled branches: {}", unused_branches);
+    }
 
     Ok(root)
 }
@@ -101,23 +51,30 @@ impl<'r> Node<'r> {
     fn populate(
         repo: &'r git2::Repository,
         base_oid: git2::Oid,
-        head_branch: git2::Branch<'r>,
-        branches: &mut std::collections::BTreeMap<git2::Oid, Vec<git2::Branch<'r>>>,
+        head_oid: git2::Oid,
+        branches: &mut crate::branches::Branches<'r>,
     ) -> Result<Self, git2::Error> {
-        let head_name = head_branch.name()?.unwrap_or(crate::git::NO_BRANCH);
-        log::trace!("Populating data for {}", head_name);
-        let head_oid = head_branch.get().target().ok_or_else(|| {
-            git2::Error::new(
+        if let Some(head_branches) = branches.get(head_oid) {
+            let head_name = head_branches
+                .first()
+                .unwrap()
+                .name()?
+                .unwrap_or(crate::git::NO_BRANCH);
+            log::trace!("Populating data for {}", head_name);
+        } else {
+            log::trace!("Populating data for {}", head_oid);
+        }
+        let merge_base_oid = repo.merge_base(base_oid, head_oid)?;
+        if merge_base_oid != base_oid {
+            return Err(git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
-                format!("could not resolve HEAD ({})", head_name),
-            )
-        })?;
-        let merge_base_oid = repo.merge_base(base_oid, head_oid)?;
-        let merge_base_commit = repo.find_commit(merge_base_oid)?;
+                "HEAD must be a descendant of base",
+            ));
+        }
+        let base_commit = repo.find_commit(base_oid)?;
 
-        let mut root = Node::from_commit(merge_base_commit);
-        root.branches = branches.remove(&base_oid).unwrap_or_else(|| Vec::new());
+        let mut root = Node::from_commit(base_commit).with_branches(branches);
 
         let mut children: Vec<_> = crate::git::commits_from(&repo, head_oid)?
             .take_while(|commit| commit.id() != merge_base_oid)
@@ -139,11 +96,8 @@ impl<'r> Node<'r> {
         }
     }
 
-    fn with_branches(
-        mut self,
-        possible_branches: &mut std::collections::BTreeMap<git2::Oid, Vec<git2::Branch<'r>>>,
-    ) -> Self {
-        if let Some(branches) = possible_branches.remove(&self.local_commit.id()) {
+    fn with_branches(mut self, possible_branches: &mut crate::branches::Branches<'r>) -> Self {
+        if let Some(branches) = possible_branches.remove(self.local_commit.id()) {
             self.branches = branches;
         }
         self

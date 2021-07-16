@@ -48,6 +48,16 @@ impl<'r> Branches<'r> {
         self.branches.keys().copied()
     }
 
+    pub fn iter(&self) -> impl Iterator<Item = (git2::Oid, &[git2::Branch<'r>])> + '_ {
+        self.branches
+            .iter()
+            .map(|(oid, branch)| (*oid, branch.as_slice()))
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.branches.is_empty()
+    }
+
     pub fn all(&self, repo: &'r git2::Repository) -> Self {
         let branches = self
             .branches

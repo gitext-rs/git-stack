@@ -108,8 +108,6 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
 
     let protected_branches = branches.protected(&repo, &protected);
 
-    let head_branch =
-        git_stack::git::resolve_head_branch(&repo).with_code(proc_exit::Code::USAGE_ERR)?;
     let head_oid = git_stack::git::head_oid(&repo).with_code(proc_exit::Code::USAGE_ERR)?;
 
     let base_branch = match args.base.as_deref() {
@@ -150,8 +148,19 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
             )
         })
         .with_code(proc_exit::Code::USAGE_ERR)?;
+    let merge_base_oid = repo
+        .merge_base(base_oid, head_oid)
+        .with_code(proc_exit::Code::USAGE_ERR)?;
 
-    let root = git_stack::dag::graph(&repo, base_oid, head_branch, args.dependents, args.all)
+    let graphed_branches = if args.all {
+        branches.all(&repo)
+    } else if args.dependents {
+        branches.dependents(&repo, merge_base_oid, head_oid)
+    } else {
+        branches.branch(&repo, merge_base_oid, head_oid)
+    };
+
+    let root = git_stack::dag::graph(&repo, base_oid, head_oid, graphed_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
 
     let palette = if colored_stdout {
