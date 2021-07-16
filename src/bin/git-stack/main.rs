@@ -1,6 +1,5 @@
 use std::io::Write;
 
-use itertools::Itertools;
 use proc_exit::WithCodeResultExt;
 use structopt::StructOpt;
 
@@ -165,18 +164,11 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-    let palette = if colored_stdout {
-        Palette::colored()
-    } else {
-        Palette::plain()
-    };
-
-    let mut tree = treeline::Tree::root(RenderNode {
-        node: Some(&root),
-        palette: &palette,
-    });
-    to_tree(root.children.as_slice(), &mut tree, &palette, args.show_all);
-    writeln!(std::io::stdout(), "{}", tree)?;
+    writeln!(
+        std::io::stdout(),
+        "{}",
+        root.display().colored(colored_stdout).all(args.show_all)
+    )?;
 
     Ok(())
 }
@@ -194,130 +186,6 @@ fn rewrite(args: &Args) -> proc_exit::ExitResult {
     eyre::eyre!("Not implemented yet");
 
     Ok(())
-}
-
-fn to_tree<'r, 'n, 'p>(
-    nodes: &'n [Vec<git_stack::dag::Node<'r>>],
-    tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
-    palette: &'p Palette,
-    show_all: bool,
-) {
-    for branch in nodes {
-        let mut branch_root = treeline::Tree::root(RenderNode {
-            node: None,
-            palette,
-        });
-        for node in branch {
-            if node.branches.is_empty() && node.children.is_empty() && !show_all {
-                log::trace!("Skipping commit {}", node.local_commit.id());
-                continue;
-            }
-            let mut child_tree = treeline::Tree::root(RenderNode {
-                node: Some(node),
-                palette,
-            });
-            to_tree(node.children.as_slice(), &mut child_tree, palette, show_all);
-            branch_root.push(child_tree);
-        }
-        tree.push(branch_root);
-    }
-}
-
-struct RenderNode<'r, 'n, 'p> {
-    node: Option<&'n git_stack::dag::Node<'r>>,
-    palette: &'p Palette,
-}
-
-impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        if let Some(node) = self.node.as_ref() {
-            if node.branches.is_empty() {
-                write!(f, "{} ", self.palette.info.paint(node.local_commit.id()),)?;
-            } else if node.action == git_stack::actions::Action::Protected {
-                write!(
-                    f,
-                    "{} ",
-                    self.palette.info.paint(
-                        node.branches
-                            .iter()
-                            .map(|b| { b.name().ok().flatten().unwrap_or("<>") })
-                            .join(", ")
-                    ),
-                )?;
-            } else {
-                write!(
-                    f,
-                    "{} ",
-                    self.palette.branch.paint(
-                        node.branches
-                            .iter()
-                            .map(|b| { b.name().ok().flatten().unwrap_or("<>") })
-                            .join(", ")
-                    ),
-                )?;
-            }
-
-            let summary = node.local_commit.summary().unwrap_or("<No summary>");
-            if node.action == git_stack::actions::Action::Protected {
-                write!(f, "{}", self.palette.hint.paint(summary))?;
-            } else if 1 < node.local_commit.parent_count() {
-                write!(f, "{}", self.palette.error.paint("merge commit"))?;
-            } else if node.branches.is_empty() && !node.children.is_empty() {
-                // Branches should be off of other branches
-                write!(f, "{}", self.palette.warn.paint(summary))?;
-            } else if git_stack::git::get_fixup_target_summary(&summary).is_some() {
-                // Needs to be squashed
-                write!(f, "{}", self.palette.warn.paint(summary))?;
-            } else if is_wip(&summary) {
-                // Not for pushing implicitly
-                write!(f, "{}", self.palette.error.paint(summary))?;
-            } else {
-                write!(f, "{}", self.palette.hint.paint(summary))?;
-            }
-        } else {
-            write!(f, "o")?;
-        }
-        Ok(())
-    }
-}
-
-static WIP_PREFIXES: &[&str] = &["WIP:", "draft:", "Draft:"];
-
-fn is_wip(summary: &str) -> bool {
-    WIP_PREFIXES
-        .iter()
-        .any(|prefix| summary.starts_with(prefix))
-}
-
-#[derive(Copy, Clone, Debug)]
-pub struct Palette {
-    error: yansi::Style,
-    warn: yansi::Style,
-    info: yansi::Style,
-    branch: yansi::Style,
-    hint: yansi::Style,
-}
-
-impl Palette {
-    pub fn colored() -> Self {
-        Self {
-            error: yansi::Style::new(yansi::Color::Red),
-            warn: yansi::Style::new(yansi::Color::Yellow),
-            info: yansi::Style::new(yansi::Color::Blue),
-            branch: yansi::Style::new(yansi::Color::Green),
-            hint: yansi::Style::new(yansi::Color::Blue).dimmed(),
-        }
-    }
-
-    pub fn plain() -> Self {
-        Self {
-            error: yansi::Style::default(),
-            warn: yansi::Style::default(),
-            info: yansi::Style::default(),
-            branch: yansi::Style::default(),
-            hint: yansi::Style::default(),
-        }
-    }
 }
 
 #[derive(structopt::StructOpt)]
