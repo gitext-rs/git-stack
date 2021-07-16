@@ -95,15 +95,14 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
 
     let repo_config =
         git_stack::config::RepoConfig::from_all(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
-    let mut protected_branches = ignore::gitignore::GitignoreBuilder::new("");
-    for branch in repo_config.protected_branches.iter().flatten() {
-        protected_branches
-            .add_line(None, branch)
-            .with_code(proc_exit::Code::CONFIG_ERR)?;
-    }
-    let protected_branches = protected_branches
-        .build()
-        .with_code(proc_exit::Code::CONFIG_ERR)?;
+    let protected_branches = git_stack::protect::ProtectedBranches::new(
+        repo_config
+            .protected_branches
+            .iter()
+            .flatten()
+            .map(|s| s.as_str()),
+    )
+    .with_code(proc_exit::Code::CONFIG_ERR)?;
 
     let base_branch = args
         .base

@@ -6,3 +6,4 @@ pub mod config;
 pub mod dag;
 pub mod git;
 pub mod log;
+pub mod protect;

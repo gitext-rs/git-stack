@@ -6,7 +6,7 @@ pub fn graph<'r>(
     head_branch: git2::Branch<'r>,
     dependents: bool,
     all: bool,
-    protected_branches: &ignore::gitignore::Gitignore,
+    protected_branches: &crate::protect::ProtectedBranches,
 ) -> Result<Node<'r>, git2::Error> {
     log::trace!("Loading branches");
     let mut possible_branches = std::collections::BTreeMap::new();
@@ -36,9 +36,7 @@ pub fn graph<'r>(
                         .flatten()
                         .unwrap_or(crate::git::NO_BRANCH)
                         .to_owned();
-                    let branch_match =
-                        protected_branches.matched_path_or_any_parents(&branch_name, false);
-                    if branch_match.is_ignore() {
+                    if protected_branches.is_protected(&branch_name) {
                         log::trace!("Branch {} is protected", branch_name);
                         Some(branch_name)
                     } else {
