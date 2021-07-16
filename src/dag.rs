@@ -2,7 +2,7 @@ use itertools::Itertools;
 
 pub fn graph<'r>(
     repo: &'r git2::Repository,
-    base_oid: git2::Oid,
+    mut base_oid: git2::Oid,
     head_oid: git2::Oid,
     mut graph_branches: crate::branches::Branches<'r>,
 ) -> Result<Node<'r>, git2::Error> {
@@ -11,13 +11,30 @@ pub fn graph<'r>(
     if !graph_branches.is_empty() {
         let branch_oids: Vec<_> = graph_branches.oids().collect();
         for branch_oid in branch_oids {
-            let branches = graph_branches.get(branch_oid).unwrap();
+            let branches = if let Some(branches) = graph_branches.get(branch_oid) {
+                branches
+            } else {
+                continue;
+            };
             let branch_name = branches
                 .first()
                 .unwrap()
                 .name()?
                 .unwrap_or(crate::git::NO_BRANCH)
                 .to_owned();
+            let merge_base_oid = repo.merge_base(base_oid, branch_oid)?;
+            if merge_base_oid != base_oid {
+                match Node::populate(repo, merge_base_oid, base_oid, &mut graph_branches) {
+                    Ok(mut prefix) => {
+                        prefix.push(root);
+                        root = prefix;
+                    }
+                    Err(err) => {
+                        log::error!("Could not generate prefix for {}: {}", branch_name, err);
+                    }
+                }
+                base_oid = merge_base_oid;
+            }
             match Node::populate(repo, base_oid, branch_oid, &mut graph_branches) {
                 Ok(branch_root) => {
                     root.merge(branch_root);
@@ -109,10 +126,33 @@ impl<'r> Node<'r> {
         self
     }
 
-    fn merge(&mut self, other: Self) {
+    fn push(&mut self, other: Self) {
+        let other_oid = other.local_commit.id();
+        if self.local_commit.id() == other_oid {
+            self.merge(other);
+        } else if self.children.len() == 1 {
+            let child = &mut self.children[0];
+            for node in child.iter_mut() {
+                if node.local_commit.id() == other_oid {
+                    node.merge(other);
+                    return;
+                }
+            }
+            unimplemented!("This case isn't needed yet");
+        } else {
+            unimplemented!("This case isn't needed yet");
+        }
+    }
+
+    fn merge(&mut self, mut other: Self) {
         if self.local_commit.id() != other.local_commit.id() {
             return;
         }
+
+        let mut branches = Vec::new();
+        std::mem::swap(&mut other.branches, &mut branches);
+        self.branches.extend(branches);
+
         let other_children = other.children;
         for mut other_children_branch in other_children {
             assert!(!other_children_branch.is_empty());
