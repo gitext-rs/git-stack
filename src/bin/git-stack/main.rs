@@ -160,7 +160,9 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         branches.branch(&repo, merge_base_oid, head_oid)
     };
 
-    let root = git_stack::dag::graph(&repo, base_oid, head_oid, graphed_branches)
+    let mut root = git_stack::dag::graph(&repo, base_oid, head_oid, graphed_branches)
+        .with_code(proc_exit::Code::CONFIG_ERR)?;
+    git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
 
     let palette = if colored_stdout {
@@ -230,7 +232,18 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
-                write!(f, "{} ", self.palette.commit.paint(node.local_commit.id()),)?;
+                write!(f, "{} ", self.palette.info.paint(node.local_commit.id()),)?;
+            } else if node.action == git_stack::actions::Action::Protected {
+                write!(
+                    f,
+                    "{} ",
+                    self.palette.info.paint(
+                        node.branches
+                            .iter()
+                            .map(|b| { b.name().ok().flatten().unwrap_or("<>") })
+                            .join(", ")
+                    ),
+                )?;
             } else {
                 write!(
                     f,
@@ -245,7 +258,9 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
             }
 
             let summary = node.local_commit.summary().unwrap_or("<No summary>");
-            if 1 < node.local_commit.parent_count() {
+            if node.action == git_stack::actions::Action::Protected {
+                write!(f, "{}", self.palette.hint.paint(summary))?;
+            } else if 1 < node.local_commit.parent_count() {
                 write!(f, "{}", self.palette.error.paint("merge commit"))?;
             } else if node.branches.is_empty() && !node.children.is_empty() {
                 // Branches should be off of other branches
@@ -257,7 +272,7 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                 // Not for pushing implicitly
                 write!(f, "{}", self.palette.error.paint(summary))?;
             } else {
-                write!(f, "{}", self.palette.summary.paint(summary))?;
+                write!(f, "{}", self.palette.hint.paint(summary))?;
             }
         } else {
             write!(f, "o")?;
@@ -280,8 +295,7 @@ pub struct Palette {
     warn: yansi::Style,
     info: yansi::Style,
     branch: yansi::Style,
-    commit: yansi::Style,
-    summary: yansi::Style,
+    hint: yansi::Style,
 }
 
 impl Palette {
@@ -291,8 +305,7 @@ impl Palette {
             warn: yansi::Style::new(yansi::Color::Yellow),
             info: yansi::Style::new(yansi::Color::Blue),
             branch: yansi::Style::new(yansi::Color::Green),
-            commit: yansi::Style::new(yansi::Color::Blue),
-            summary: yansi::Style::new(yansi::Color::Blue).dimmed(),
+            hint: yansi::Style::new(yansi::Color::Blue).dimmed(),
         }
     }
 
@@ -302,8 +315,7 @@ impl Palette {
             warn: yansi::Style::default(),
             info: yansi::Style::default(),
             branch: yansi::Style::default(),
-            commit: yansi::Style::default(),
-            summary: yansi::Style::default(),
+            hint: yansi::Style::default(),
         }
     }
 }

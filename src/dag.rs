@@ -45,6 +45,7 @@ pub struct Node<'r> {
     pub local_commit: git2::Commit<'r>,
     pub branches: Vec<git2::Branch<'r>>,
     pub children: Vec<Vec<Node<'r>>>,
+    pub action: crate::actions::Action,
 }
 
 impl<'r> Node<'r> {
@@ -93,6 +94,7 @@ impl<'r> Node<'r> {
             local_commit,
             branches,
             children,
+            action: crate::actions::Action::Pick,
         }
     }
 
@@ -195,4 +197,49 @@ impl<'r> std::fmt::Debug for Node<'r> {
             .field("children", &self.children)
             .finish()
     }
+}
+
+pub fn protect_branches<'r>(
+    root: &mut Node<'r>,
+    repo: &'r git2::Repository,
+    protected_branches: &crate::branches::Branches<'r>,
+) -> Result<(), git2::Error> {
+    // Assuming the root is the base.  The base is not guaranteed to be a protected brancch but
+    // might be an ancestor of one.
+    for protected_oid in protected_branches.oids() {
+        if let Ok(merge_base_oid) = repo.merge_base(root.local_commit.id(), protected_oid) {
+            if merge_base_oid == root.local_commit.id() {
+                root.action = crate::actions::Action::Protected;
+                break;
+            }
+        }
+    }
+
+    for children in root.children.iter_mut() {
+        protect_branches_internal(children, repo, protected_branches)?;
+    }
+
+    Ok(())
+}
+
+fn protect_branches_internal<'r>(
+    nodes: &mut Vec<Node<'r>>,
+    repo: &'r git2::Repository,
+    protected_branches: &crate::branches::Branches<'r>,
+) -> Result<bool, git2::Error> {
+    let mut descendant_protected = false;
+    for node in nodes.iter_mut().rev() {
+        let mut children_protected = false;
+        for children in node.children.iter_mut() {
+            let child_protected = protect_branches_internal(children, repo, protected_branches)?;
+            children_protected |= child_protected;
+        }
+        let self_protected = protected_branches.contains_oid(node.local_commit.id());
+        if descendant_protected || children_protected || self_protected {
+            node.action = crate::actions::Action::Protected;
+            descendant_protected = true;
+        }
+    }
+
+    Ok(descendant_protected)
 }

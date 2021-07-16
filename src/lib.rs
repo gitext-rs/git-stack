@@ -1,6 +1,7 @@
 #[macro_use]
 extern crate clap;
 
+pub mod actions;
 pub mod branches;
 pub mod color;
 pub mod config;
