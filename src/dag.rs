@@ -2,11 +2,10 @@ use itertools::Itertools;
 
 pub fn graph<'r>(
     repo: &'r git2::Repository,
-    base_oid: Option<git2::Oid>,
+    base_oid: git2::Oid,
     head_branch: git2::Branch<'r>,
     dependents: bool,
     all: bool,
-    protected_branches: &crate::protect::ProtectedBranches,
 ) -> Result<Node<'r>, git2::Error> {
     log::trace!("Loading branches");
     let mut possible_branches = std::collections::BTreeMap::new();
@@ -23,65 +22,6 @@ pub fn graph<'r>(
             log::debug!("Could not resolve branch {}", branch_name);
         }
     }
-
-    let protected_oids: std::collections::HashMap<_, _> = possible_branches
-        .iter()
-        .filter_map(|(oid, branches)| {
-            let branch_name = branches
-                .iter()
-                .filter_map(|b| {
-                    let branch_name = b
-                        .name()
-                        .ok()
-                        .flatten()
-                        .unwrap_or(crate::git::NO_BRANCH)
-                        .to_owned();
-                    if protected_branches.is_protected(&branch_name) {
-                        log::trace!("Branch {} is protected", branch_name);
-                        Some(branch_name)
-                    } else {
-                        None
-                    }
-                })
-                .next();
-            branch_name.map(|branch_name| (*oid, branch_name))
-        })
-        .collect();
-
-    let base_oid = base_oid.map(Ok).unwrap_or_else(|| {
-        let head_name = head_branch.name()?.unwrap_or(crate::git::NO_BRANCH);
-        let head_oid = head_branch.get().target().ok_or_else(|| {
-            git2::Error::new(
-                git2::ErrorCode::NotFound,
-                git2::ErrorClass::Reference,
-                format!("could not resolve HEAD ({})", head_name),
-            )
-        })?;
-        let protected_base_oids: std::collections::HashMap<_, _> = protected_oids
-            .iter()
-            .filter_map(|(oid, name)| {
-                repo.merge_base(head_oid, *oid)
-                    .ok()
-                    .map(|base_oid| (base_oid, name))
-            })
-            .collect();
-        crate::git::commits_from(&repo, head_oid)?
-            .filter_map(|commit| {
-                if protected_base_oids.contains_key(&commit.id()) {
-                    Some(commit.id())
-                } else {
-                    None
-                }
-            })
-            .next()
-            .ok_or_else(|| {
-                git2::Error::new(
-                    git2::ErrorCode::NotFound,
-                    git2::ErrorClass::Reference,
-                    "could not find a protected branch to use as a base",
-                )
-            })
-    })?;
 
     let head_oid = head_branch.get().target().ok_or_else(|| {
         git2::Error::new(

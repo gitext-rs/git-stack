@@ -95,7 +95,7 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
 
     let repo_config =
         git_stack::config::RepoConfig::from_all(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
-    let protected_branches = git_stack::protect::ProtectedBranches::new(
+    let protected = git_stack::protect::ProtectedBranches::new(
         repo_config
             .protected_branches
             .iter()
@@ -103,41 +103,56 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
             .map(|s| s.as_str()),
     )
     .with_code(proc_exit::Code::CONFIG_ERR)?;
+    let branches =
+        git_stack::branches::Branches::new(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
 
-    let base_branch = args
-        .base
-        .as_deref()
-        .map(|name| git_stack::git::resolve_branch(&repo, name))
-        .transpose()
-        .with_code(proc_exit::Code::USAGE_ERR)?;
-    let base_oid = base_branch
-        .map(|b| {
-            b.get().target().ok_or_else(|| {
-                git2::Error::new(
-                    git2::ErrorCode::NotFound,
-                    git2::ErrorClass::Reference,
-                    format!(
-                        "could not resolve {}",
-                        b.name().ok().flatten().unwrap_or(git_stack::git::NO_BRANCH)
-                    ),
-                )
-            })
-        })
-        .transpose()
-        .with_code(proc_exit::Code::USAGE_ERR)?;
+    let protected_branches = branches.protected(&repo, &protected);
 
     let head_branch =
         git_stack::git::resolve_head_branch(&repo).with_code(proc_exit::Code::USAGE_ERR)?;
+    let head_oid = git_stack::git::head_oid(&repo).with_code(proc_exit::Code::USAGE_ERR)?;
 
-    let root = git_stack::dag::graph(
-        &repo,
-        base_oid,
-        head_branch,
-        args.dependents,
-        args.all,
-        &protected_branches,
-    )
-    .with_code(proc_exit::Code::CONFIG_ERR)?;
+    let base_branch = match args.base.as_deref() {
+        Some(branch_name) => git_stack::git::resolve_branch(&repo, branch_name)
+            .with_code(proc_exit::Code::USAGE_ERR)?,
+        None => {
+            let branch =
+                git_stack::branches::find_protected_base(&repo, &protected_branches, head_oid)
+                    .with_code(proc_exit::Code::USAGE_ERR)?;
+            log::debug!(
+                "Chose branch {} as the base",
+                branch
+                    .name()
+                    .ok()
+                    .flatten()
+                    .unwrap_or(git_stack::git::NO_BRANCH)
+            );
+            git_stack::branches::clone_local_branch(&repo, branch)
+                .expect("previously confirmed to be valid")
+        }
+    };
+
+    let base_oid = base_branch
+        .get()
+        .target()
+        .ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                format!(
+                    "could not resolve {}",
+                    base_branch
+                        .name()
+                        .ok()
+                        .flatten()
+                        .unwrap_or(git_stack::git::NO_BRANCH)
+                ),
+            )
+        })
+        .with_code(proc_exit::Code::USAGE_ERR)?;
+
+    let root = git_stack::dag::graph(&repo, base_oid, head_branch, args.dependents, args.all)
+        .with_code(proc_exit::Code::CONFIG_ERR)?;
 
     let palette = if colored_stdout {
         Palette::colored()
