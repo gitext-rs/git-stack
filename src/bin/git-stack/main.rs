@@ -183,7 +183,85 @@ fn rewrite(args: &Args) -> proc_exit::ExitResult {
     if args.onto.is_some() {
         log::debug!("--onto is not implemented yet");
     }
-    eyre::eyre!("Not implemented yet");
+
+    log::trace!("Initializing");
+    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
+    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
+
+    let repo_config =
+        git_stack::config::RepoConfig::from_all(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
+    let protected = git_stack::protect::ProtectedBranches::new(
+        repo_config
+            .protected_branches
+            .iter()
+            .flatten()
+            .map(|s| s.as_str()),
+    )
+    .with_code(proc_exit::Code::CONFIG_ERR)?;
+    let branches =
+        git_stack::branches::Branches::new(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
+
+    let protected_branches = branches.protected(&repo, &protected);
+
+    let head_oid = git_stack::git::head_oid(&repo).with_code(proc_exit::Code::USAGE_ERR)?;
+
+    let base_branch = match args.base.as_deref() {
+        Some(branch_name) => git_stack::git::resolve_branch(&repo, branch_name)
+            .with_code(proc_exit::Code::USAGE_ERR)?,
+        None => {
+            let branch =
+                git_stack::branches::find_protected_base(&repo, &protected_branches, head_oid)
+                    .with_code(proc_exit::Code::USAGE_ERR)?;
+            log::debug!(
+                "Chose branch {} as the base",
+                branch
+                    .name()
+                    .ok()
+                    .flatten()
+                    .unwrap_or(git_stack::git::NO_BRANCH)
+            );
+            git_stack::branches::clone_local_branch(&repo, branch)
+                .expect("previously confirmed to be valid")
+        }
+    };
+
+    let base_oid = base_branch
+        .get()
+        .target()
+        .ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                format!(
+                    "could not resolve {}",
+                    base_branch
+                        .name()
+                        .ok()
+                        .flatten()
+                        .unwrap_or(git_stack::git::NO_BRANCH)
+                ),
+            )
+        })
+        .with_code(proc_exit::Code::USAGE_ERR)?;
+    let merge_base_oid = repo
+        .merge_base(base_oid, head_oid)
+        .with_code(proc_exit::Code::USAGE_ERR)?;
+
+    let graphed_branches = if args.all {
+        branches.all(&repo)
+    } else if args.dependents {
+        branches.dependents(&repo, merge_base_oid, head_oid)
+    } else {
+        branches.branch(&repo, merge_base_oid, head_oid)
+    };
+
+    let mut root = git_stack::dag::graph(&repo, base_oid, head_oid, graphed_branches)
+        .with_code(proc_exit::Code::CONFIG_ERR)?;
+    git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
+        .with_code(proc_exit::Code::CONFIG_ERR)?;
+    git_stack::dag::rebase_branches(&mut root, base_oid).with_code(proc_exit::Code::CONFIG_ERR)?;
+
+    println!("{:?}", root);
 
     Ok(())
 }

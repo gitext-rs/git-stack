@@ -199,6 +199,7 @@ impl<'r> std::fmt::Debug for Node<'r> {
             .field("local_commit", &self.local_commit.id())
             .field("branches", &branches)
             .field("children", &self.children)
+            .field("action", &self.action)
             .finish()
     }
 }
@@ -416,4 +417,42 @@ fn protect_branches_internal<'r>(
     }
 
     Ok(descendant_protected)
+}
+
+pub fn rebase_branches<'r>(node: &mut Node<'r>, new_base: git2::Oid) -> Result<(), git2::Error> {
+    rebase_branches_internal(node, new_base)?;
+
+    Ok(())
+}
+
+/// Mark a new base commit for the last protected commit on each branch.
+fn rebase_branches_internal<'r>(
+    node: &mut Node<'r>,
+    new_base: git2::Oid,
+) -> Result<bool, git2::Error> {
+    let mut all_children_rebased = true;
+    for child in node.children.iter_mut() {
+        let mut child_rebased = false;
+        for node in child.iter_mut().rev() {
+            let node_rebase = rebase_branches_internal(node, new_base)?;
+            if node_rebase {
+                child_rebased = true;
+                break;
+            }
+        }
+        if !child_rebased {
+            all_children_rebased = false;
+        }
+    }
+
+    if all_children_rebased {
+        return Ok(true);
+    }
+
+    if node.action == crate::actions::Action::Protected {
+        node.action = crate::actions::Action::Rebase(new_base);
+        Ok(true)
+    } else {
+        Ok(false)
+    }
 }
