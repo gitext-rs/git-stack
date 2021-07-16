@@ -179,8 +179,20 @@ impl<'r> Node<'r> {
 
 impl<'r> std::fmt::Debug for Node<'r> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let branches: Vec<_> = self
+            .branches
+            .iter()
+            .map(|b| {
+                b.name()
+                    .ok()
+                    .flatten()
+                    .unwrap_or(crate::git::NO_BRANCH)
+                    .to_owned()
+            })
+            .collect();
         f.debug_struct("Node")
             .field("local_commit", &self.local_commit.id())
+            .field("branches", &branches)
             .field("children", &self.children)
             .finish()
     }
