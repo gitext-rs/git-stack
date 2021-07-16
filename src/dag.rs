@@ -113,7 +113,6 @@ impl<'r> Node<'r> {
         branches: &mut std::collections::BTreeMap<git2::Oid, Vec<git2::Branch<'r>>>,
     ) -> Result<Self, git2::Error> {
         let base_name = base_branch.name()?.unwrap_or(crate::git::NO_BRANCH);
-        log::trace!("Populating data for {}", base_name);
         let base_oid = base_branch.get().target().ok_or_else(|| {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
@@ -127,6 +126,7 @@ impl<'r> Node<'r> {
             .unwrap()
             .name()?
             .unwrap_or(crate::git::NO_BRANCH);
+        log::trace!("Populating data for {}..{}", base_name, head_name);
         let head_oid = head_branch.first().unwrap().get().target().ok_or_else(|| {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
