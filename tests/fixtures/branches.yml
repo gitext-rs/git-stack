@@ -37,12 +37,12 @@ events:
           "file_a.txt": "3"
           "file_c.txt": "1"
         message: "7"
+        branch: feature1
     - tree:
         tracked:
           "file_a.txt": "3"
           "file_c.txt": "2"
         message: "8"
-        branch: feature1
     - tree:
         tracked:
           "file_a.txt": "3"

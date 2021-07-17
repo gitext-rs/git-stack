@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use itertools::Itertools;
 use proc_exit::WithCodeResultExt;
 use structopt::StructOpt;
 
@@ -100,7 +101,7 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     )
     .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-    let repo = git_stack::repo::GitRepo::new(repo);
+    let mut repo = git_stack::repo::GitRepo::new(repo);
 
     let branches = git_stack::branches::Branches::new(repo.local_branches());
 
@@ -108,7 +109,7 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
 
     let head_commit = repo.head_commit();
     let head_oid = head_commit.id;
-    let _head_branch = if let Some(branch) = branches.get(head_oid) {
+    let head_branch = if let Some(branch) = branches.get(head_oid) {
         IntoIterator::into_iter(branch).next().unwrap()
     } else {
         return Err(eyre::eyre!("Must not be in a detached HEAD state."))
@@ -166,6 +167,52 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         }
     };
 
+    if !args.show {
+        let mut root = git_stack::dag::graph(
+            &repo,
+            merge_base_oid,
+            head_oid,
+            &protected_branches,
+            graphed_branches.clone(),
+        )
+        .with_code(proc_exit::Code::CONFIG_ERR)?;
+
+        git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
+            .with_code(proc_exit::Code::CONFIG_ERR)?;
+
+        let onto_oid = args
+            .onto
+            .as_deref()
+            .map(|o| {
+                repo.resolve(o)
+                    .ok_or_else(|| eyre::eyre!("Could not resolve `--onto={}` into a commit", o))
+            })
+            .transpose()
+            .with_code(proc_exit::Code::USAGE_ERR)?
+            .map(|c| c.id)
+            .unwrap_or(base_oid);
+        git_stack::dag::rebase_branches(&mut root, onto_oid)
+            .with_code(proc_exit::Code::CONFIG_ERR)?;
+
+        git_stack::dag::delinearize(&mut root);
+
+        let mut executor = git_stack::commands::Executor::new(&repo, args.dry_run);
+        let script = git_stack::dag::to_script(&root);
+        let results = executor.run_script(&mut repo, &script);
+        for (err, name, dependents) in results.iter() {
+            log::error!("Failed to re-stack branch `{}`: {}", name, err);
+            if !dependents.is_empty() {
+                log::error!("  Blocked dependents: {}", dependents.iter().join(", "));
+            }
+        }
+        executor
+            .close(&mut repo, &head_branch.name)
+            .with_code(proc_exit::Code::FAILURE)?;
+        if !results.is_empty() {
+            return proc_exit::Code::FAILURE.ok();
+        }
+    }
+
     let mut root = git_stack::dag::graph(
         &repo,
         merge_base_oid,
@@ -179,8 +226,6 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     if !repo_config.show_stacked() {
         git_stack::dag::delinearize(&mut root);
     }
-
-    let root = if args.show { root } else { root };
 
     match repo_config.show_format() {
         git_stack::config::Format::Silent => (),
@@ -234,7 +279,10 @@ struct Args {
 
     /// Branch to rebase onto (default: base)
     #[structopt(long)]
-    _onto: Option<String>,
+    onto: Option<String>,
+
+    #[structopt(short = "n", long)]
+    dry_run: bool,
 
     /// Only show stack relationship
     #[structopt(short, long)]

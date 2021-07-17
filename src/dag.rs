@@ -507,3 +507,126 @@ fn delinearize_internal(nodes: &mut Vec<Node>) {
         nodes.last_mut().unwrap().children.push(child);
     }
 }
+
+pub fn to_script(node: &Node) -> crate::commands::Script {
+    let mut script = crate::commands::Script::new();
+
+    match node.action {
+        crate::actions::Action::Pick => {
+            // The base should be immutable, so nothing to cherry-pick
+            let child_mark = node.local_commit.id;
+            script
+                .commands
+                .push(crate::commands::Command::SwitchCommit(child_mark));
+            script
+                .commands
+                .push(crate::commands::Command::RegisterMark(child_mark));
+            for child in node.children.iter() {
+                script
+                    .dependents
+                    .extend(to_script_internal(child, node.local_commit.id, false));
+            }
+        }
+        crate::actions::Action::Protected => {
+            let child_mark = node.local_commit.id;
+            script
+                .commands
+                .push(crate::commands::Command::SwitchCommit(child_mark));
+            script
+                .commands
+                .push(crate::commands::Command::RegisterMark(child_mark));
+            for child in node.children.iter() {
+                script
+                    .dependents
+                    .extend(to_script_internal(child, node.local_commit.id, true));
+            }
+        }
+        crate::actions::Action::Rebase(new_base) => {
+            script
+                .commands
+                .push(crate::commands::Command::SwitchCommit(new_base));
+            script
+                .commands
+                .push(crate::commands::Command::RegisterMark(new_base));
+            for child in node.children.iter() {
+                script
+                    .dependents
+                    .extend(to_script_internal(child, new_base, false));
+            }
+        }
+    }
+
+    script
+}
+
+fn to_script_internal(
+    nodes: &[Node],
+    base_mark: git2::Oid,
+    mut is_protected: bool,
+) -> Option<crate::commands::Script> {
+    let mut script = crate::commands::Script::new();
+    for node in nodes {
+        match node.action {
+            crate::actions::Action::Pick => {
+                script
+                    .commands
+                    .push(crate::commands::Command::CherryPick(node.local_commit.id));
+                for branch in node.branches.iter() {
+                    script
+                        .commands
+                        .push(crate::commands::Command::CreateBranch(branch.name.clone()));
+                }
+
+                if !node.children.is_empty() {
+                    let child_mark = node.local_commit.id;
+                    script
+                        .commands
+                        .push(crate::commands::Command::RegisterMark(child_mark));
+                    for child in node.children.iter() {
+                        script
+                            .dependents
+                            .extend(to_script_internal(child, child_mark, false));
+                    }
+                }
+
+                is_protected = false;
+            }
+            crate::actions::Action::Protected => {
+                assert!(
+                    is_protected,
+                    "`protected_branches()` should only leave continuous protected commits"
+                );
+                for child in node.children.iter() {
+                    script
+                        .dependents
+                        .extend(to_script_internal(child, node.local_commit.id, true));
+                }
+            }
+            crate::actions::Action::Rebase(new_base) => {
+                script
+                    .commands
+                    .push(crate::commands::Command::SwitchCommit(new_base));
+                script
+                    .commands
+                    .push(crate::commands::Command::RegisterMark(new_base));
+                for child in node.children.iter() {
+                    script
+                        .dependents
+                        .extend(to_script_internal(child, new_base, false));
+                }
+                is_protected = true;
+            }
+        }
+    }
+
+    if !script.commands.is_empty() {
+        script
+            .commands
+            .insert(0, crate::commands::Command::SwitchMark(base_mark));
+    }
+    if script.commands.is_empty() && script.dependents.is_empty() {
+        None
+    } else {
+        Some(script)
+    }
+}

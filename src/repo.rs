@@ -12,9 +12,17 @@ pub trait Repo {
         &self,
         head_id: git2::Oid,
     ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_>;
+    fn cherry_pick(
+        &mut self,
+        head_id: git2::Oid,
+        cherry_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error>;
 
+    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error>;
     fn find_local_branch(&self, name: &str) -> Option<Branch>;
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_>;
+    fn detach(&mut self) -> Result<(), git2::Error>;
+    fn switch(&mut self, name: &str) -> Result<(), git2::Error>;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -134,6 +142,46 @@ impl GitRepo {
             .filter_map(move |oid| self.find_commit(oid))
     }
 
+    fn cherry_pick(
+        &mut self,
+        head_id: git2::Oid,
+        cherry_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
+        // TODO: Look at doing this via rebase to preserve more of the original commit
+
+        // Based on https://www.pygit2.org/recipes/git-cherry-pick.html
+        let base_id = self.repo.merge_base(head_id, cherry_id)?;
+        let base_commit = self.repo.find_commit(base_id)?;
+        let base_tree = self.repo.find_tree(base_commit.tree_id())?;
+
+        let head_commit = self.repo.find_commit(head_id)?;
+        let head_tree = self.repo.find_tree(head_commit.tree_id())?;
+
+        let cherry_commit = self.repo.find_commit(cherry_id)?;
+        let cherry_tree = self.repo.find_tree(cherry_commit.tree_id())?;
+
+        let mut result_index = self
+            .repo
+            .merge_trees(&base_tree, &head_tree, &cherry_tree, None)?;
+        let result_id = result_index.write_tree_to(&self.repo)?;
+        let result_tree = self.repo.find_tree(result_id)?;
+        let new_id = self.repo.commit(
+            None,
+            &cherry_commit.author(),
+            &cherry_commit.committer(),
+            cherry_commit.message().unwrap(),
+            &result_tree,
+            &[&head_commit],
+        )?;
+        Ok(new_id)
+    }
+
+    pub fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
+        let commit = self.repo.find_commit(id)?;
+        self.repo.branch(&name, &commit, true)?;
+        Ok(())
+    }
+
     pub fn find_local_branch(&self, name: &str) -> Option<Branch> {
         let branch = self.repo.find_branch(name, git2::BranchType::Local).ok()?;
         let id = branch.get().target().unwrap();
@@ -167,6 +215,26 @@ impl GitRepo {
                 })
             })
     }
+
+    pub fn detach(&mut self) -> Result<(), git2::Error> {
+        let head_id = self
+            .repo
+            .head()
+            .unwrap()
+            .resolve()
+            .unwrap()
+            .target()
+            .unwrap();
+        self.repo.set_head_detached(head_id)?;
+        Ok(())
+    }
+
+    pub fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
+        let branch = self.repo.find_branch(name, git2::BranchType::Local)?;
+        self.repo.set_head(branch.get().name().unwrap())?;
+        self.repo.checkout_head(None)?;
+        Ok(())
+    }
 }
 
 impl Repo for GitRepo {
@@ -197,12 +265,32 @@ impl Repo for GitRepo {
         Box::new(self.commits_from(head_id))
     }
 
+    fn cherry_pick(
+        &mut self,
+        head_id: git2::Oid,
+        cherry_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
+        self.cherry_pick(head_id, cherry_id)
+    }
+
+    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
+        self.branch(name, id)
+    }
+
     fn find_local_branch(&self, name: &str) -> Option<Branch> {
         self.find_local_branch(name)
     }
 
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_> {
         Box::new(self.local_branches())
+    }
+
+    fn detach(&mut self) -> Result<(), git2::Error> {
+        self.detach()
+    }
+
+    fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
+        self.switch(name)
     }
 }
 
@@ -211,7 +299,7 @@ pub struct InMemoryRepo {
     branches: std::collections::HashMap<String, Branch>,
     head_id: Option<git2::Oid>,
 
-    last_id: usize,
+    last_id: std::sync::atomic::AtomicUsize,
 }
 
 impl InMemoryRepo {
@@ -220,7 +308,7 @@ impl InMemoryRepo {
             commits: Default::default(),
             branches: Default::default(),
             head_id: Default::default(),
-            last_id: Default::default(),
+            last_id: std::sync::atomic::AtomicUsize::new(1),
         }
     }
 
@@ -229,8 +317,10 @@ impl InMemoryRepo {
     }
 
     pub fn gen_id(&mut self) -> git2::Oid {
-        let sha = format!("{:x}", self.last_id);
-        self.last_id += 1;
+        let last_id = self
+            .last_id
+            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let sha = format!("{:x}", last_id);
         git2::Oid::from_str(&sha).unwrap()
     }
 
@@ -293,12 +383,59 @@ impl InMemoryRepo {
         }
     }
 
+    pub fn cherry_pick(
+        &mut self,
+        head_id: git2::Oid,
+        cherry_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
+        let cherry_commit = self.find_commit(cherry_id).ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                format!("could not find commit {:?}", cherry_id),
+            )
+        })?;
+        let mut cherry_commit = Commit::clone(&cherry_commit);
+        let new_id = self.gen_id();
+        cherry_commit.id = new_id;
+        self.commits
+            .insert(new_id, (Some(head_id), std::rc::Rc::new(cherry_commit)));
+        Ok(new_id)
+    }
+
+    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
+        self.branches.insert(
+            name.to_owned(),
+            Branch {
+                name: name.to_owned(),
+                id,
+            },
+        );
+        Ok(())
+    }
+
     pub fn find_local_branch(&self, name: &str) -> Option<Branch> {
         self.branches.get(name).cloned()
     }
 
     pub fn local_branches(&self) -> impl Iterator<Item = Branch> + '_ {
         self.branches.values().cloned()
+    }
+
+    pub fn detach(&mut self) -> Result<(), git2::Error> {
+        Ok(())
+    }
+
+    pub fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
+        let branch = self.find_local_branch(name).ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                format!("could not find branch {:?}", name),
+            )
+        })?;
+        self.head_id = Some(branch.id);
+        Ok(())
     }
 }
 
@@ -349,11 +486,31 @@ impl Repo for InMemoryRepo {
         Box::new(self.commits_from(head_id))
     }
 
+    fn cherry_pick(
+        &mut self,
+        head_id: git2::Oid,
+        cherry_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
+        self.cherry_pick(head_id, cherry_id)
+    }
+
+    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
+        self.branch(name, id)
+    }
+
     fn find_local_branch(&self, name: &str) -> Option<Branch> {
         self.find_local_branch(name)
     }
 
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_> {
         Box::new(self.local_branches())
+    }
+
+    fn detach(&mut self) -> Result<(), git2::Error> {
+        self.detach()
+    }
+
+    fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
+        self.switch(name)
     }
 }
