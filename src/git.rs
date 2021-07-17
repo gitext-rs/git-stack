@@ -1,3 +1,5 @@
+use itertools::Itertools;
+
 pub static NO_BRANCH: &str = "<>";
 
 pub fn default_branch<'c>(config: &'c git2::Config) -> &'c str {
@@ -53,6 +55,22 @@ pub fn head_oid(repo: &git2::Repository) -> Result<git2::Oid, git2::Error> {
         )
     })?;
     Ok(oid)
+}
+
+pub fn is_dirty(repo: &git2::Repository) -> Result<bool, git2::Error> {
+    let status = repo.statuses(Some(git2::StatusOptions::new().include_ignored(false)))?;
+    if status.is_empty() {
+        Ok(false)
+    } else {
+        log::trace!(
+            "Repository is dirty: {}",
+            status
+                .iter()
+                .flat_map(|s| s.path().map(|s| s.to_owned()))
+                .join(", ")
+        );
+        Ok(true)
+    }
 }
 
 pub fn reorder_fixup<'c, 'r>(commits: &'c [git2::Commit<'r>]) -> Vec<&'c git2::Commit<'r>> {

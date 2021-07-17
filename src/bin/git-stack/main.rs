@@ -194,6 +194,13 @@ fn rewrite(args: &Args) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
 
+    if git_stack::git::is_dirty(&repo).with_code(proc_exit::Code::USAGE_ERR)? {
+        return Err(proc_exit::Code::USAGE_ERR.with_message(format!(
+            "Repository at {} is dirty, aborting",
+            repo.workdir().unwrap().display()
+        )));
+    }
+
     let repo_config =
         git_stack::config::RepoConfig::from_all(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
     let protected = git_stack::protect::ProtectedBranches::new(
