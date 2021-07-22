@@ -1,3 +1,8 @@
+[workspace]
+members = [
+    "crates/git-fixture",
+]
+
 [package]
 name = "git-stack"
 version = "0.1.0"
