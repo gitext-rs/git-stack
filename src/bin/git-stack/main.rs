@@ -161,7 +161,7 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
 
     let mut root = git_stack::dag::graph(
         &repo,
-        base_oid,
+        merge_base_oid,
         head_oid,
         &protected_branches,
         graphed_branches,
@@ -270,7 +270,7 @@ fn rewrite(args: &Args) -> proc_exit::ExitResult {
 
     let mut root = git_stack::dag::graph(
         &repo,
-        base_oid,
+        merge_base_oid,
         head_oid,
         &protected_branches,
         graphed_branches,
