@@ -108,7 +108,9 @@ impl<'r> Node<'r> {
             .map(|commit| Node::from_commit(commit).with_branches(branches))
             .collect();
         children.reverse();
-        root.children.push(children);
+        if !children.is_empty() {
+            root.children.push(children);
+        }
 
         Ok(root)
     }
