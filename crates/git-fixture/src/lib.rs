@@ -172,7 +172,7 @@ impl Dag {
     }
 }
 
-fn checkout(cwd: &std::path::Path, refspec: &str) -> eyre::Result<()> {
+pub fn checkout(cwd: &std::path::Path, refspec: &str) -> eyre::Result<()> {
     std::process::Command::new("git")
         .arg("checkout")
         .arg(refspec)
@@ -181,7 +181,7 @@ fn checkout(cwd: &std::path::Path, refspec: &str) -> eyre::Result<()> {
     Ok(())
 }
 
-fn current_oid(cwd: &std::path::Path) -> eyre::Result<String> {
+pub fn current_oid(cwd: &std::path::Path) -> eyre::Result<String> {
     let output = std::process::Command::new("git")
         .arg("rev-parse")
         .arg("--short")

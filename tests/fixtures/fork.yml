@@ -1,0 +1,46 @@
+init: true
+events:
+- tree:
+    tracked:
+      "file_a.txt": "1"
+    branch: initial
+- tree:
+    tracked:
+      "file_a.txt": "2"
+- tree:
+    tracked:
+      "file_a.txt": "3"
+    branch: base
+- children:
+  - - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "1"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "2"
+        branch: master
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "3"
+        branch: off_master
+  - - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_c.txt": "1"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_c.txt": "2"
+        branch: feature1
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_c.txt": "3"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_c.txt": "4"
+        branch: feature2

@@ -85,7 +85,7 @@ impl<'r> Branches<'r> {
             .filter(|(branch_oid, branch)| {
                 let is_shared_base = repo
                     .merge_base(**branch_oid, head_oid)
-                    .map(|merge_oid| merge_oid == base_oid)
+                    .map(|merge_oid| merge_oid == base_oid && **branch_oid != base_oid)
                     .unwrap_or(false);
                 let is_base_descendant = repo
                     .merge_base(**branch_oid, base_oid)

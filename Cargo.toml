@@ -26,3 +26,7 @@ serde = { version = "1", features = ["derive"] }
 toml = "0.5"
 ignore = "0.4"
 bstr = "0.2"
+
+[dev-dependencies]
+git-fixture = { version = "0.1", path = "crates/git-fixture" }
+assert_fs = "1"
