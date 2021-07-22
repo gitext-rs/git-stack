@@ -249,33 +249,6 @@ impl<'r> std::fmt::Debug for Node<'r> {
     }
 }
 
-fn to_tree<'r, 'n, 'p>(
-    nodes: &'n [Vec<Node<'r>>],
-    tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
-    palette: &'p Palette,
-    show_all: bool,
-) {
-    for branch in nodes {
-        let mut branch_root = treeline::Tree::root(RenderNode {
-            node: None,
-            palette,
-        });
-        for node in branch {
-            if node.branches.is_empty() && node.children.is_empty() && !show_all {
-                log::trace!("Skipping commit {}", node.local_commit.id());
-                continue;
-            }
-            let mut child_tree = treeline::Tree::root(RenderNode {
-                node: Some(node),
-                palette,
-            });
-            to_tree(node.children.as_slice(), &mut child_tree, palette, show_all);
-            branch_root.push(child_tree);
-        }
-        tree.push(branch_root);
-    }
-}
-
 pub struct DisplayTree<'r, 'n> {
     root: &'n Node<'r>,
     palette: Palette,
@@ -319,6 +292,33 @@ impl<'r, 'n> std::fmt::Display for DisplayTree<'r, 'n> {
             self.all,
         );
         tree.fmt(f)
+    }
+}
+
+fn to_tree<'r, 'n, 'p>(
+    nodes: &'n [Vec<Node<'r>>],
+    tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
+    palette: &'p Palette,
+    show_all: bool,
+) {
+    for branch in nodes {
+        let mut branch_root = treeline::Tree::root(RenderNode {
+            node: None,
+            palette,
+        });
+        for node in branch {
+            if node.branches.is_empty() && node.children.is_empty() && !show_all {
+                log::trace!("Skipping commit {}", node.local_commit.id());
+                continue;
+            }
+            let mut child_tree = treeline::Tree::root(RenderNode {
+                node: Some(node),
+                palette,
+            });
+            to_tree(node.children.as_slice(), &mut child_tree, palette, show_all);
+            branch_root.push(child_tree);
+        }
+        tree.push(branch_root);
     }
 }
 
