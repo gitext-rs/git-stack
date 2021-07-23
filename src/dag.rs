@@ -1,12 +1,12 @@
 use itertools::Itertools;
 
-pub fn graph<'r>(
-    repo: &'r git2::Repository,
+pub fn graph(
+    repo: &dyn crate::repo::Repo,
     mut base_oid: git2::Oid,
     head_oid: git2::Oid,
-    protected_branches: &crate::branches::Branches<'r>,
-    mut graph_branches: crate::branches::Branches<'r>,
-) -> Result<Node<'r>, git2::Error> {
+    protected_branches: &crate::branches::Branches,
+    mut graph_branches: crate::branches::Branches,
+) -> Result<Node, git2::Error> {
     let mut root = Node::populate(repo, base_oid, head_oid, &mut graph_branches)?;
 
     if !graph_branches.is_empty() {
@@ -21,13 +21,14 @@ pub fn graph<'r>(
             } else {
                 continue;
             };
-            let branch_name = branches
-                .first()
-                .unwrap()
-                .name()?
-                .unwrap_or(crate::git::NO_BRANCH)
-                .to_owned();
-            let merge_base_oid = repo.merge_base(base_oid, branch_oid)?;
+            let branch_name = branches.first().unwrap().name.clone();
+            let merge_base_oid = repo.merge_base(base_oid, branch_oid).ok_or_else(|| {
+                git2::Error::new(
+                    git2::ErrorCode::NotFound,
+                    git2::ErrorClass::Reference,
+                    "Could not find merge base",
+                )
+            })?;
             if merge_base_oid != base_oid {
                 match Node::populate(repo, merge_base_oid, base_oid, &mut graph_branches) {
                     Ok(mut prefix) => {
@@ -55,7 +56,7 @@ pub fn graph<'r>(
         let unused_branches = graph_branches
             .iter()
             .flat_map(|(_, branches)| branches)
-            .filter_map(|branch| branch.name().ok().flatten())
+            .map(|branch| branch.name.as_str())
             .join(", ");
         log::error!("Unhandled branches: {}", unused_branches);
     }
@@ -63,35 +64,38 @@ pub fn graph<'r>(
     Ok(root)
 }
 
-pub struct Node<'r> {
-    pub local_commit: git2::Commit<'r>,
-    pub branches: Vec<git2::Branch<'r>>,
-    pub children: Vec<Vec<Node<'r>>>,
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Node {
+    pub local_commit: std::rc::Rc<crate::repo::Commit>,
+    pub branches: Vec<crate::repo::Branch>,
+    pub children: Vec<Vec<Node>>,
     pub action: crate::actions::Action,
 }
 
-impl<'r> Node<'r> {
-    pub fn display(&self) -> DisplayTree<'r, '_> {
+impl Node {
+    pub fn display(&self) -> DisplayTree<'_> {
         DisplayTree::new(self)
     }
 
     fn populate(
-        repo: &'r git2::Repository,
+        repo: &dyn crate::repo::Repo,
         base_oid: git2::Oid,
         head_oid: git2::Oid,
-        branches: &mut crate::branches::Branches<'r>,
+        branches: &mut crate::branches::Branches,
     ) -> Result<Self, git2::Error> {
         if let Some(head_branches) = branches.get(head_oid) {
-            let head_name = head_branches
-                .first()
-                .unwrap()
-                .name()?
-                .unwrap_or(crate::git::NO_BRANCH);
+            let head_name = head_branches.first().unwrap().name.as_str();
             log::trace!("Populating data for {}", head_name);
         } else {
             log::trace!("Populating data for {}", head_oid);
         }
-        let merge_base_oid = repo.merge_base(base_oid, head_oid)?;
+        let merge_base_oid = repo.merge_base(base_oid, head_oid).ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                "Could not find merge base",
+            )
+        })?;
         if merge_base_oid != base_oid {
             return Err(git2::Error::new(
                 git2::ErrorCode::NotFound,
@@ -99,12 +103,13 @@ impl<'r> Node<'r> {
                 "HEAD must be a descendant of base",
             ));
         }
-        let base_commit = repo.find_commit(base_oid)?;
+        let base_commit = repo.find_commit(base_oid).unwrap();
 
         let mut root = Node::from_commit(base_commit).with_branches(branches);
 
-        let mut children: Vec<_> = crate::git::commits_from(&repo, head_oid)?
-            .take_while(|commit| commit.id() != merge_base_oid)
+        let mut children: Vec<_> = repo
+            .commits_from(head_oid)
+            .take_while(|commit| commit.id != merge_base_oid)
             .map(|commit| Node::from_commit(commit).with_branches(branches))
             .collect();
         children.reverse();
@@ -115,7 +120,7 @@ impl<'r> Node<'r> {
         Ok(root)
     }
 
-    fn from_commit(local_commit: git2::Commit<'r>) -> Self {
+    fn from_commit(local_commit: std::rc::Rc<crate::repo::Commit>) -> Self {
         let branches = Vec::new();
         let children = Vec::new();
         Self {
@@ -126,21 +131,21 @@ impl<'r> Node<'r> {
         }
     }
 
-    fn with_branches(mut self, possible_branches: &mut crate::branches::Branches<'r>) -> Self {
-        if let Some(branches) = possible_branches.remove(self.local_commit.id()) {
+    fn with_branches(mut self, possible_branches: &mut crate::branches::Branches) -> Self {
+        if let Some(branches) = possible_branches.remove(self.local_commit.id) {
             self.branches = branches;
         }
         self
     }
 
     fn push(&mut self, other: Self) {
-        let other_oid = other.local_commit.id();
-        if self.local_commit.id() == other_oid {
+        let other_oid = other.local_commit.id;
+        if self.local_commit.id == other_oid {
             self.merge(other);
         } else if self.children.len() == 1 {
             let child = &mut self.children[0];
             for node in child.iter_mut() {
-                if node.local_commit.id() == other_oid {
+                if node.local_commit.id == other_oid {
                     node.merge(other);
                     return;
                 }
@@ -152,7 +157,7 @@ impl<'r> Node<'r> {
     }
 
     fn merge(&mut self, mut other: Self) {
-        if self.local_commit.id() != other.local_commit.id() {
+        if self.local_commit.id != other.local_commit.id {
             return;
         }
 
@@ -177,7 +182,7 @@ impl<'r> Node<'r> {
 }
 
 /// If a merge occurs, `rhs_nodes` will be empty
-fn merge_nodes<'r>(lhs_nodes: &mut Vec<Node<'r>>, rhs_nodes: &mut Vec<Node<'r>>) {
+fn merge_nodes(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
     assert!(
         !lhs_nodes.is_empty(),
         "to exist, there has to be at least one node"
@@ -188,7 +193,7 @@ fn merge_nodes<'r>(lhs_nodes: &mut Vec<Node<'r>>, rhs_nodes: &mut Vec<Node<'r>>)
     );
 
     for (lhs, rhs) in lhs_nodes.iter_mut().zip(rhs_nodes.iter_mut()) {
-        if lhs.local_commit.id() != rhs.local_commit.id() {
+        if lhs.local_commit.id != rhs.local_commit.id {
             break;
         }
         let mut branches = Vec::new();
@@ -201,9 +206,7 @@ fn merge_nodes<'r>(lhs_nodes: &mut Vec<Node<'r>>, rhs_nodes: &mut Vec<Node<'r>>)
         .zip_longest(lhs_nodes.iter())
         .enumerate()
         .find(|(_, zipped)| match zipped {
-            itertools::EitherOrBoth::Both(lhs, rhs) => {
-                lhs.local_commit.id() != rhs.local_commit.id()
-            }
+            itertools::EitherOrBoth::Both(lhs, rhs) => lhs.local_commit.id != rhs.local_commit.id,
             _ => true,
         })
         .map(|(index, zipped)| {
@@ -229,36 +232,14 @@ fn merge_nodes<'r>(lhs_nodes: &mut Vec<Node<'r>>, rhs_nodes: &mut Vec<Node<'r>>)
     }
 }
 
-impl<'r> std::fmt::Debug for Node<'r> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let branches: Vec<_> = self
-            .branches
-            .iter()
-            .map(|b| {
-                b.name()
-                    .ok()
-                    .flatten()
-                    .unwrap_or(crate::git::NO_BRANCH)
-                    .to_owned()
-            })
-            .collect();
-        f.debug_struct("Node")
-            .field("local_commit", &self.local_commit.id())
-            .field("branches", &branches)
-            .field("children", &self.children)
-            .field("action", &self.action)
-            .finish()
-    }
-}
-
-pub struct DisplayTree<'r, 'n> {
-    root: &'n Node<'r>,
+pub struct DisplayTree<'n> {
+    root: &'n Node,
     palette: Palette,
     all: bool,
 }
 
-impl<'r, 'n> DisplayTree<'r, 'n> {
-    pub fn new(root: &'n Node<'r>) -> Self {
+impl<'n> DisplayTree<'n> {
+    pub fn new(root: &'n Node) -> Self {
         Self {
             root,
             palette: Palette::plain(),
@@ -281,7 +262,7 @@ impl<'r, 'n> DisplayTree<'r, 'n> {
     }
 }
 
-impl<'r, 'n> std::fmt::Display for DisplayTree<'r, 'n> {
+impl<'n> std::fmt::Display for DisplayTree<'n> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let mut tree = treeline::Tree::root(RenderNode {
             node: Some(self.root),
@@ -297,9 +278,9 @@ impl<'r, 'n> std::fmt::Display for DisplayTree<'r, 'n> {
     }
 }
 
-fn to_tree<'r, 'n, 'p>(
-    nodes: &'n [Vec<Node<'r>>],
-    tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
+fn to_tree<'n, 'p>(
+    nodes: &'n [Vec<Node>],
+    tree: &mut treeline::Tree<RenderNode<'n, 'p>>,
     palette: &'p Palette,
     show_all: bool,
 ) {
@@ -310,7 +291,7 @@ fn to_tree<'r, 'n, 'p>(
         });
         for node in branch {
             if node.branches.is_empty() && node.children.is_empty() && !show_all {
-                log::trace!("Skipping commit {}", node.local_commit.id());
+                log::trace!("Skipping commit {}", node.local_commit.id);
                 continue;
             }
             let mut child_tree = treeline::Tree::root(RenderNode {
@@ -324,52 +305,46 @@ fn to_tree<'r, 'n, 'p>(
     }
 }
 
-struct RenderNode<'r, 'n, 'p> {
-    node: Option<&'n Node<'r>>,
+struct RenderNode<'n, 'p> {
+    node: Option<&'n Node>,
     palette: &'p Palette,
 }
 
-impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
+impl<'n, 'p> std::fmt::Display for RenderNode<'n, 'p> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
-                write!(f, "{} ", self.palette.info.paint(node.local_commit.id()),)?;
+                write!(f, "{} ", self.palette.info.paint(node.local_commit.id))?;
             } else if node.action == crate::actions::Action::Protected {
                 write!(
                     f,
                     "{} ",
-                    self.palette.info.paint(
-                        node.branches
-                            .iter()
-                            .map(|b| { b.name().ok().flatten().unwrap_or("<>") })
-                            .join(", ")
-                    ),
+                    self.palette
+                        .info
+                        .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
                 )?;
             } else {
                 write!(
                     f,
                     "{} ",
-                    self.palette.branch.paint(
-                        node.branches
-                            .iter()
-                            .map(|b| { b.name().ok().flatten().unwrap_or("<>") })
-                            .join(", ")
-                    ),
+                    self.palette
+                        .branch
+                        .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
                 )?;
             }
 
-            let summary = node.local_commit.summary().unwrap_or("<No summary>");
+            let summary = String::from_utf8_lossy(&node.local_commit.summary);
             if node.action == crate::actions::Action::Protected {
                 write!(f, "{}", self.palette.hint.paint(summary))?;
-            } else if 1 < node.local_commit.parent_count() {
+            } else if node.local_commit.is_merge {
                 write!(f, "{}", self.palette.error.paint("merge commit"))?;
             } else if node.branches.is_empty() && !node.children.is_empty() {
                 // Branches should be off of other branches
                 write!(f, "{}", self.palette.warn.paint(summary))?;
-            } else if crate::git::get_fixup_target_summary(&summary).is_some() {
+            } else if node.local_commit.fixup_summary().is_some() {
                 // Needs to be squashed
                 write!(f, "{}", self.palette.warn.paint(summary))?;
-            } else if is_wip(&summary) {
+            } else if node.local_commit.wip_summary().is_some() {
                 // Not for pushing implicitly
                 write!(f, "{}", self.palette.error.paint(summary))?;
             } else {
@@ -380,14 +355,6 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
         }
         Ok(())
     }
-}
-
-static WIP_PREFIXES: &[&str] = &["WIP:", "draft:", "Draft:"];
-
-fn is_wip(summary: &str) -> bool {
-    WIP_PREFIXES
-        .iter()
-        .any(|prefix| summary.starts_with(prefix))
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -421,16 +388,16 @@ impl Palette {
     }
 }
 
-pub fn protect_branches<'r>(
-    root: &mut Node<'r>,
-    repo: &'r git2::Repository,
-    protected_branches: &crate::branches::Branches<'r>,
+pub fn protect_branches(
+    root: &mut Node,
+    repo: &dyn crate::repo::Repo,
+    protected_branches: &crate::branches::Branches,
 ) -> Result<(), git2::Error> {
     // Assuming the root is the base.  The base is not guaranteed to be a protected brancch but
     // might be an ancestor of one.
     for protected_oid in protected_branches.oids() {
-        if let Ok(merge_base_oid) = repo.merge_base(root.local_commit.id(), protected_oid) {
-            if merge_base_oid == root.local_commit.id() {
+        if let Some(merge_base_oid) = repo.merge_base(root.local_commit.id, protected_oid) {
+            if merge_base_oid == root.local_commit.id {
                 root.action = crate::actions::Action::Protected;
                 break;
             }
@@ -444,10 +411,10 @@ pub fn protect_branches<'r>(
     Ok(())
 }
 
-fn protect_branches_internal<'r>(
-    nodes: &mut Vec<Node<'r>>,
-    repo: &'r git2::Repository,
-    protected_branches: &crate::branches::Branches<'r>,
+fn protect_branches_internal(
+    nodes: &mut Vec<Node>,
+    repo: &dyn crate::repo::Repo,
+    protected_branches: &crate::branches::Branches,
 ) -> Result<bool, git2::Error> {
     let mut descendant_protected = false;
     for node in nodes.iter_mut().rev() {
@@ -456,7 +423,7 @@ fn protect_branches_internal<'r>(
             let child_protected = protect_branches_internal(children, repo, protected_branches)?;
             children_protected |= child_protected;
         }
-        let self_protected = protected_branches.contains_oid(node.local_commit.id());
+        let self_protected = protected_branches.contains_oid(node.local_commit.id);
         if descendant_protected || children_protected || self_protected {
             node.action = crate::actions::Action::Protected;
             descendant_protected = true;
@@ -466,17 +433,14 @@ fn protect_branches_internal<'r>(
     Ok(descendant_protected)
 }
 
-pub fn rebase_branches<'r>(node: &mut Node<'r>, new_base: git2::Oid) -> Result<(), git2::Error> {
+pub fn rebase_branches(node: &mut Node, new_base: git2::Oid) -> Result<(), git2::Error> {
     rebase_branches_internal(node, new_base)?;
 
     Ok(())
 }
 
 /// Mark a new base commit for the last protected commit on each branch.
-fn rebase_branches_internal<'r>(
-    node: &mut Node<'r>,
-    new_base: git2::Oid,
-) -> Result<bool, git2::Error> {
+fn rebase_branches_internal(node: &mut Node, new_base: git2::Oid) -> Result<bool, git2::Error> {
     let mut all_children_rebased = true;
     for child in node.children.iter_mut() {
         let mut child_rebased = false;

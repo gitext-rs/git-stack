@@ -55,7 +55,7 @@ impl RepoConfig {
         log::trace!("Loading gitconfig");
         match git2::Config::open_default() {
             Ok(config) => {
-                let default_branch = crate::git::default_branch(&config);
+                let default_branch = default_branch(&config);
                 let default_branch_ignore = default_branch.to_owned();
                 protected_branches.push(default_branch_ignore);
             }
@@ -137,4 +137,8 @@ impl RepoConfig {
         }
         self
     }
+}
+
+fn default_branch<'c>(config: &'c git2::Config) -> &'c str {
+    config.get_str("init.defaultBranch").ok().unwrap_or("main")
 }
