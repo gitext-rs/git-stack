@@ -58,6 +58,10 @@ pub fn head_oid(repo: &git2::Repository) -> Result<git2::Oid, git2::Error> {
 }
 
 pub fn is_dirty(repo: &git2::Repository) -> Result<bool, git2::Error> {
+    if repo.state() != git2::RepositoryState::Clean {
+        return Ok(false);
+    }
+
     let status = repo.statuses(Some(git2::StatusOptions::new().include_ignored(false)))?;
     if status.is_empty() {
         Ok(false)
