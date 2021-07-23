@@ -393,7 +393,7 @@ pub fn protect_branches(
     repo: &dyn crate::repo::Repo,
     protected_branches: &crate::branches::Branches,
 ) -> Result<(), git2::Error> {
-    // Assuming the root is the base.  The base is not guaranteed to be a protected brancch but
+    // Assuming the root is the base.  The base is not guaranteed to be a protected branch but
     // might be an ancestor of one.
     for protected_oid in protected_branches.oids() {
         if let Some(merge_base_oid) = repo.merge_base(root.local_commit.id, protected_oid) {
