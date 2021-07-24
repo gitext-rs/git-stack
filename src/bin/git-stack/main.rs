@@ -41,6 +41,7 @@ fn run() -> proc_exit::ExitResult {
     } else if let Some(ignore) = args.protect.as_deref() {
         protect(&args, ignore)?;
     } else if args.show {
+        // TODO make it so we always show at the end, but `--show` is more of a `show-only`
         show(&args, colored_stdout)?;
     } else {
         unimplemented!("Not yet");
@@ -151,7 +152,10 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         })
         .with_code(proc_exit::Code::USAGE_ERR)?;
 
+    // TODO Move the default to be stored in the config
     let graphed_branches = if args.all {
+        // TODO: we need to be sure to rebase against each branch's protected base, if we are
+        // auto-detecting one.
         branches.all()
     } else if args.dependents {
         branches.dependents(&repo, merge_base_oid, head_oid)

@@ -37,6 +37,8 @@ impl RepoConfig {
     }
 
     pub fn from_workdir(repo: &git2::Repository) -> eyre::Result<Self> {
+        // TODO Can we move this to `.gitconfig` and do proper layering with multivars?
+        // The command line could than take a `-c` like regular git commands
         let workdir = repo
             .workdir()
             .ok_or_else(|| eyre::eyre!("Cannot read config in bare repository."))?;
