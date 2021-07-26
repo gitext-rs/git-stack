@@ -1,17 +1,21 @@
+use std::str::FromStr;
+
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RepoConfig {
     pub protected_branches: Option<Vec<String>>,
+    pub format: Option<Format>,
 }
 
 static PROTECTED_BRANCH_FIELD: &str = "stack.protected-branch";
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
+static FORMAT_FIELD: &str = "stack.show-format";
 
 impl RepoConfig {
     pub fn from_all(repo: &git2::Repository) -> eyre::Result<Self> {
         let config = Self::from_defaults();
-        let config = config.merge(Self::from_workdir(repo)?);
-        let config = config.merge(Self::from_repo(repo)?);
+        let config = config.update(Self::from_workdir(repo)?);
+        let config = config.update(Self::from_repo(repo)?);
         Ok(config)
     }
 
@@ -73,6 +77,7 @@ impl RepoConfig {
 
         Self {
             protected_branches: Some(protected_branches),
+            format: Some(Default::default()),
         }
     }
 
@@ -93,8 +98,14 @@ impl RepoConfig {
             })
             .unwrap_or(None);
 
+        let format = config
+            .get_str(FORMAT_FIELD)
+            .ok()
+            .and_then(|s| Format::from_str(s).ok());
+
         Self {
-            protected_branches: protected_branches,
+            protected_branches,
+            format,
         }
     }
 
@@ -121,16 +132,35 @@ impl RepoConfig {
         Ok(())
     }
 
-    pub fn merge(mut self, other: Self) -> Self {
+    pub fn update(mut self, other: Self) -> Self {
         match (&mut self.protected_branches, other.protected_branches) {
             (Some(lhs), Some(rhs)) => lhs.extend(rhs),
             (None, Some(rhs)) => self.protected_branches = Some(rhs),
             (_, _) => (),
         }
+
+        self.format = other.format.or(self.format);
+
         self
     }
 }
 
 fn default_branch<'c>(config: &'c git2::Config) -> &'c str {
     config.get_str("init.defaultBranch").ok().unwrap_or("main")
+}
+
+arg_enum! {
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum Format {
+        Silent,
+        Brief,
+        Full,
+    }
+}
+
+impl Default for Format {
+    fn default() -> Self {
+        Format::Brief
+    }
 }

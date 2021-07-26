@@ -1,7 +1,3 @@
-// 2015-edition macros.
-#[macro_use]
-extern crate clap;
-
 use std::io::Write;
 
 use proc_exit::WithCodeResultExt;
@@ -54,13 +50,14 @@ fn run() -> proc_exit::ExitResult {
     Ok(())
 }
 
-fn dump_config(_args: &Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
+fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
 
-    let repo_config =
-        git_stack::config::RepoConfig::from_all(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
+    let repo_config = git_stack::config::RepoConfig::from_all(&repo)
+        .with_code(proc_exit::Code::CONFIG_ERR)?
+        .update(args.to_config());
 
     let output = toml::to_string_pretty(&repo_config).with_code(proc_exit::Code::FAILURE)?;
 
@@ -73,13 +70,14 @@ fn dump_config(_args: &Args, output_path: &std::path::Path) -> proc_exit::ExitRe
     Ok(())
 }
 
-fn protect(_args: &Args, ignore: &str) -> proc_exit::ExitResult {
+fn protect(args: &Args, ignore: &str) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
 
-    let mut repo_config =
-        git_stack::config::RepoConfig::from_repo(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
+    let mut repo_config = git_stack::config::RepoConfig::from_repo(&repo)
+        .with_code(proc_exit::Code::CONFIG_ERR)?
+        .update(args.to_config());
     repo_config
         .protected_branches
         .get_or_insert_with(Vec::new)
@@ -97,8 +95,9 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
 
-    let repo_config =
-        git_stack::config::RepoConfig::from_all(&repo).with_code(proc_exit::Code::CONFIG_ERR)?;
+    let repo_config = git_stack::config::RepoConfig::from_all(&repo)
+        .with_code(proc_exit::Code::CONFIG_ERR)?
+        .update(args.to_config());
     let protected = git_stack::protect::ProtectedBranches::new(
         repo_config
             .protected_branches
@@ -178,16 +177,16 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-    match args.format {
-        Format::Silent => (),
-        Format::Brief => {
+    match repo_config.format.expect("resolved") {
+        git_stack::config::Format::Silent => (),
+        git_stack::config::Format::Brief => {
             writeln!(
                 std::io::stdout(),
                 "{}",
                 root.display().colored(colored_stdout).all(false)
             )?;
         }
-        Format::Full => {
+        git_stack::config::Format::Full => {
             writeln!(
                 std::io::stdout(),
                 "{}",
@@ -213,11 +212,10 @@ struct Args {
 
     #[structopt(
         long,
-        possible_values(&Format::variants()),
+        possible_values(&git_stack::config::Format::variants()),
         case_insensitive(true),
-        default_value
     )]
-    format: Format,
+    format: Option<git_stack::config::Format>,
 
     /// Write the current configuration to file with `-` for stdout
     #[structopt(long, group = "mode")]
@@ -258,17 +256,11 @@ struct Args {
     verbose: clap_verbosity_flag::Verbosity,
 }
 
-arg_enum! {
-    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
-    pub enum Format {
-        Silent,
-        Brief,
-        Full,
-    }
-}
-
-impl Default for Format {
-    fn default() -> Self {
-        Format::Full
+impl Args {
+    fn to_config(&self) -> git_stack::config::RepoConfig {
+        git_stack::config::RepoConfig {
+            protected_branches: None,
+            format: self.format,
+        }
     }
 }
