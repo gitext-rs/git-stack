@@ -40,11 +40,8 @@ fn run() -> proc_exit::ExitResult {
         dump_config(&args, output_path)?;
     } else if let Some(ignore) = args.protect.as_deref() {
         protect(&args, ignore)?;
-    } else if args.show {
-        // TODO make it so we always show at the end, but `--show` is more of a `show-only`
-        show(&args, colored_stdout)?;
     } else {
-        unimplemented!("Not yet");
+        stack(&args, colored_stdout)?;
     }
 
     Ok(())
@@ -90,7 +87,7 @@ fn protect(args: &Args, ignore: &str) -> proc_exit::ExitResult {
     Ok(())
 }
 
-fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
+fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -178,6 +175,8 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
 
+    let root = if args.show { root } else { root };
+
     match repo_config.format.expect("resolved") {
         git_stack::config::Format::Silent => (),
         git_stack::config::Format::Brief => {
@@ -207,25 +206,6 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     )]
 #[structopt(group = structopt::clap::ArgGroup::with_name("mode").multiple(false))]
 struct Args {
-    /// Show stack relationship
-    #[structopt(short, long, group = "mode")]
-    show: bool,
-
-    #[structopt(
-        long,
-        possible_values(&git_stack::config::Format::variants()),
-        case_insensitive(true),
-    )]
-    format: Option<git_stack::config::Format>,
-
-    /// Write the current configuration to file with `-` for stdout
-    #[structopt(long, group = "mode")]
-    dump_config: Option<std::path::PathBuf>,
-
-    /// Append a protected branch to the repository's config (gitignore syntax)
-    #[structopt(long, group = "mode")]
-    protect: Option<String>,
-
     /// Visually edit history in your $EDITOR`
     #[structopt(short, long)]
     _interactive: bool,
@@ -250,6 +230,25 @@ struct Args {
     /// Branch to rebase onto (default: base)
     #[structopt(long)]
     _onto: Option<String>,
+
+    /// Only show stack relationship
+    #[structopt(short, long)]
+    show: bool,
+
+    #[structopt(
+        long,
+        possible_values(&git_stack::config::Format::variants()),
+        case_insensitive(true),
+    )]
+    format: Option<git_stack::config::Format>,
+
+    /// Append a protected branch to the repository's config (gitignore syntax)
+    #[structopt(long, group = "mode")]
+    protect: Option<String>,
+
+    /// Write the current configuration to file with `-` for stdout
+    #[structopt(long, group = "mode")]
+    dump_config: Option<std::path::PathBuf>,
 
     #[structopt(flatten)]
     color: git_stack::color::ColorArgs,
