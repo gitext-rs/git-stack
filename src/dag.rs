@@ -477,3 +477,33 @@ fn rebase_branches_internal(node: &mut Node, new_base: git2::Oid) -> Result<bool
         Ok(false)
     }
 }
+
+pub fn delinearize(node: &mut Node) {
+    for child in node.children.iter_mut() {
+        delinearize_internal(child);
+    }
+}
+
+fn delinearize_internal(nodes: &mut Vec<Node>) {
+    for node in nodes.iter_mut() {
+        for child in node.children.iter_mut() {
+            delinearize_internal(child);
+        }
+    }
+
+    let splits: Vec<_> = nodes
+        .iter()
+        .enumerate()
+        .filter(|(_, n)| !n.branches.is_empty())
+        .map(|(i, _)| i + 1)
+        .rev()
+        .collect();
+    for split in splits {
+        if split == nodes.len() {
+            continue;
+        }
+        let child = nodes.split_off(split);
+        assert!(!child.is_empty());
+        nodes.last_mut().unwrap().children.push(child);
+    }
+}

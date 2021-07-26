@@ -180,10 +180,13 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     .with_code(proc_exit::Code::CONFIG_ERR)?;
     git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
+    if !repo_config.show_stacked.expect("resolved") {
+        git_stack::dag::delinearize(&mut root);
+    }
 
     let root = if args.show { root } else { root };
 
-    match repo_config.format.expect("resolved") {
+    match repo_config.show_format.expect("resolved") {
         git_stack::config::Format::Silent => (),
         git_stack::config::Format::Brief => {
             writeln!(
@@ -267,8 +270,9 @@ impl Args {
     fn to_config(&self) -> git_stack::config::RepoConfig {
         git_stack::config::RepoConfig {
             protected_branches: None,
-            format: self.format,
+            show_format: self.format,
             branch: self.branch,
+            show_stacked: None,
         }
     }
 }

@@ -4,14 +4,16 @@ use std::str::FromStr;
 #[serde(rename_all = "kebab-case")]
 pub struct RepoConfig {
     pub protected_branches: Option<Vec<String>>,
-    pub format: Option<Format>,
     pub branch: Option<Branch>,
+    pub show_format: Option<Format>,
+    pub show_stacked: Option<bool>,
 }
 
 static PROTECTED_BRANCH_FIELD: &str = "stack.protected-branch";
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
-static FORMAT_FIELD: &str = "stack.show-format";
 static BRANCH: &str = "stack.branch";
+static FORMAT_FIELD: &str = "stack.show-format";
+static STACKED_FIELD: &str = "stack.show-stacked";
 
 impl RepoConfig {
     pub fn from_all(repo: &git2::Repository) -> eyre::Result<Self> {
@@ -79,8 +81,9 @@ impl RepoConfig {
 
         Self {
             protected_branches: Some(protected_branches),
-            format: Some(Default::default()),
             branch: Some(Default::default()),
+            show_format: Some(Default::default()),
+            show_stacked: Some(true),
         }
     }
 
@@ -101,20 +104,23 @@ impl RepoConfig {
             })
             .unwrap_or(None);
 
-        let format = config
-            .get_str(FORMAT_FIELD)
-            .ok()
-            .and_then(|s| FromStr::from_str(s).ok());
-
         let branch = config
             .get_str(BRANCH)
             .ok()
             .and_then(|s| FromStr::from_str(s).ok());
 
+        let show_format = config
+            .get_str(FORMAT_FIELD)
+            .ok()
+            .and_then(|s| FromStr::from_str(s).ok());
+
+        let show_stacked = config.get_bool(STACKED_FIELD).ok();
+
         Self {
             protected_branches,
-            format,
             branch,
+            show_format,
+            show_stacked,
         }
     }
 
@@ -148,8 +154,9 @@ impl RepoConfig {
             (_, _) => (),
         }
 
-        self.format = other.format.or(self.format);
         self.branch = other.branch.or(self.branch);
+        self.show_format = other.show_format.or(self.show_format);
+        self.show_stacked = other.show_stacked.or(self.show_stacked);
 
         self
     }
