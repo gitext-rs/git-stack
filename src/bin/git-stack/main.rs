@@ -1,3 +1,7 @@
+// 2015-edition macros.
+#[macro_use]
+extern crate clap;
+
 use std::io::Write;
 
 use proc_exit::WithCodeResultExt;
@@ -174,11 +178,23 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-    writeln!(
-        std::io::stdout(),
-        "{}",
-        root.display().colored(colored_stdout).all(args.show_all)
-    )?;
+    match args.format {
+        Format::Silent => (),
+        Format::Brief => {
+            writeln!(
+                std::io::stdout(),
+                "{}",
+                root.display().colored(colored_stdout).all(false)
+            )?;
+        }
+        Format::Full => {
+            writeln!(
+                std::io::stdout(),
+                "{}",
+                root.display().colored(colored_stdout).all(true)
+            )?;
+        }
+    }
 
     Ok(())
 }
@@ -195,9 +211,13 @@ struct Args {
     #[structopt(short, long, group = "mode")]
     show: bool,
 
-    /// Show all commits
-    #[structopt(long)]
-    show_all: bool,
+    #[structopt(
+        long,
+        possible_values(&Format::variants()),
+        case_insensitive(true),
+        default_value
+    )]
+    format: Format,
 
     /// Write the current configuration to file with `-` for stdout
     #[structopt(long, group = "mode")]
@@ -236,4 +256,19 @@ struct Args {
 
     #[structopt(flatten)]
     verbose: clap_verbosity_flag::Verbosity,
+}
+
+arg_enum! {
+    #[derive(Debug, Copy, Clone, PartialEq, Eq)]
+    pub enum Format {
+        Silent,
+        Brief,
+        Full,
+    }
+}
+
+impl Default for Format {
+    fn default() -> Self {
+        Format::Full
+    }
 }
