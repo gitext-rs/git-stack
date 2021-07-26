@@ -155,15 +155,16 @@ fn show(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         })
         .with_code(proc_exit::Code::USAGE_ERR)?;
 
-    // TODO Move the default to be stored in the config
-    let graphed_branches = if args.all {
-        // TODO: we need to be sure to rebase against each branch's protected base, if we are
-        // auto-detecting one.
-        branches.all()
-    } else if args.dependents {
-        branches.dependents(&repo, merge_base_oid, head_oid)
-    } else {
-        branches.branch(&repo, merge_base_oid, head_oid)
+    let graphed_branches = match repo_config.branch.expect("resolved") {
+        git_stack::config::Branch::Current => branches.branch(&repo, merge_base_oid, head_oid),
+        git_stack::config::Branch::Dependents => {
+            branches.dependents(&repo, merge_base_oid, head_oid)
+        }
+        git_stack::config::Branch::All => {
+            // TODO: we need to be sure to rebase against each branch's protected base, if we are
+            // auto-detecting one.
+            branches.all()
+        }
     };
 
     let mut root = git_stack::dag::graph(
@@ -233,13 +234,14 @@ struct Args {
     #[structopt(long)]
     _fix: bool,
 
-    /// Include all dependent branches as well
-    #[structopt(short, long)]
-    dependents: bool,
-
-    /// Include all branches
-    #[structopt(short, long)]
-    all: bool,
+    /// Which branches to include
+    #[structopt(
+        short,
+        long,
+        possible_values(&git_stack::config::Branch::variants()),
+        case_insensitive(true),
+    )]
+    branch: Option<git_stack::config::Branch>,
 
     /// Branch to evaluate from (default: last protected branch)
     #[structopt(long)]
@@ -261,6 +263,7 @@ impl Args {
         git_stack::config::RepoConfig {
             protected_branches: None,
             format: self.format,
+            branch: self.branch,
         }
     }
 }

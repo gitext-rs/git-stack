@@ -5,11 +5,13 @@ use std::str::FromStr;
 pub struct RepoConfig {
     pub protected_branches: Option<Vec<String>>,
     pub format: Option<Format>,
+    pub branch: Option<Branch>,
 }
 
 static PROTECTED_BRANCH_FIELD: &str = "stack.protected-branch";
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
 static FORMAT_FIELD: &str = "stack.show-format";
+static BRANCH: &str = "stack.branch";
 
 impl RepoConfig {
     pub fn from_all(repo: &git2::Repository) -> eyre::Result<Self> {
@@ -78,6 +80,7 @@ impl RepoConfig {
         Self {
             protected_branches: Some(protected_branches),
             format: Some(Default::default()),
+            branch: Some(Default::default()),
         }
     }
 
@@ -101,11 +104,17 @@ impl RepoConfig {
         let format = config
             .get_str(FORMAT_FIELD)
             .ok()
-            .and_then(|s| Format::from_str(s).ok());
+            .and_then(|s| FromStr::from_str(s).ok());
+
+        let branch = config
+            .get_str(BRANCH)
+            .ok()
+            .and_then(|s| FromStr::from_str(s).ok());
 
         Self {
             protected_branches,
             format,
+            branch,
         }
     }
 
@@ -140,6 +149,7 @@ impl RepoConfig {
         }
 
         self.format = other.format.or(self.format);
+        self.branch = other.branch.or(self.branch);
 
         self
     }
@@ -162,5 +172,21 @@ arg_enum! {
 impl Default for Format {
     fn default() -> Self {
         Format::Brief
+    }
+}
+
+arg_enum! {
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum Branch {
+        Current,
+        Dependents,
+        All,
+    }
+}
+
+impl Default for Branch {
+    fn default() -> Self {
+        Branch::Current
     }
 }
