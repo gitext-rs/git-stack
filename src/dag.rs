@@ -213,8 +213,7 @@ fn merge_nodes(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
         });
 
     match index {
-        Some((index, itertools::EitherOrBoth::Both(_, _)))
-        | Some((index, itertools::EitherOrBoth::Right(_))) => {
+        Some((index, itertools::EitherOrBoth::Both(_, _))) => {
             if index == 0 {
                 // Not a good merge candidate, find another
             } else {
@@ -222,6 +221,12 @@ fn merge_nodes(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
                 lhs_nodes[index - 1].children.push(remaining);
                 rhs_nodes.clear();
             }
+        }
+        Some((index, itertools::EitherOrBoth::Right(_))) => {
+            // rhs is a superset, so we can append it to lhs
+            let remaining = rhs_nodes.split_off(index);
+            lhs_nodes.extend(remaining);
+            rhs_nodes.clear();
         }
         Some((_, itertools::EitherOrBoth::Left(_))) | None => {
             // lhs is a superset, so consider us done.
