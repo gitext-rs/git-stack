@@ -112,6 +112,12 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
 
     let head_commit = repo.head_commit();
     let head_oid = head_commit.id;
+    let _head_branch = if let Some(branch) = branches.get(head_oid) {
+        IntoIterator::into_iter(branch).next().unwrap()
+    } else {
+        return Err(eyre::eyre!("Must not be in a detached HEAD state."))
+            .with_code(proc_exit::Code::USAGE_ERR);
+    };
 
     let base_branch = match args.base.as_deref() {
         Some(branch_name) => repo
