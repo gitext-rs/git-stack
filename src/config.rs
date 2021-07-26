@@ -1,5 +1,3 @@
-use eyre::WrapErr;
-
 #[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RepoConfig {
@@ -37,15 +35,19 @@ impl RepoConfig {
     }
 
     pub fn from_workdir(repo: &git2::Repository) -> eyre::Result<Self> {
-        // TODO Can we move this to `.gitconfig` and do proper layering with multivars?
-        // The command line could than take a `-c` like regular git commands
         let workdir = repo
             .workdir()
             .ok_or_else(|| eyre::eyre!("Cannot read config in bare repository."))?;
-        let config_path = workdir.join(".git-stack.toml");
+        let config_path = workdir.join(".gitconfig");
         log::trace!("Loading {}", config_path.display());
         if config_path.exists() {
-            Self::from_path(&config_path)
+            match git2::Config::open(&config_path) {
+                Ok(config) => Ok(Self::from_gitconfig(&config)),
+                Err(err) => {
+                    log::debug!("Failed to load git config: {}", err);
+                    Ok(Default::default())
+                }
+            }
         } else {
             Ok(Default::default())
         }
@@ -72,18 +74,6 @@ impl RepoConfig {
         Self {
             protected_branches: Some(protected_branches),
         }
-    }
-
-    pub fn from_path(path: &std::path::Path) -> eyre::Result<Self> {
-        let s = std::fs::read_to_string(path)
-            .wrap_err_with(|| format!("Could not read config from {}.", path.display()))?;
-        Self::from_toml(&s)
-            .wrap_err_with(|| format!("Could not read config from {}.", path.display()))
-    }
-
-    pub fn from_toml(data: &str) -> eyre::Result<Self> {
-        let config = toml::from_str(data)?;
-        Ok(config)
     }
 
     pub fn from_gitconfig(config: &git2::Config) -> Self {
