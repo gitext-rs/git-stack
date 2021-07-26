@@ -157,9 +157,7 @@ impl Node {
     }
 
     fn merge(&mut self, mut other: Self) {
-        if self.local_commit.id != other.local_commit.id {
-            return;
-        }
+        assert_eq!(self.local_commit.id, other.local_commit.id);
 
         let mut branches = Vec::new();
         std::mem::swap(&mut other.branches, &mut branches);
@@ -201,9 +199,9 @@ fn merge_nodes(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
         lhs.branches.extend(branches);
     }
 
-    let index = rhs_nodes
+    let index = lhs_nodes
         .iter()
-        .zip_longest(lhs_nodes.iter())
+        .zip_longest(rhs_nodes.iter())
         .enumerate()
         .find(|(_, zipped)| match zipped {
             itertools::EitherOrBoth::Both(lhs, rhs) => lhs.local_commit.id != rhs.local_commit.id,
