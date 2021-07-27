@@ -160,11 +160,6 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         git_stack::config::Branch::Dependents => {
             branches.dependents(&repo, merge_base_oid, head_oid)
         }
-        git_stack::config::Branch::All => {
-            // TODO: we need to be sure to rebase against each branch's protected base, if we are
-            // auto-detecting one.
-            branches.all()
-        }
     };
 
     if !args.show {
