@@ -112,7 +112,7 @@ impl Executor {
                 self.head_oid = *oid;
             }
             Command::RegisterMark(mark_oid) => {
-                let target_oid = repo.head_commit().id;
+                let target_oid = self.head_oid;
                 self.marks.insert(*mark_oid, target_oid);
             }
             Command::SwitchMark(mark_oid) => {
