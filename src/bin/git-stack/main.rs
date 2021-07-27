@@ -13,7 +13,7 @@ fn main() {
 
 fn run() -> proc_exit::ExitResult {
     // clap's `get_matches` uses Failure rather than Usage, so bypass it for `get_matches_safe`.
-    let args = match Args::from_args_safe() {
+    let mut args = match Args::from_args_safe() {
         Ok(args) => args,
         Err(e) if e.use_stderr() => {
             return Err(proc_exit::Code::USAGE_ERR.with_message(e));
@@ -23,6 +23,10 @@ fn run() -> proc_exit::ExitResult {
             return proc_exit::Code::SUCCESS.ok();
         }
     };
+    if args.pull {
+        log::trace!("`--pull` implies `--rebase`");
+        args.rebase = true;
+    }
 
     let colored = args.color.colored().or_else(git_stack::color::colored_env);
     let mut colored_stdout = colored
@@ -106,7 +110,7 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     let mut branches = git_stack::branches::Branches::new(repo.local_branches());
     let mut protected_branches = branches.protected(&protected);
 
-    if !args.show {
+    if args.rebase {
         let head_oid = repo.head_commit().id;
         let head_branch = if let Some(branches) = branches.get(head_oid) {
             branches[0].clone()
@@ -475,6 +479,10 @@ fn git_pull(
     )]
 #[structopt(group = structopt::clap::ArgGroup::with_name("mode").multiple(false))]
 struct Args {
+    /// Rebase the selected branch
+    #[structopt(short, long, group = "mode")]
+    rebase: bool,
+
     /// Visually edit history in your $EDITOR`
     #[structopt(short, long)]
     _interactive: bool,
@@ -496,6 +504,7 @@ struct Args {
     #[structopt(long)]
     base: Option<String>,
 
+    /// Pull the parent branch and rebase onto it.
     #[structopt(long)]
     pull: bool,
 
@@ -505,10 +514,6 @@ struct Args {
 
     #[structopt(short = "n", long)]
     dry_run: bool,
-
-    /// Only show stack relationship
-    #[structopt(short, long)]
-    show: bool,
 
     #[structopt(
         long,
