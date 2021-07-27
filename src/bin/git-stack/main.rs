@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use eyre::WrapErr;
 use itertools::Itertools;
 use proc_exit::WithCodeResultExt;
 use structopt::StructOpt;
@@ -102,90 +103,98 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     .with_code(proc_exit::Code::CONFIG_ERR)?;
 
     let mut repo = git_stack::repo::GitRepo::new(repo);
+    let mut branches = git_stack::branches::Branches::new(repo.local_branches());
+    let mut protected_branches = branches.protected(&protected);
 
-    let branches = git_stack::branches::Branches::new(repo.local_branches());
+    if !args.show {
+        let head_oid = repo.head_commit().id;
+        let head_branch = if let Some(branches) = branches.get(head_oid) {
+            branches[0].clone()
+        } else {
+            return Err(eyre::eyre!("Must not be in a detached HEAD state."))
+                .with_code(proc_exit::Code::USAGE_ERR);
+        };
 
-    let protected_branches = branches.protected(&protected);
+        let base_branch = resolve_base(&repo, args.base.as_deref(), head_oid, &protected_branches)
+            .with_code(proc_exit::Code::USAGE_ERR)?;
 
-    let head_commit = repo.head_commit();
-    let head_oid = head_commit.id;
-    let head_branch = if let Some(branch) = branches.get(head_oid) {
-        IntoIterator::into_iter(branch).next().unwrap()
-    } else {
-        return Err(eyre::eyre!("Must not be in a detached HEAD state."))
-            .with_code(proc_exit::Code::USAGE_ERR);
-    };
+        let onto_branch = if let Some(onto_name) = args.onto.as_deref() {
+            if let Some(onto_branch) = repo.find_local_branch(onto_name) {
+                itertools::Either::Left(onto_branch)
+            } else if let Some(onto_commit) = repo.resolve(onto_name) {
+                if let Some(onto_branches) = protected_branches.get(onto_commit.id) {
+                    let onto_branch = onto_branches.first().unwrap();
+                    itertools::Either::Left(onto_branch.clone())
+                } else {
+                    itertools::Either::Right((onto_name, onto_commit.id))
+                }
+            } else {
+                return Err(eyre::eyre!("Could not resolve `{}` as a commit", onto_name))
+                    .with_code(proc_exit::Code::FAILURE);
+            }
+        } else {
+            itertools::Either::Left(base_branch.clone())
+        };
 
-    let base_branch = match args.base.as_deref() {
-        Some(branch_name) => repo
-            .find_local_branch(branch_name)
+        let onto_oid = match onto_branch {
+            itertools::Either::Left(onto_branch) => {
+                if args.pull {
+                    if protected_branches.contains_oid(onto_branch.id) {
+                        if let Err(err) = git_pull(
+                            &mut repo,
+                            repo_config.pull_remote(),
+                            onto_branch.name.as_str(),
+                        ) {
+                            log::warn!("Skipping pull, {}", err);
+                        } else {
+                            branches = git_stack::branches::Branches::new(repo.local_branches());
+                            protected_branches = branches.protected(&protected);
+                        }
+                    } else {
+                        log::warn!(
+                            "Skipping pull, `{}` isn't a protected branch",
+                            onto_branch.name
+                        );
+                    }
+                }
+                onto_branch.id
+            }
+            itertools::Either::Right((name, oid)) => {
+                if args.pull {
+                    log::warn!("Skipping pull, `{}` isn't a branch", name);
+                }
+                oid
+            }
+        };
+
+        let merge_base_oid = repo
+            .merge_base(base_branch.id, head_oid)
             .ok_or_else(|| {
                 git2::Error::new(
                     git2::ErrorCode::NotFound,
                     git2::ErrorClass::Reference,
-                    format!("could not find branch {:?}", branch_name),
+                    format!("could not find base between {} and HEAD", base_branch.name),
                 )
             })
-            .with_code(proc_exit::Code::USAGE_ERR)?,
-        None => {
-            let branch =
-                git_stack::branches::find_protected_base(&repo, &protected_branches, head_oid)
-                    .ok_or_else(|| {
-                        git2::Error::new(
-                            git2::ErrorCode::NotFound,
-                            git2::ErrorClass::Reference,
-                            "could not find a protected branch to use as a base",
-                        )
-                    })
-                    .with_code(proc_exit::Code::USAGE_ERR)?;
-            log::debug!("Chose branch {} as the base", branch.name);
-            branch.clone()
-        }
-    };
-
-    let base_oid = base_branch.id;
-    let merge_base_oid = repo
-        .merge_base(base_oid, head_oid)
-        .ok_or_else(|| {
-            git2::Error::new(
-                git2::ErrorCode::NotFound,
-                git2::ErrorClass::Reference,
-                format!("could not find base between {} and HEAD", base_branch.name),
-            )
-        })
-        .with_code(proc_exit::Code::USAGE_ERR)?;
-
-    let graphed_branches = match repo_config.branch() {
-        git_stack::config::Branch::Current => branches.branch(&repo, merge_base_oid, head_oid),
-        git_stack::config::Branch::Dependents => {
-            branches.dependents(&repo, merge_base_oid, head_oid)
-        }
-    };
-
-    if !args.show {
+            .with_code(proc_exit::Code::USAGE_ERR)?;
+        let graphed_branches = match repo_config.branch() {
+            git_stack::config::Branch::Current => branches.branch(&repo, merge_base_oid, head_oid),
+            git_stack::config::Branch::Dependents => {
+                branches.dependents(&repo, merge_base_oid, head_oid)
+            }
+        };
         let mut root = git_stack::dag::graph(
             &repo,
             merge_base_oid,
             head_oid,
             &protected_branches,
-            graphed_branches.clone(),
+            graphed_branches,
         )
         .with_code(proc_exit::Code::CONFIG_ERR)?;
 
         git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
             .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-        let onto_oid = args
-            .onto
-            .as_deref()
-            .map(|o| {
-                repo.resolve(o)
-                    .ok_or_else(|| eyre::eyre!("Could not resolve `--onto={}` into a commit", o))
-            })
-            .transpose()
-            .with_code(proc_exit::Code::USAGE_ERR)?
-            .map(|c| c.id)
-            .unwrap_or(base_oid);
         git_stack::dag::rebase_branches(&mut root, onto_oid)
             .with_code(proc_exit::Code::CONFIG_ERR)?;
 
@@ -208,6 +217,25 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         }
     }
 
+    let head_oid = repo.head_commit().id;
+    let base_branch = resolve_base(&repo, args.base.as_deref(), head_oid, &protected_branches)
+        .with_code(proc_exit::Code::USAGE_ERR)?;
+    let merge_base_oid = repo
+        .merge_base(base_branch.id, head_oid)
+        .ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                format!("could not find base between {} and HEAD", base_branch.name),
+            )
+        })
+        .with_code(proc_exit::Code::USAGE_ERR)?;
+    let graphed_branches = match repo_config.branch() {
+        git_stack::config::Branch::Current => branches.branch(&repo, merge_base_oid, head_oid),
+        git_stack::config::Branch::Dependents => {
+            branches.dependents(&repo, merge_base_oid, head_oid)
+        }
+    };
     let mut root = git_stack::dag::graph(
         &repo,
         merge_base_oid,
@@ -243,6 +271,202 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     Ok(())
 }
 
+fn resolve_base(
+    repo: &dyn git_stack::repo::Repo,
+    base: Option<&str>,
+    head_oid: git2::Oid,
+    protected_branches: &git_stack::branches::Branches,
+) -> eyre::Result<git_stack::repo::Branch> {
+    let branch = match base {
+        Some(branch_name) => repo
+            .find_local_branch(branch_name)
+            .ok_or_else(|| eyre::eyre!("could not find branch {:?}", branch_name))?,
+        None => {
+            let branch =
+                git_stack::branches::find_protected_base(repo, protected_branches, head_oid)
+                    .ok_or_else(|| {
+                        eyre::eyre!("could not find a protected branch to use as a base")
+                    })?;
+            log::debug!("Chose branch {} as the base", branch.name);
+            branch.clone()
+        }
+    };
+    Ok(branch)
+}
+
+fn git_pull(
+    repo: &mut git_stack::repo::GitRepo,
+    remote: &str,
+    branch_name: &str,
+) -> eyre::Result<()> {
+    log::debug!("git pull --rebase {} {}", remote, branch_name);
+    let remote_branch_name = format!("{}/{}", remote, branch_name);
+
+    let mut last_id;
+    {
+        // A little uncertain about some of the weirder authentication needs, just deferring to `git`
+        // instead of using `libgit2`
+        let status = std::process::Command::new("git")
+            .arg("fetch")
+            .arg(remote)
+            .arg(branch_name)
+            .status()
+            .wrap_err("Could not run `git fetch`")?;
+        if !status.success() {
+            eyre::bail!("`git fetch {} {}` failed", remote, branch_name,);
+        }
+
+        let local_branch = repo
+            .raw()
+            .find_branch(branch_name, git2::BranchType::Local)
+            .wrap_err_with(|| eyre::eyre!("local branch `{}` doesn't exist", branch_name))?;
+        let local_branch_annotated = {
+            repo.raw()
+                .reference_to_annotated_commit(local_branch.get())?
+        };
+        log::trace!(
+            "rebase local {}={}",
+            branch_name,
+            local_branch_annotated.id()
+        );
+
+        let remote_branch = repo
+            .raw()
+            .find_branch(&remote_branch_name, git2::BranchType::Remote)
+            .wrap_err_with(|| {
+                eyre::eyre!("remote branch `{}` doesn't exist", remote_branch_name)
+            })?;
+        let remote_branch_annotated = repo
+            .raw()
+            .reference_to_annotated_commit(remote_branch.get())?;
+        log::trace!(
+            "rebase remote {}={}",
+            remote_branch_name,
+            remote_branch_annotated.id()
+        );
+        last_id = remote_branch_annotated.id();
+
+        let base_id = repo
+            .merge_base(local_branch_annotated.id(), remote_branch_annotated.id())
+            .ok_or_else(|| {
+                eyre::eyre!(
+                    "No common base between {} and {}",
+                    branch_name,
+                    remote_branch_name
+                )
+            })?;
+        let base_annotated = repo.raw().find_annotated_commit(base_id).unwrap();
+        log::trace!("rebase base {}", base_annotated.id());
+
+        if repo.merge_base(local_branch_annotated.id(), remote_branch_annotated.id())
+            == Some(remote_branch_annotated.id())
+        {
+            log::debug!("{} is up-to-date with {}", branch_name, remote_branch_name);
+            return Ok(());
+        }
+
+        let mut rebase = repo
+            .raw()
+            .rebase(
+                Some(&local_branch_annotated),
+                Some(&base_annotated),
+                Some(&remote_branch_annotated),
+                Some(git2::RebaseOptions::new().inmemory(true)),
+            )
+            .wrap_err_with(|| {
+                eyre::eyre!(
+                    "failed to rebase `{}` onto `{}`",
+                    branch_name,
+                    remote_branch_name
+                )
+            })?;
+
+        while let Some(op) = rebase.next() {
+            let op = op
+                .map_err(|e| {
+                    let _ = rebase.abort();
+                    e
+                })
+                .wrap_err_with(|| {
+                    eyre::eyre!(
+                        "failed to rebase `{}` onto `{}`",
+                        branch_name,
+                        remote_branch_name
+                    )
+                })?;
+            log::trace!("Rebase: {:?} {}", op.kind(), op.id());
+            if rebase.inmemory_index().unwrap().has_conflicts() {
+                eyre::bail!(
+                    "conflicts between {} and {}",
+                    branch_name,
+                    remote_branch_name
+                );
+            }
+
+            let sig = repo.raw().signature().unwrap();
+            let commit_id = rebase
+                .commit(None, &sig, None)
+                .map_err(|e| {
+                    let _ = rebase.abort();
+                    e
+                })
+                .wrap_err_with(|| {
+                    eyre::eyre!(
+                        "failed to rebase `{}` onto `{}`",
+                        branch_name,
+                        remote_branch_name
+                    )
+                })?;
+            last_id = commit_id;
+        }
+
+        rebase.finish(None).wrap_err_with(|| {
+            eyre::eyre!(
+                "failed to rebase `{}` onto `{}`",
+                branch_name,
+                remote_branch_name
+            )
+        })?;
+    }
+
+    let local_branch = repo.find_local_branch(branch_name).unwrap();
+    if local_branch.id == repo.head_commit().id {
+        log::trace!("Updating {} (HEAD)", branch_name);
+        repo.detach().wrap_err_with(|| {
+            eyre::eyre!(
+                "failed to update `{}` to `{}`",
+                branch_name,
+                remote_branch_name
+            )
+        })?;
+        repo.branch(branch_name, last_id).wrap_err_with(|| {
+            eyre::eyre!(
+                "failed to update `{}` to `{}`",
+                branch_name,
+                remote_branch_name
+            )
+        })?;
+        repo.switch(branch_name).wrap_err_with(|| {
+            eyre::eyre!(
+                "failed to update `{}` to `{}`",
+                branch_name,
+                remote_branch_name
+            )
+        })?;
+    } else {
+        log::trace!("Updating {}", branch_name);
+        repo.branch(branch_name, last_id).wrap_err_with(|| {
+            eyre::eyre!(
+                "failed to update `{}` to `{}`",
+                branch_name,
+                remote_branch_name
+            )
+        })?;
+    }
+
+    Ok(())
+}
+
 #[derive(structopt::StructOpt)]
 #[structopt(
         setting = structopt::clap::AppSettings::UnifiedHelpMessage,
@@ -271,6 +495,9 @@ struct Args {
     /// Branch to evaluate from (default: last protected branch)
     #[structopt(long)]
     base: Option<String>,
+
+    #[structopt(long)]
+    pull: bool,
 
     /// Branch to rebase onto (default: base)
     #[structopt(long)]
@@ -309,8 +536,9 @@ impl Args {
     fn to_config(&self) -> git_stack::config::RepoConfig {
         git_stack::config::RepoConfig {
             protected_branches: None,
-            show_format: self.format,
             branch: self.branch,
+            pull_remote: None,
+            show_format: self.format,
             show_stacked: None,
         }
     }

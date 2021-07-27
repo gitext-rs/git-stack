@@ -5,6 +5,7 @@ use std::str::FromStr;
 pub struct RepoConfig {
     pub protected_branches: Option<Vec<String>>,
     pub branch: Option<Branch>,
+    pub pull_remote: Option<String>,
     pub show_format: Option<Format>,
     pub show_stacked: Option<bool>,
 }
@@ -12,6 +13,7 @@ pub struct RepoConfig {
 static PROTECTED_BRANCH_FIELD: &str = "stack.protected-branch";
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
 static BRANCH_FIELD: &str = "stack.branch";
+static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
 static FORMAT_FIELD: &str = "stack.show-format";
 static STACKED_FIELD: &str = "stack.show-stacked";
 
@@ -64,6 +66,7 @@ impl RepoConfig {
     pub fn from_defaults() -> Self {
         let mut conf = Self::default();
         conf.branch = Some(conf.branch());
+        conf.pull_remote = Some(conf.pull_remote().to_owned());
         conf.show_format = Some(conf.show_format());
         conf.show_stacked = Some(conf.show_stacked());
 
@@ -105,6 +108,8 @@ impl RepoConfig {
             })
             .unwrap_or(None);
 
+        let pull_remote = config.get_string(PULL_REMOTE_FIELD).ok();
+
         let branch = config
             .get_str(BRANCH_FIELD)
             .ok()
@@ -119,6 +124,7 @@ impl RepoConfig {
 
         Self {
             protected_branches,
+            pull_remote,
             branch,
             show_format,
             show_stacked,
@@ -155,6 +161,7 @@ impl RepoConfig {
             (_, _) => (),
         }
 
+        self.pull_remote = other.pull_remote.or(self.pull_remote);
         self.branch = other.branch.or(self.branch);
         self.show_format = other.show_format.or(self.show_format);
         self.show_stacked = other.show_stacked.or(self.show_stacked);
@@ -166,12 +173,18 @@ impl RepoConfig {
         self.protected_branches.as_deref().unwrap_or(&[])
     }
 
+    pub fn pull_remote(&self) -> &str {
+        self.pull_remote.as_deref().unwrap_or("origin")
+    }
+
     pub fn branch(&self) -> Branch {
         self.branch.unwrap_or_else(|| Default::default())
     }
+
     pub fn show_format(&self) -> Format {
         self.show_format.unwrap_or_else(|| Default::default())
     }
+
     pub fn show_stacked(&self) -> bool {
         self.show_stacked.unwrap_or(true)
     }

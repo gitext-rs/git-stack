@@ -9,7 +9,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-git2 = "0.13"
+git2 = { version = "0.13", default-features = false }
 log = "0.4"
 structopt = "0.3"
 clap = "2"

@@ -68,6 +68,10 @@ impl GitRepo {
         }
     }
 
+    pub fn raw(&self) -> &git2::Repository {
+        &self.repo
+    }
+
     pub fn is_dirty(&self) -> bool {
         if self.repo.state() != git2::RepositoryState::Clean {
             log::trace!("Repository status is unclean: {:?}", self.repo.state());
