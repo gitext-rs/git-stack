@@ -11,7 +11,7 @@ pub struct RepoConfig {
 
 static PROTECTED_BRANCH_FIELD: &str = "stack.protected-branch";
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
-static BRANCH: &str = "stack.branch";
+static BRANCH_FIELD: &str = "stack.branch";
 static FORMAT_FIELD: &str = "stack.show-format";
 static STACKED_FIELD: &str = "stack.show-stacked";
 
@@ -106,7 +106,7 @@ impl RepoConfig {
             .unwrap_or(None);
 
         let branch = config
-            .get_str(BRANCH)
+            .get_str(BRANCH_FIELD)
             .ok()
             .and_then(|s| FromStr::from_str(s).ok());
 
