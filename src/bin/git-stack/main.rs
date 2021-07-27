@@ -96,11 +96,7 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         .with_code(proc_exit::Code::CONFIG_ERR)?
         .update(args.to_config());
     let protected = git_stack::protect::ProtectedBranches::new(
-        repo_config
-            .protected_branches
-            .iter()
-            .flatten()
-            .map(|s| s.as_str()),
+        repo_config.protected_branches().iter().map(|s| s.as_str()),
     )
     .with_code(proc_exit::Code::CONFIG_ERR)?;
 
@@ -158,7 +154,7 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         })
         .with_code(proc_exit::Code::USAGE_ERR)?;
 
-    let graphed_branches = match repo_config.branch.expect("resolved") {
+    let graphed_branches = match repo_config.branch() {
         git_stack::config::Branch::Current => branches.branch(&repo, merge_base_oid, head_oid),
         git_stack::config::Branch::Dependents => {
             branches.dependents(&repo, merge_base_oid, head_oid)
@@ -180,13 +176,13 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     .with_code(proc_exit::Code::CONFIG_ERR)?;
     git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
-    if !repo_config.show_stacked.expect("resolved") {
+    if !repo_config.show_stacked() {
         git_stack::dag::delinearize(&mut root);
     }
 
     let root = if args.show { root } else { root };
 
-    match repo_config.show_format.expect("resolved") {
+    match repo_config.show_format() {
         git_stack::config::Format::Silent => (),
         git_stack::config::Format::Brief => {
             writeln!(

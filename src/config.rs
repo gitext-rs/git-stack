@@ -62,6 +62,11 @@ impl RepoConfig {
     }
 
     pub fn from_defaults() -> Self {
+        let mut conf = Self::default();
+        conf.branch = Some(conf.branch());
+        conf.show_format = Some(conf.show_format());
+        conf.show_stacked = Some(conf.show_stacked());
+
         let mut protected_branches: Vec<String> = Vec::new();
 
         log::trace!("Loading gitconfig");
@@ -78,13 +83,9 @@ impl RepoConfig {
         // Don't bother with removing duplicates if `default_branch` is the same as one of our
         // default protected branches
         protected_branches.extend(DEFAULT_PROTECTED_BRANCHES.iter().map(|s| (*s).to_owned()));
+        conf.protected_branches = Some(protected_branches);
 
-        Self {
-            protected_branches: Some(protected_branches),
-            branch: Some(Default::default()),
-            show_format: Some(Default::default()),
-            show_stacked: Some(true),
-        }
+        conf
     }
 
     pub fn from_gitconfig(config: &git2::Config) -> Self {
@@ -159,6 +160,20 @@ impl RepoConfig {
         self.show_stacked = other.show_stacked.or(self.show_stacked);
 
         self
+    }
+
+    pub fn protected_branches(&self) -> &[String] {
+        self.protected_branches.as_deref().unwrap_or(&[])
+    }
+
+    pub fn branch(&self) -> Branch {
+        self.branch.unwrap_or_else(|| Default::default())
+    }
+    pub fn show_format(&self) -> Format {
+        self.show_format.unwrap_or_else(|| Default::default())
+    }
+    pub fn show_stacked(&self) -> bool {
+        self.show_stacked.unwrap_or(true)
     }
 }
 
