@@ -62,6 +62,7 @@ fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitRes
         .with_code(proc_exit::Code::CONFIG_ERR)?
         .update(args.to_config());
 
+    // TODO: Format dumped output as `.gitconfig`
     let output = toml::to_string_pretty(&repo_config).with_code(proc_exit::Code::FAILURE)?;
 
     if output_path == std::path::Path::new("-") {
@@ -202,6 +203,11 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         git_stack::dag::rebase_branches(&mut root, onto_oid)
             .with_code(proc_exit::Code::CONFIG_ERR)?;
 
+        // TODO Identify commits to drop by tree id
+        // TODO Identify commits to drop by guessing
+        // TODO Snap branches to be on branches
+        // TODO Re-arrange fixup commits
+        // TODO Re-stack branches that have been individually rebased
         git_stack::dag::delinearize(&mut root);
 
         let mut executor = git_stack::commands::Executor::new(&repo, args.dry_run);
@@ -250,6 +256,7 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     .with_code(proc_exit::Code::CONFIG_ERR)?;
     git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
+    // TODO: Show unblocked branches
     if !repo_config.show_stacked() {
         git_stack::dag::delinearize(&mut root);
     }
@@ -485,10 +492,12 @@ struct Args {
 
     /// Visually edit history in your $EDITOR`
     #[structopt(short, long)]
+    // TODO: --interactive support
     _interactive: bool,
 
     /// Apply all fixups
     #[structopt(long)]
+    // TODO: --fix support
     _fix: bool,
 
     /// Which branches to include
@@ -506,6 +515,7 @@ struct Args {
 
     /// Pull the parent branch and rebase onto it.
     #[structopt(long)]
+    // TODO: Add push unblocked branch support (no WIP, directly on protected)
     pull: bool,
 
     /// Branch to rebase onto (default: base)
