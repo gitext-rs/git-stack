@@ -89,6 +89,8 @@ Protected branches: `git-stack` has some defaults for protected branches (upstre
 - When adopting `git-stack` as a team, you can move the protected branches from
   `$REPO/.git/config` to `$REPO/.gitconfig` and commit it.
 
+To test your config, run `git-stack --protected -v`
+
 Pull remote: when working from a fork (upstream is a different remote than
 `origin`), in `$REPO/.git/config`, set `stack.pull-remote` to your remote.
 

@@ -46,6 +46,8 @@ fn run() -> proc_exit::ExitResult {
         dump_config(&args, output_path)?;
     } else if let Some(ignore) = args.protect.as_deref() {
         protect(&args, ignore)?;
+    } else if args.protected {
+        protected(&args)?;
     } else {
         stack(&args, colored_stdout)?;
     }
@@ -90,6 +92,38 @@ fn protect(args: &Args, ignore: &str) -> proc_exit::ExitResult {
     repo_config
         .write_repo(&repo)
         .with_code(proc_exit::Code::FAILURE)?;
+
+    Ok(())
+}
+
+fn protected(args: &Args) -> proc_exit::ExitResult {
+    log::trace!("Initializing");
+    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
+    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
+
+    let repo_config = git_stack::config::RepoConfig::from_all(&repo)
+        .with_code(proc_exit::Code::CONFIG_ERR)?
+        .update(args.to_config());
+    let protected = git_stack::protect::ProtectedBranches::new(
+        repo_config.protected_branches().iter().map(|s| s.as_str()),
+    )
+    .with_code(proc_exit::Code::CONFIG_ERR)?;
+
+    let repo = git_stack::repo::GitRepo::new(repo);
+    let branches = git_stack::branches::Branches::new(repo.local_branches());
+    let protected_branches = branches.protected(&protected);
+
+    for (branch_id, branches) in branches.iter() {
+        if protected_branches.contains_oid(branch_id) {
+            for branch in branches {
+                writeln!(std::io::stdout(), "{}", branch.name)?;
+            }
+        } else {
+            for branch in branches {
+                log::debug!("Unprotected: {}", branch.name);
+            }
+        }
+    }
 
     Ok(())
 }
@@ -531,6 +565,10 @@ struct Args {
         case_insensitive(true),
     )]
     format: Option<git_stack::config::Format>,
+
+    /// See what branches are protected
+    #[structopt(long, group = "mode")]
+    protected: bool,
 
     /// Append a protected branch to the repository's config (gitignore syntax)
     #[structopt(long, group = "mode")]
