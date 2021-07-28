@@ -222,6 +222,6 @@ arg_enum! {
 
 impl Default for Branch {
     fn default() -> Self {
-        Branch::Current
+        Branch::Dependents
     }
 }
