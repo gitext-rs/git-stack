@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Branches {
     branches: std::collections::BTreeMap<git2::Oid, Vec<crate::repo::Branch>>,
 }
@@ -14,6 +14,19 @@ impl Branches {
         }
         Self {
             branches: grouped_branches,
+        }
+    }
+
+    pub fn insert(&mut self, branch: crate::repo::Branch) {
+        self.branches
+            .entry(branch.id)
+            .or_insert_with(|| Vec::new())
+            .push(branch);
+    }
+
+    pub fn extend(&mut self, branches: impl Iterator<Item = crate::repo::Branch>) {
+        for branch in branches {
+            self.insert(branch);
         }
     }
 
