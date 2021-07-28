@@ -322,21 +322,29 @@ fn resolve_base(
     head_oid: git2::Oid,
     protected_branches: &git_stack::branches::Branches,
 ) -> eyre::Result<git_stack::repo::Branch> {
-    let branch = match base {
-        Some(branch_name) => repo
-            .find_local_branch(branch_name)
-            .ok_or_else(|| eyre::eyre!("could not find branch {:?}", branch_name))?,
-        None => {
-            let branch =
-                git_stack::branches::find_protected_base(repo, protected_branches, head_oid)
-                    .ok_or_else(|| {
-                        eyre::eyre!("could not find a protected branch to use as a base")
-                    })?;
-            log::debug!("Chose branch {} as the base", branch.name);
-            branch.clone()
-        }
-    };
-    Ok(branch)
+    match base {
+        Some(branch_name) => resolve_explicit_base(repo, branch_name),
+        None => resolve_implicit_base(repo, head_oid, protected_branches),
+    }
+}
+
+fn resolve_explicit_base(
+    repo: &dyn git_stack::repo::Repo,
+    base: &str,
+) -> eyre::Result<git_stack::repo::Branch> {
+    repo.find_local_branch(base)
+        .ok_or_else(|| eyre::eyre!("could not find branch {:?}", base))
+}
+
+fn resolve_implicit_base(
+    repo: &dyn git_stack::repo::Repo,
+    head_oid: git2::Oid,
+    protected_branches: &git_stack::branches::Branches,
+) -> eyre::Result<git_stack::repo::Branch> {
+    let branch = git_stack::branches::find_protected_base(repo, protected_branches, head_oid)
+        .ok_or_else(|| eyre::eyre!("could not find a protected branch to use as a base"))?;
+    log::debug!("Chose branch {} as the base", branch.name);
+    Ok(branch.clone())
 }
 
 fn git_pull(
