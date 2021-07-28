@@ -2,20 +2,15 @@ use itertools::Itertools;
 
 pub fn graph(
     repo: &dyn crate::repo::Repo,
-    mut base_oid: git2::Oid,
     head_oid: git2::Oid,
-    protected_branches: &crate::branches::Branches,
     mut graph_branches: crate::branches::Branches,
 ) -> Result<Node, git2::Error> {
+    let mut base_oid = head_oid;
     let mut root = Node::populate(repo, base_oid, head_oid, &mut graph_branches)?;
 
     if !graph_branches.is_empty() {
         let branch_oids: Vec<_> = graph_branches.oids().collect();
         for branch_oid in branch_oids {
-            if protected_branches.contains_oid(branch_oid) {
-                continue;
-            }
-
             let branches = if let Some(branches) = graph_branches.get(branch_oid) {
                 branches
             } else {
@@ -109,7 +104,7 @@ impl Node {
 
         let mut children: Vec<_> = repo
             .commits_from(head_oid)
-            .take_while(|commit| commit.id != merge_base_oid)
+            .take_while(|commit| commit.id != base_oid)
             .map(|commit| Node::from_commit(commit).with_branches(branches))
             .collect();
         children.reverse();

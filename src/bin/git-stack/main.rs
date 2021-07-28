@@ -222,14 +222,8 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
                 branches.dependents(&repo, merge_base_oid, head_oid)
             }
         };
-        let mut root = git_stack::dag::graph(
-            &repo,
-            merge_base_oid,
-            head_oid,
-            &protected_branches,
-            graphed_branches,
-        )
-        .with_code(proc_exit::Code::CONFIG_ERR)?;
+        let mut root = git_stack::dag::graph(&repo, head_oid, graphed_branches)
+            .with_code(proc_exit::Code::CONFIG_ERR)?;
 
         git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
             .with_code(proc_exit::Code::CONFIG_ERR)?;
@@ -280,14 +274,8 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
             branches.dependents(&repo, merge_base_oid, head_oid)
         }
     };
-    let mut root = git_stack::dag::graph(
-        &repo,
-        merge_base_oid,
-        head_oid,
-        &protected_branches,
-        graphed_branches,
-    )
-    .with_code(proc_exit::Code::CONFIG_ERR)?;
+    let mut root = git_stack::dag::graph(&repo, head_oid, graphed_branches)
+        .with_code(proc_exit::Code::CONFIG_ERR)?;
     git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
     // TODO: Show unblocked branches
