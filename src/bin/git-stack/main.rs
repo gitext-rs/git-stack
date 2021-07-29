@@ -222,7 +222,7 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
                 branches.dependents(&repo, merge_base_oid, head_oid)
             }
         };
-        let mut root = git_stack::graph::graph(&repo, head_oid, graphed_branches)
+        let mut root = graph(&repo, merge_base_oid, head_oid, graphed_branches)
             .with_code(proc_exit::Code::CONFIG_ERR)?;
 
         git_stack::graph::protect_branches(&mut root, &repo, &protected_branches)
@@ -274,7 +274,7 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
             branches.dependents(&repo, merge_base_oid, head_oid)
         }
     };
-    let mut root = git_stack::graph::graph(&repo, head_oid, graphed_branches)
+    let mut root = graph(&repo, merge_base_oid, head_oid, graphed_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
     git_stack::graph::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
@@ -302,6 +302,40 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     }
 
     Ok(())
+}
+
+fn graph(
+    repo: &dyn git_stack::git::Repo,
+    base_id: git2::Oid,
+    head_id: git2::Oid,
+    mut graph_branches: git_stack::git::Branches,
+) -> eyre::Result<git_stack::graph::Node> {
+    let head_commit = repo.find_commit(head_id).unwrap();
+    let mut root = git_stack::graph::Node::new(head_commit, &mut graph_branches);
+    root = root.insert(
+        repo,
+        repo.find_commit(base_id).unwrap(),
+        &mut graph_branches,
+    )?;
+
+    if !graph_branches.is_empty() {
+        let branch_ids: Vec<_> = graph_branches.oids().collect();
+        for branch_id in branch_ids {
+            let branch_commit = repo.find_commit(branch_id).unwrap();
+            root = root.insert(repo, branch_commit, &mut graph_branches)?;
+        }
+    }
+
+    if !graph_branches.is_empty() {
+        let unused_branches = graph_branches
+            .iter()
+            .flat_map(|(_, branches)| branches)
+            .map(|branch| branch.name.as_str())
+            .join(", ");
+        log::error!("Unhandled branches: {}", unused_branches);
+    }
+
+    Ok(root)
 }
 
 fn resolve_base(
