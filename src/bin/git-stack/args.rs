@@ -10,6 +10,11 @@ pub struct Args {
     #[structopt(short, long, group = "mode")]
     pub rebase: bool,
 
+    /// Pull the parent branch and rebase onto it.
+    #[structopt(long)]
+    // TODO: Add push unblocked branch support (no WIP, directly on protected)
+    pub pull: bool,
+
     /// Visually edit history in your $EDITOR`
     #[structopt(short, long)]
     // TODO: --interactive support
@@ -32,11 +37,6 @@ pub struct Args {
     /// Branch to evaluate from (default: most-recent protected branch)
     #[structopt(long)]
     pub base: Option<String>,
-
-    /// Pull the parent branch and rebase onto it.
-    #[structopt(long)]
-    // TODO: Add push unblocked branch support (no WIP, directly on protected)
-    pub pull: bool,
 
     /// Branch to rebase onto (default: base)
     #[structopt(long)]
