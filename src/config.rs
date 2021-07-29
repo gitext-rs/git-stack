@@ -4,15 +4,15 @@ use std::str::FromStr;
 #[serde(rename_all = "kebab-case")]
 pub struct RepoConfig {
     pub protected_branches: Option<Vec<String>>,
-    pub branch: Option<Branch>,
+    pub stack: Option<Stack>,
     pub pull_remote: Option<String>,
     pub show_format: Option<Format>,
     pub show_stacked: Option<bool>,
 }
 
-static PROTECTED_BRANCH_FIELD: &str = "stack.protected-branch";
+static PROTECTED_STACK_FIELD: &str = "stack.protected-branch";
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
-static BRANCH_FIELD: &str = "stack.branch";
+static STACK_FIELD: &str = "stack.stack";
 static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
 static FORMAT_FIELD: &str = "stack.show-format";
 static STACKED_FIELD: &str = "stack.show-stacked";
@@ -65,7 +65,7 @@ impl RepoConfig {
 
     pub fn from_defaults() -> Self {
         let mut conf = Self::default();
-        conf.branch = Some(conf.branch());
+        conf.stack = Some(conf.stack());
         conf.pull_remote = Some(conf.pull_remote().to_owned());
         conf.show_format = Some(conf.show_format());
         conf.show_stacked = Some(conf.show_stacked());
@@ -93,7 +93,7 @@ impl RepoConfig {
 
     pub fn from_gitconfig(config: &git2::Config) -> Self {
         let protected_branches = config
-            .multivar(PROTECTED_BRANCH_FIELD, None)
+            .multivar(PROTECTED_STACK_FIELD, None)
             .map(|entries| {
                 let entries_ref = &entries;
                 let protected_branches: Vec<_> = entries_ref
@@ -110,8 +110,8 @@ impl RepoConfig {
 
         let pull_remote = config.get_string(PULL_REMOTE_FIELD).ok();
 
-        let branch = config
-            .get_str(BRANCH_FIELD)
+        let stack = config
+            .get_str(STACK_FIELD)
             .ok()
             .and_then(|s| FromStr::from_str(s).ok());
 
@@ -125,7 +125,7 @@ impl RepoConfig {
         Self {
             protected_branches,
             pull_remote,
-            branch,
+            stack,
             show_format,
             show_stacked,
         }
@@ -146,9 +146,9 @@ impl RepoConfig {
     pub fn to_gitconfig(&self, config: &mut git2::Config) -> eyre::Result<()> {
         if let Some(protected_branches) = self.protected_branches.as_ref() {
             // Ignore errors if there aren't keys to remove
-            let _ = config.remove_multivar(PROTECTED_BRANCH_FIELD, ".*");
+            let _ = config.remove_multivar(PROTECTED_STACK_FIELD, ".*");
             for branch in protected_branches {
-                config.set_multivar(PROTECTED_BRANCH_FIELD, "^$", branch)?;
+                config.set_multivar(PROTECTED_STACK_FIELD, "^$", branch)?;
             }
         }
         Ok(())
@@ -162,7 +162,7 @@ impl RepoConfig {
         }
 
         self.pull_remote = other.pull_remote.or(self.pull_remote);
-        self.branch = other.branch.or(self.branch);
+        self.stack = other.stack.or(self.stack);
         self.show_format = other.show_format.or(self.show_format);
         self.show_stacked = other.show_stacked.or(self.show_stacked);
 
@@ -177,8 +177,8 @@ impl RepoConfig {
         self.pull_remote.as_deref().unwrap_or("origin")
     }
 
-    pub fn branch(&self) -> Branch {
-        self.branch.unwrap_or_else(|| Default::default())
+    pub fn stack(&self) -> Stack {
+        self.stack.unwrap_or_else(|| Default::default())
     }
 
     pub fn show_format(&self) -> Format {
@@ -191,7 +191,7 @@ impl RepoConfig {
 }
 
 fn default_branch<'c>(config: &'c git2::Config) -> &'c str {
-    config.get_str("init.defaultBranch").ok().unwrap_or("main")
+    config.get_str("init.defaultStack").ok().unwrap_or("main")
 }
 
 arg_enum! {
@@ -213,7 +213,7 @@ impl Default for Format {
 arg_enum! {
     #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
     #[serde(rename_all = "kebab-case")]
-    pub enum Branch {
+    pub enum Stack {
         Current,
         Dependents,
         Descendants,
@@ -221,8 +221,8 @@ arg_enum! {
     }
 }
 
-impl Default for Branch {
+impl Default for Stack {
     fn default() -> Self {
-        Branch::Dependents
+        Stack::Dependents
     }
 }

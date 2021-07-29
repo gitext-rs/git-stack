@@ -259,20 +259,20 @@ fn plan_rebase(
             format!("could not find base between {} and HEAD", base_branch.name),
         )
     })?;
-    let mut root = match repo_config.branch() {
-        git_stack::config::Branch::Current => {
+    let mut root = match repo_config.stack() {
+        git_stack::config::Stack::Current => {
             let graphed_branches = branches.branch(repo, merge_base_oid, head_oid);
             graph(repo, merge_base_oid, head_oid, graphed_branches)?
         }
-        git_stack::config::Branch::Dependents => {
+        git_stack::config::Stack::Dependents => {
             let graphed_branches = branches.dependents(repo, merge_base_oid, head_oid);
             graph(repo, merge_base_oid, head_oid, graphed_branches)?
         }
-        git_stack::config::Branch::Descendants => {
+        git_stack::config::Stack::Descendants => {
             let graphed_branches = branches.descendants(repo, merge_base_oid);
             graph(repo, merge_base_oid, head_oid, graphed_branches)?
         }
-        git_stack::config::Branch::All => {
+        git_stack::config::Stack::All => {
             let mut graphed_branches = branches.all();
             let root = git_stack::graph::Node::new(head_commit, &mut graphed_branches);
             root.extend(repo, graphed_branches)?
@@ -314,26 +314,26 @@ fn show(
         )
     })?;
 
-    let mut root = match repo_config.branch() {
-        git_stack::config::Branch::Current => {
+    let mut root = match repo_config.stack() {
+        git_stack::config::Stack::Current => {
             let mut graphed_branches = branches.branch(repo, merge_base_oid, head_oid);
             if !graphed_branches.contains_oid(base_branch.id) {
                 graphed_branches.insert(base_branch.clone());
             }
             graph(repo, merge_base_oid, head_oid, graphed_branches)?
         }
-        git_stack::config::Branch::Dependents => {
+        git_stack::config::Stack::Dependents => {
             let mut graphed_branches = branches.dependents(repo, merge_base_oid, head_oid);
             if !graphed_branches.contains_oid(base_branch.id) {
                 graphed_branches.insert(base_branch.clone());
             }
             graph(repo, merge_base_oid, head_oid, graphed_branches)?
         }
-        git_stack::config::Branch::Descendants => {
+        git_stack::config::Stack::Descendants => {
             let graphed_branches = branches.descendants(repo, merge_base_oid);
             graph(repo, merge_base_oid, head_oid, graphed_branches)?
         }
-        git_stack::config::Branch::All => {
+        git_stack::config::Stack::All => {
             let mut graphed_branches = branches.all();
             let root = git_stack::graph::Node::new(head_commit, &mut graphed_branches);
             root.extend(repo, graphed_branches)?
@@ -597,7 +597,7 @@ fn git_pull(
     )]
 #[structopt(group = structopt::clap::ArgGroup::with_name("mode").multiple(false))]
 struct Args {
-    /// Rebase the selected branch
+    /// Rebase the selected stacks
     #[structopt(short, long, group = "mode")]
     rebase: bool,
 
@@ -611,16 +611,16 @@ struct Args {
     // TODO: --fix support
     _fix: bool,
 
-    /// Which branches to include
+    /// Which branch stacks to include
     #[structopt(
         short,
         long,
-        possible_values(&git_stack::config::Branch::variants()),
+        possible_values(&git_stack::config::Stack::variants()),
         case_insensitive(true),
     )]
-    branch: Option<git_stack::config::Branch>,
+    stack: Option<git_stack::config::Stack>,
 
-    /// Branch to evaluate from (default: last protected branch)
+    /// Branch to evaluate from (default: most-recent protected branch)
     #[structopt(long)]
     base: Option<String>,
 
@@ -666,7 +666,7 @@ impl Args {
     fn to_config(&self) -> git_stack::config::RepoConfig {
         git_stack::config::RepoConfig {
             protected_branches: None,
-            branch: self.branch,
+            stack: self.stack,
             pull_remote: None,
             show_format: self.format,
             show_stacked: None,
