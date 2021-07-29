@@ -6,6 +6,7 @@ use proc_exit::WithCodeResultExt;
 use structopt::StructOpt;
 
 mod args;
+mod config;
 
 fn main() {
     human_panic::setup_panic!();
@@ -45,86 +46,13 @@ fn run() -> proc_exit::ExitResult {
     git_stack::log::init_logging(args.verbose.clone(), colored_stderr);
 
     if let Some(output_path) = args.dump_config.as_deref() {
-        dump_config(&args, output_path)?;
+        config::dump_config(&args, output_path)?;
     } else if let Some(ignore) = args.protect.as_deref() {
-        protect(&args, ignore)?;
+        config::protect(&args, ignore)?;
     } else if args.protected {
-        protected(&args)?;
+        config::protected(&args)?;
     } else {
         stack(&args, colored_stdout)?;
-    }
-
-    Ok(())
-}
-
-fn dump_config(args: &args::Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
-    log::trace!("Initializing");
-    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
-
-    let repo_config = git_stack::config::RepoConfig::from_all(&repo)
-        .with_code(proc_exit::Code::CONFIG_ERR)?
-        .update(args.to_config());
-
-    // TODO: Format dumped output as `.gitconfig`
-    let output = toml::to_string_pretty(&repo_config).with_code(proc_exit::Code::FAILURE)?;
-
-    if output_path == std::path::Path::new("-") {
-        std::io::stdout().write_all(output.as_bytes())?;
-    } else {
-        std::fs::write(output_path, &output)?;
-    }
-
-    Ok(())
-}
-
-fn protect(args: &args::Args, ignore: &str) -> proc_exit::ExitResult {
-    log::trace!("Initializing");
-    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
-
-    let mut repo_config = git_stack::config::RepoConfig::from_repo(&repo)
-        .with_code(proc_exit::Code::CONFIG_ERR)?
-        .update(args.to_config());
-    repo_config
-        .protected_branches
-        .get_or_insert_with(Vec::new)
-        .push(ignore.to_owned());
-
-    repo_config
-        .write_repo(&repo)
-        .with_code(proc_exit::Code::FAILURE)?;
-
-    Ok(())
-}
-
-fn protected(args: &args::Args) -> proc_exit::ExitResult {
-    log::trace!("Initializing");
-    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
-
-    let repo_config = git_stack::config::RepoConfig::from_all(&repo)
-        .with_code(proc_exit::Code::CONFIG_ERR)?
-        .update(args.to_config());
-    let protected = git_stack::git::ProtectedBranches::new(
-        repo_config.protected_branches().iter().map(|s| s.as_str()),
-    )
-    .with_code(proc_exit::Code::CONFIG_ERR)?;
-
-    let repo = git_stack::git::GitRepo::new(repo);
-    let branches = git_stack::git::Branches::new(repo.local_branches());
-    let protected_branches = branches.protected(&protected);
-
-    for (branch_id, branches) in branches.iter() {
-        if protected_branches.contains_oid(branch_id) {
-            for branch in branches {
-                writeln!(std::io::stdout(), "{}", branch.name)?;
-            }
-        } else {
-            for branch in branches {
-                log::debug!("Unprotected: {}", branch.name);
-            }
-        }
     }
 
     Ok(())
