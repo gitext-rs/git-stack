@@ -5,6 +5,8 @@ use itertools::Itertools;
 use proc_exit::WithCodeResultExt;
 use structopt::StructOpt;
 
+mod args;
+
 fn main() {
     human_panic::setup_panic!();
     let result = run();
@@ -13,7 +15,7 @@ fn main() {
 
 fn run() -> proc_exit::ExitResult {
     // clap's `get_matches` uses Failure rather than Usage, so bypass it for `get_matches_safe`.
-    let mut args = match Args::from_args_safe() {
+    let mut args = match args::Args::from_args_safe() {
         Ok(args) => args,
         Err(e) if e.use_stderr() => {
             return Err(proc_exit::Code::USAGE_ERR.with_message(e));
@@ -55,7 +57,7 @@ fn run() -> proc_exit::ExitResult {
     Ok(())
 }
 
-fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
+fn dump_config(args: &args::Args, output_path: &std::path::Path) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -76,7 +78,7 @@ fn dump_config(args: &Args, output_path: &std::path::Path) -> proc_exit::ExitRes
     Ok(())
 }
 
-fn protect(args: &Args, ignore: &str) -> proc_exit::ExitResult {
+fn protect(args: &args::Args, ignore: &str) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -96,7 +98,7 @@ fn protect(args: &Args, ignore: &str) -> proc_exit::ExitResult {
     Ok(())
 }
 
-fn protected(args: &Args) -> proc_exit::ExitResult {
+fn protected(args: &args::Args) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -128,7 +130,7 @@ fn protected(args: &Args) -> proc_exit::ExitResult {
     Ok(())
 }
 
-fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
+fn stack(args: &args::Args, colored_stdout: bool) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -199,7 +201,7 @@ fn plan_rebase(
     branches: &mut git_stack::git::Branches,
     protected_branches: &mut git_stack::git::Branches,
     protected: &git_stack::git::ProtectedBranches,
-    args: &Args,
+    args: &args::Args,
 ) -> eyre::Result<git_stack::git::Script> {
     let head_commit = repo.head_commit();
     let head_oid = head_commit.id;
@@ -300,7 +302,7 @@ fn show(
     repo_config: &git_stack::config::RepoConfig,
     branches: &git_stack::git::Branches,
     protected_branches: &git_stack::git::Branches,
-    args: &Args,
+    args: &args::Args,
     colored_stdout: bool,
 ) -> eyre::Result<()> {
     let head_commit = repo.head_commit();
@@ -587,89 +589,4 @@ fn git_pull(
     }
 
     Ok(())
-}
-
-#[derive(structopt::StructOpt)]
-#[structopt(
-        setting = structopt::clap::AppSettings::UnifiedHelpMessage,
-        setting = structopt::clap::AppSettings::DeriveDisplayOrder,
-        setting = structopt::clap::AppSettings::DontCollapseArgsInUsage
-    )]
-#[structopt(group = structopt::clap::ArgGroup::with_name("mode").multiple(false))]
-struct Args {
-    /// Rebase the selected stacks
-    #[structopt(short, long, group = "mode")]
-    rebase: bool,
-
-    /// Visually edit history in your $EDITOR`
-    #[structopt(short, long)]
-    // TODO: --interactive support
-    _interactive: bool,
-
-    /// Apply all fixups
-    #[structopt(long)]
-    // TODO: --fix support
-    _fix: bool,
-
-    /// Which branch stacks to include
-    #[structopt(
-        short,
-        long,
-        possible_values(&git_stack::config::Stack::variants()),
-        case_insensitive(true),
-    )]
-    stack: Option<git_stack::config::Stack>,
-
-    /// Branch to evaluate from (default: most-recent protected branch)
-    #[structopt(long)]
-    base: Option<String>,
-
-    /// Pull the parent branch and rebase onto it.
-    #[structopt(long)]
-    // TODO: Add push unblocked branch support (no WIP, directly on protected)
-    pull: bool,
-
-    /// Branch to rebase onto (default: base)
-    #[structopt(long)]
-    onto: Option<String>,
-
-    #[structopt(short = "n", long)]
-    dry_run: bool,
-
-    #[structopt(
-        long,
-        possible_values(&git_stack::config::Format::variants()),
-        case_insensitive(true),
-    )]
-    format: Option<git_stack::config::Format>,
-
-    /// See what branches are protected
-    #[structopt(long, group = "mode")]
-    protected: bool,
-
-    /// Append a protected branch to the repository's config (gitignore syntax)
-    #[structopt(long, group = "mode")]
-    protect: Option<String>,
-
-    /// Write the current configuration to file with `-` for stdout
-    #[structopt(long, group = "mode")]
-    dump_config: Option<std::path::PathBuf>,
-
-    #[structopt(flatten)]
-    color: git_stack::color::ColorArgs,
-
-    #[structopt(flatten)]
-    verbose: clap_verbosity_flag::Verbosity,
-}
-
-impl Args {
-    fn to_config(&self) -> git_stack::config::RepoConfig {
-        git_stack::config::RepoConfig {
-            protected_branches: None,
-            stack: self.stack,
-            pull_remote: None,
-            show_format: self.format,
-            show_stacked: None,
-        }
-    }
 }
