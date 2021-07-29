@@ -51,7 +51,7 @@ pub struct Executor {
 }
 
 impl Executor {
-    pub fn new(repo: &dyn crate::repo::Repo, dry_run: bool) -> Executor {
+    pub fn new(repo: &dyn crate::git::Repo, dry_run: bool) -> Executor {
         let head_oid = repo.head_commit().id;
         Self {
             head_oid,
@@ -63,7 +63,7 @@ impl Executor {
 
     pub fn run_script<'s>(
         &mut self,
-        repo: &mut dyn crate::repo::Repo,
+        repo: &mut dyn crate::git::Repo,
         script: &'s Script,
     ) -> Vec<(git2::Error, &'s str, Vec<&'s str>)> {
         let mut failures = Vec::new();
@@ -96,7 +96,7 @@ impl Executor {
 
     pub fn stage_single(
         &mut self,
-        repo: &mut dyn crate::repo::Repo,
+        repo: &mut dyn crate::git::Repo,
         command: &Command,
     ) -> Result<(), git2::Error> {
         match command {
@@ -153,7 +153,7 @@ impl Executor {
         Ok(())
     }
 
-    pub fn commit(&mut self, repo: &mut dyn crate::repo::Repo) -> Result<(), git2::Error> {
+    pub fn commit(&mut self, repo: &mut dyn crate::git::Repo) -> Result<(), git2::Error> {
         if !self.branches.is_empty() {
             // In case we are changing the branch HEAD is attached to
             if !self.dry_run {
@@ -174,14 +174,14 @@ impl Executor {
         Ok(())
     }
 
-    pub fn abandon(&mut self, repo: &dyn crate::repo::Repo) {
+    pub fn abandon(&mut self, repo: &dyn crate::git::Repo) {
         self.branches.clear();
         self.head_oid = repo.head_commit().id;
     }
 
     pub fn close(
         &mut self,
-        repo: &mut dyn crate::repo::Repo,
+        repo: &mut dyn crate::git::Repo,
         restore_branch: &str,
     ) -> Result<(), git2::Error> {
         assert_eq!(&self.branches, &[]);

@@ -1,6 +1,6 @@
 use bstr::ByteSlice;
 
-pub fn populate_repo(repo: &mut git_stack::repo::InMemoryRepo, fixture: git_fixture::Dag) {
+pub fn populate_repo(repo: &mut git_stack::git::InMemoryRepo, fixture: git_fixture::Dag) {
     if fixture.init {
         repo.clear();
     }
@@ -13,7 +13,7 @@ pub fn populate_repo(repo: &mut git_stack::repo::InMemoryRepo, fixture: git_fixt
 }
 
 fn populate_event(
-    repo: &mut git_stack::repo::InMemoryRepo,
+    repo: &mut git_stack::git::InMemoryRepo,
     event: git_fixture::Event,
     import_root: &std::path::Path,
     marks: &mut std::collections::HashMap<String, git2::Oid>,
@@ -31,7 +31,7 @@ fn populate_event(
                 let commit_id = repo.gen_id();
                 let message = bstr::BString::from(tree.message.as_deref().unwrap_or("Automated"));
                 let summary = message.lines().next().unwrap().to_owned();
-                let commit = git_stack::repo::Commit {
+                let commit = git_stack::git::Commit {
                     id: commit_id,
                     summary: bstr::BString::from(summary),
                     is_merge: false,
@@ -39,7 +39,7 @@ fn populate_event(
                 repo.push_commit(parent_id, commit);
 
                 if let Some(branch) = tree.branch.as_ref() {
-                    let branch = git_stack::repo::Branch {
+                    let branch = git_stack::git::Branch {
                         name: branch.as_str().to_owned(),
                         id: commit_id,
                     };

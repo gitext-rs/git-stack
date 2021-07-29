@@ -1,13 +1,13 @@
 mod fixture;
 
-use git_stack::branches::*;
+use git_stack::git::*;
 
-fn no_protect() -> git_stack::protect::ProtectedBranches {
-    git_stack::protect::ProtectedBranches::new(vec![]).unwrap()
+fn no_protect() -> git_stack::git::ProtectedBranches {
+    git_stack::git::ProtectedBranches::new(vec![]).unwrap()
 }
 
-fn protect() -> git_stack::protect::ProtectedBranches {
-    git_stack::protect::ProtectedBranches::new(vec!["master"]).unwrap()
+fn protect() -> git_stack::git::ProtectedBranches {
+    git_stack::git::ProtectedBranches::new(vec!["master"]).unwrap()
 }
 
 mod test_branches {
@@ -15,7 +15,7 @@ mod test_branches {
 
     #[test]
     fn test_all() {
-        let mut repo = git_stack::repo::InMemoryRepo::new();
+        let mut repo = git_stack::git::InMemoryRepo::new();
         let plan =
             git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
         fixture::populate_repo(&mut repo, plan);
@@ -43,7 +43,7 @@ mod test_branches {
 
     #[test]
     fn test_dependents() {
-        let mut repo = git_stack::repo::InMemoryRepo::new();
+        let mut repo = git_stack::git::InMemoryRepo::new();
         let plan =
             git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
         fixture::populate_repo(&mut repo, plan);
@@ -65,7 +65,7 @@ mod test_branches {
 
     #[test]
     fn test_branch() {
-        let mut repo = git_stack::repo::InMemoryRepo::new();
+        let mut repo = git_stack::git::InMemoryRepo::new();
         let plan =
             git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
         fixture::populate_repo(&mut repo, plan);
@@ -87,7 +87,7 @@ mod test_branches {
 
     #[test]
     fn test_protected() {
-        let mut repo = git_stack::repo::InMemoryRepo::new();
+        let mut repo = git_stack::git::InMemoryRepo::new();
         let plan =
             git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
         fixture::populate_repo(&mut repo, plan);
@@ -110,7 +110,7 @@ mod test_find_protected_base {
 
     #[test]
     fn test_no_protected() {
-        let mut repo = git_stack::repo::InMemoryRepo::new();
+        let mut repo = git_stack::git::InMemoryRepo::new();
         let plan =
             git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
         fixture::populate_repo(&mut repo, plan);
@@ -127,7 +127,7 @@ mod test_find_protected_base {
 
     #[test]
     fn test_protected_branch() {
-        let mut repo = git_stack::repo::InMemoryRepo::new();
+        let mut repo = git_stack::git::InMemoryRepo::new();
         let plan =
             git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
         fixture::populate_repo(&mut repo, plan);
@@ -144,7 +144,7 @@ mod test_find_protected_base {
 
     #[test]
     fn test_protected_base() {
-        let mut repo = git_stack::repo::InMemoryRepo::new();
+        let mut repo = git_stack::git::InMemoryRepo::new();
         let plan =
             git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
         fixture::populate_repo(&mut repo, plan);

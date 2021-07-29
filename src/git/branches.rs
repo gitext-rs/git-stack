@@ -1,10 +1,10 @@
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Branches {
-    branches: std::collections::BTreeMap<git2::Oid, Vec<crate::repo::Branch>>,
+    branches: std::collections::BTreeMap<git2::Oid, Vec<crate::git::Branch>>,
 }
 
 impl Branches {
-    pub fn new(branches: impl Iterator<Item = crate::repo::Branch>) -> Self {
+    pub fn new(branches: impl Iterator<Item = crate::git::Branch>) -> Self {
         let mut grouped_branches = std::collections::BTreeMap::new();
         for branch in branches {
             grouped_branches
@@ -17,14 +17,14 @@ impl Branches {
         }
     }
 
-    pub fn insert(&mut self, branch: crate::repo::Branch) {
+    pub fn insert(&mut self, branch: crate::git::Branch) {
         self.branches
             .entry(branch.id)
             .or_insert_with(|| Vec::new())
             .push(branch);
     }
 
-    pub fn extend(&mut self, branches: impl Iterator<Item = crate::repo::Branch>) {
+    pub fn extend(&mut self, branches: impl Iterator<Item = crate::git::Branch>) {
         for branch in branches {
             self.insert(branch);
         }
@@ -34,11 +34,11 @@ impl Branches {
         self.branches.contains_key(&oid)
     }
 
-    pub fn get(&self, oid: git2::Oid) -> Option<&[crate::repo::Branch]> {
+    pub fn get(&self, oid: git2::Oid) -> Option<&[crate::git::Branch]> {
         self.branches.get(&oid).map(|v| v.as_slice())
     }
 
-    pub fn remove(&mut self, oid: git2::Oid) -> Option<Vec<crate::repo::Branch>> {
+    pub fn remove(&mut self, oid: git2::Oid) -> Option<Vec<crate::git::Branch>> {
         self.branches.remove(&oid)
     }
 
@@ -46,7 +46,7 @@ impl Branches {
         self.branches.keys().copied()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (git2::Oid, &[crate::repo::Branch])> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (git2::Oid, &[crate::git::Branch])> + '_ {
         self.branches
             .iter()
             .map(|(oid, branch)| (*oid, branch.as_slice()))
@@ -62,7 +62,7 @@ impl Branches {
 
     pub fn dependents(
         &self,
-        repo: &dyn crate::repo::Repo,
+        repo: &dyn crate::git::Repo,
         base_oid: git2::Oid,
         head_oid: git2::Oid,
     ) -> Self {
@@ -114,7 +114,7 @@ impl Branches {
 
     pub fn branch(
         &self,
-        repo: &dyn crate::repo::Repo,
+        repo: &dyn crate::git::Repo,
         base_oid: git2::Oid,
         head_oid: git2::Oid,
     ) -> Self {
@@ -164,7 +164,7 @@ impl Branches {
         Self { branches }
     }
 
-    pub fn protected(&self, protected: &crate::protect::ProtectedBranches) -> Self {
+    pub fn protected(&self, protected: &crate::git::ProtectedBranches) -> Self {
         let branches: std::collections::BTreeMap<_, _> = self
             .branches
             .iter()
@@ -193,10 +193,10 @@ impl Branches {
 }
 
 pub fn find_protected_base<'b>(
-    repo: &dyn crate::repo::Repo,
+    repo: &dyn crate::git::Repo,
     protected_branches: &'b Branches,
     head_oid: git2::Oid,
-) -> Option<&'b crate::repo::Branch> {
+) -> Option<&'b crate::git::Branch> {
     let protected_base_oids: std::collections::HashMap<_, _> = protected_branches
         .oids()
         .filter_map(|oid| {

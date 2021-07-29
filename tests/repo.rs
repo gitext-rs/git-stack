@@ -1,6 +1,6 @@
 use assert_fs::prelude::*;
 
-use git_stack::repo::*;
+use git_stack::git::*;
 
 #[test]
 fn shared_fixture() {

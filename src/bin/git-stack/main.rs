@@ -104,13 +104,13 @@ fn protected(args: &Args) -> proc_exit::ExitResult {
     let repo_config = git_stack::config::RepoConfig::from_all(&repo)
         .with_code(proc_exit::Code::CONFIG_ERR)?
         .update(args.to_config());
-    let protected = git_stack::protect::ProtectedBranches::new(
+    let protected = git_stack::git::ProtectedBranches::new(
         repo_config.protected_branches().iter().map(|s| s.as_str()),
     )
     .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-    let repo = git_stack::repo::GitRepo::new(repo);
-    let branches = git_stack::branches::Branches::new(repo.local_branches());
+    let repo = git_stack::git::GitRepo::new(repo);
+    let branches = git_stack::git::Branches::new(repo.local_branches());
     let protected_branches = branches.protected(&protected);
 
     for (branch_id, branches) in branches.iter() {
@@ -136,13 +136,13 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     let repo_config = git_stack::config::RepoConfig::from_all(&repo)
         .with_code(proc_exit::Code::CONFIG_ERR)?
         .update(args.to_config());
-    let protected = git_stack::protect::ProtectedBranches::new(
+    let protected = git_stack::git::ProtectedBranches::new(
         repo_config.protected_branches().iter().map(|s| s.as_str()),
     )
     .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-    let mut repo = git_stack::repo::GitRepo::new(repo);
-    let mut branches = git_stack::branches::Branches::new(repo.local_branches());
+    let mut repo = git_stack::git::GitRepo::new(repo);
+    let mut branches = git_stack::git::Branches::new(repo.local_branches());
     let mut protected_branches = branches.protected(&protected);
 
     if args.rebase {
@@ -186,7 +186,7 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
                         ) {
                             log::warn!("Skipping pull, {}", err);
                         } else {
-                            branches = git_stack::branches::Branches::new(repo.local_branches());
+                            branches = git_stack::git::Branches::new(repo.local_branches());
                             protected_branches = branches.protected(&protected);
                         }
                     } else {
@@ -222,13 +222,13 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
                 branches.dependents(&repo, merge_base_oid, head_oid)
             }
         };
-        let mut root = git_stack::dag::graph(&repo, head_oid, graphed_branches)
+        let mut root = git_stack::graph::graph(&repo, head_oid, graphed_branches)
             .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-        git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
+        git_stack::graph::protect_branches(&mut root, &repo, &protected_branches)
             .with_code(proc_exit::Code::CONFIG_ERR)?;
 
-        git_stack::dag::rebase_branches(&mut root, onto_oid)
+        git_stack::graph::rebase_branches(&mut root, onto_oid)
             .with_code(proc_exit::Code::CONFIG_ERR)?;
 
         // TODO Identify commits to drop by tree id
@@ -236,10 +236,10 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         // TODO Snap branches to be on branches
         // TODO Re-arrange fixup commits
         // TODO Re-stack branches that have been individually rebased
-        git_stack::dag::delinearize(&mut root);
+        git_stack::graph::delinearize(&mut root);
 
-        let mut executor = git_stack::commands::Executor::new(&repo, args.dry_run);
-        let script = git_stack::dag::to_script(&root);
+        let mut executor = git_stack::git::Executor::new(&repo, args.dry_run);
+        let script = git_stack::graph::to_script(&root);
         let results = executor.run_script(&mut repo, &script);
         for (err, name, dependents) in results.iter() {
             log::error!("Failed to re-stack branch `{}`: {}", name, err);
@@ -274,13 +274,13 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
             branches.dependents(&repo, merge_base_oid, head_oid)
         }
     };
-    let mut root = git_stack::dag::graph(&repo, head_oid, graphed_branches)
+    let mut root = git_stack::graph::graph(&repo, head_oid, graphed_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
-    git_stack::dag::protect_branches(&mut root, &repo, &protected_branches)
+    git_stack::graph::protect_branches(&mut root, &repo, &protected_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
     // TODO: Show unblocked branches
     if !repo_config.show_stacked() {
-        git_stack::dag::delinearize(&mut root);
+        git_stack::graph::delinearize(&mut root);
     }
 
     match repo_config.show_format() {
@@ -305,11 +305,11 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
 }
 
 fn resolve_base(
-    repo: &dyn git_stack::repo::Repo,
+    repo: &dyn git_stack::git::Repo,
     base: Option<&str>,
     head_oid: git2::Oid,
-    protected_branches: &git_stack::branches::Branches,
-) -> eyre::Result<git_stack::repo::Branch> {
+    protected_branches: &git_stack::git::Branches,
+) -> eyre::Result<git_stack::git::Branch> {
     match base {
         Some(branch_name) => resolve_explicit_base(repo, branch_name),
         None => resolve_implicit_base(repo, head_oid, protected_branches),
@@ -317,26 +317,26 @@ fn resolve_base(
 }
 
 fn resolve_explicit_base(
-    repo: &dyn git_stack::repo::Repo,
+    repo: &dyn git_stack::git::Repo,
     base: &str,
-) -> eyre::Result<git_stack::repo::Branch> {
+) -> eyre::Result<git_stack::git::Branch> {
     repo.find_local_branch(base)
         .ok_or_else(|| eyre::eyre!("could not find branch {:?}", base))
 }
 
 fn resolve_implicit_base(
-    repo: &dyn git_stack::repo::Repo,
+    repo: &dyn git_stack::git::Repo,
     head_oid: git2::Oid,
-    protected_branches: &git_stack::branches::Branches,
-) -> eyre::Result<git_stack::repo::Branch> {
-    let branch = git_stack::branches::find_protected_base(repo, protected_branches, head_oid)
+    protected_branches: &git_stack::git::Branches,
+) -> eyre::Result<git_stack::git::Branch> {
+    let branch = git_stack::git::find_protected_base(repo, protected_branches, head_oid)
         .ok_or_else(|| eyre::eyre!("could not find a protected branch to use as a base"))?;
     log::debug!("Chose branch {} as the base", branch.name);
     Ok(branch.clone())
 }
 
 fn git_pull(
-    repo: &mut git_stack::repo::GitRepo,
+    repo: &mut git_stack::git::GitRepo,
     remote: &str,
     branch_name: &str,
 ) -> eyre::Result<()> {
