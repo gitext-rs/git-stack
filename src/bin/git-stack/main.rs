@@ -358,15 +358,6 @@ fn graph(
         }
     }
 
-    if !graph_branches.is_empty() {
-        let unused_branches = graph_branches
-            .iter()
-            .flat_map(|(_, branches)| branches)
-            .map(|branch| branch.name.as_str())
-            .join(", ");
-        log::error!("Unhandled branches: {}", unused_branches);
-    }
-
     Ok(root)
 }
 
