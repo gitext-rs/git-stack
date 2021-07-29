@@ -258,32 +258,47 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
         }
     }
 
+    show(
+        &repo,
+        &repo_config,
+        &branches,
+        &protected_branches,
+        args,
+        colored_stdout,
+    )
+    .with_code(proc_exit::Code::FAILURE)?;
+
+    Ok(())
+}
+
+fn show(
+    repo: &git_stack::git::GitRepo,
+    repo_config: &git_stack::config::RepoConfig,
+    branches: &git_stack::git::Branches,
+    protected_branches: &git_stack::git::Branches,
+    args: &Args,
+    colored_stdout: bool,
+) -> eyre::Result<()> {
     let head_oid = repo.head_commit().id;
-    let base_branch = resolve_base(&repo, args.base.as_deref(), head_oid, &protected_branches)
-        .with_code(proc_exit::Code::USAGE_ERR)?;
-    let merge_base_oid = repo
-        .merge_base(base_branch.id, head_oid)
-        .ok_or_else(|| {
-            git2::Error::new(
-                git2::ErrorCode::NotFound,
-                git2::ErrorClass::Reference,
-                format!("could not find base between {} and HEAD", base_branch.name),
-            )
-        })
-        .with_code(proc_exit::Code::USAGE_ERR)?;
+    let base_branch = resolve_base(repo, args.base.as_deref(), head_oid, protected_branches)?;
+    let merge_base_oid = repo.merge_base(base_branch.id, head_oid).ok_or_else(|| {
+        git2::Error::new(
+            git2::ErrorCode::NotFound,
+            git2::ErrorClass::Reference,
+            format!("could not find base between {} and HEAD", base_branch.name),
+        )
+    })?;
     let mut graphed_branches = match repo_config.branch() {
-        git_stack::config::Branch::Current => branches.branch(&repo, merge_base_oid, head_oid),
+        git_stack::config::Branch::Current => branches.branch(repo, merge_base_oid, head_oid),
         git_stack::config::Branch::Dependents => {
-            branches.dependents(&repo, merge_base_oid, head_oid)
+            branches.dependents(repo, merge_base_oid, head_oid)
         }
     };
     if !graphed_branches.contains_oid(base_branch.id) {
         graphed_branches.insert(base_branch.clone());
     }
-    let mut root = graph(&repo, merge_base_oid, head_oid, graphed_branches)
-        .with_code(proc_exit::Code::CONFIG_ERR)?;
-    git_stack::graph::protect_branches(&mut root, &repo, &protected_branches)
-        .with_code(proc_exit::Code::CONFIG_ERR)?;
+    let mut root = graph(repo, merge_base_oid, head_oid, graphed_branches)?;
+    git_stack::graph::protect_branches(&mut root, repo, protected_branches)?;
     // TODO: Show unblocked branches
     if !repo_config.show_stacked() {
         git_stack::graph::delinearize(&mut root);
