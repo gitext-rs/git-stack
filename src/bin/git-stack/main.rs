@@ -216,12 +216,15 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
                 )
             })
             .with_code(proc_exit::Code::USAGE_ERR)?;
-        let graphed_branches = match repo_config.branch() {
+        let mut graphed_branches = match repo_config.branch() {
             git_stack::config::Branch::Current => branches.branch(&repo, merge_base_oid, head_oid),
             git_stack::config::Branch::Dependents => {
                 branches.dependents(&repo, merge_base_oid, head_oid)
             }
         };
+        if !graphed_branches.contains_oid(base_branch.id) {
+            graphed_branches.insert(base_branch.clone());
+        }
         let mut root = graph(&repo, merge_base_oid, head_oid, graphed_branches)
             .with_code(proc_exit::Code::CONFIG_ERR)?;
 
@@ -268,12 +271,15 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
             )
         })
         .with_code(proc_exit::Code::USAGE_ERR)?;
-    let graphed_branches = match repo_config.branch() {
+    let mut graphed_branches = match repo_config.branch() {
         git_stack::config::Branch::Current => branches.branch(&repo, merge_base_oid, head_oid),
         git_stack::config::Branch::Dependents => {
             branches.dependents(&repo, merge_base_oid, head_oid)
         }
     };
+    if !graphed_branches.contains_oid(base_branch.id) {
+        graphed_branches.insert(base_branch.clone());
+    }
     let mut root = graph(&repo, merge_base_oid, head_oid, graphed_branches)
         .with_code(proc_exit::Code::CONFIG_ERR)?;
     git_stack::graph::protect_branches(&mut root, &repo, &protected_branches)

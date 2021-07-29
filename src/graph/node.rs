@@ -61,9 +61,9 @@ impl Node {
     ) -> Result<Self, git2::Error> {
         if let Some(head_branches) = branches.get(head_oid) {
             let head_name = head_branches.first().unwrap().name.as_str();
-            log::trace!("Populating data for {}", head_name);
+            log::trace!("Populating data for {}..{}", base_oid, head_name);
         } else {
-            log::trace!("Populating data for {}", head_oid);
+            log::trace!("Populating data for {}..{}", base_oid, head_oid);
         }
         let merge_base_oid = repo.merge_base(base_oid, head_oid).ok_or_else(|| {
             git2::Error::new(
