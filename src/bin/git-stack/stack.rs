@@ -1,5 +1,6 @@
 use std::io::Write;
 
+use bstr::ByteSlice;
 use eyre::WrapErr;
 use itertools::Itertools;
 use proc_exit::WithCodeResultExt;
@@ -9,14 +10,11 @@ struct State {
     branches: git_stack::git::Branches,
     protected_branches: git_stack::git::Branches,
     head_commit: std::rc::Rc<git_stack::git::Commit>,
-    base: git_stack::git::Branch,
-    onto: git_stack::git::Branch,
+    stacks: Vec<StackState>,
 
     rebase: bool,
     pull: bool,
     pull_remote: String,
-    stack: git_stack::config::Stack,
-    protected: git_stack::git::ProtectedBranches,
     dry_run: bool,
 
     show_format: git_stack::config::Format,
@@ -39,7 +37,6 @@ impl State {
             rebase = true;
         }
         let pull_remote = repo_config.pull_remote().to_owned();
-        let stack = repo_config.stack();
         let protected = git_stack::git::ProtectedBranches::new(
             repo_config.protected_branches().iter().map(|s| s.as_str()),
         )
@@ -58,56 +55,134 @@ impl State {
             .map(|name| resolve_explicit_base(&repo, name))
             .transpose()
             .with_code(proc_exit::Code::USAGE_ERR)?;
-        let base = base
-            .map(Result::Ok)
-            .unwrap_or_else(|| resolve_implicit_base(&repo, head_commit.id, &protected_branches))
-            .with_code(proc_exit::Code::USAGE_ERR)?;
         let onto = args
             .onto
             .as_deref()
             .map(|name| resolve_explicit_base(&repo, name))
             .transpose()
-            .with_code(proc_exit::Code::USAGE_ERR)?
-            .unwrap_or_else(|| base.clone());
+            .with_code(proc_exit::Code::USAGE_ERR)?;
+        let stacks = match (base, onto, repo_config.stack()) {
+            (Some(base), None, git_stack::config::Stack::All) => {
+                let onto = base.clone();
+                vec![StackState {
+                    base,
+                    onto,
+                    branches: branches.all(),
+                }]
+            }
+            (None, Some(onto), git_stack::config::Stack::All) => {
+                let base = onto.clone();
+                vec![StackState {
+                    base,
+                    onto,
+                    branches: branches.all(),
+                }]
+            }
+            (None, None, git_stack::config::Stack::All) => {
+                let mut stack_branches = std::collections::HashMap::new();
+                for (branch_id, branch) in branches.iter() {
+                    let base_branch =
+                        resolve_implicit_base(&repo, branch_id, &branches, &protected_branches)
+                            .with_code(proc_exit::Code::USAGE_ERR)?;
+                    stack_branches
+                        .entry(base_branch)
+                        .or_insert_with(git_stack::git::Branches::default)
+                        .extend(branch.iter().cloned());
+                }
+                stack_branches
+                    .into_iter()
+                    .map(|(base, branches)| {
+                        let onto = base.clone();
+                        StackState {
+                            base,
+                            onto,
+                            branches,
+                        }
+                    })
+                    .collect()
+            }
+            (base, onto, stack) => {
+                let base = base
+                    .map(Result::Ok)
+                    .unwrap_or_else(|| {
+                        resolve_implicit_base(&repo, head_commit.id, &branches, &protected_branches)
+                    })
+                    .with_code(proc_exit::Code::USAGE_ERR)?;
+                let onto = onto.unwrap_or_else(|| base.clone());
+                let merge_base_oid = repo
+                    .merge_base(base.id, head_commit.id)
+                    .ok_or_else(|| {
+                        git2::Error::new(
+                            git2::ErrorCode::NotFound,
+                            git2::ErrorClass::Reference,
+                            format!("could not find base between {} and HEAD", base.name),
+                        )
+                    })
+                    .with_code(proc_exit::Code::USAGE_ERR)?;
+                let stack_branches = match stack {
+                    git_stack::config::Stack::Current => {
+                        branches.branch(&repo, merge_base_oid, head_commit.id)
+                    }
+                    git_stack::config::Stack::Dependents => {
+                        branches.dependents(&repo, merge_base_oid, head_commit.id)
+                    }
+                    git_stack::config::Stack::Descendants => {
+                        branches.descendants(&repo, merge_base_oid)
+                    }
+                    git_stack::config::Stack::All => unreachable!("Covered in another branch"),
+                };
+                vec![StackState {
+                    base,
+                    onto,
+                    branches: stack_branches,
+                }]
+            }
+        };
 
         Ok(Self {
             repo,
             branches,
             protected_branches,
             head_commit,
-            base,
-            onto,
+            stacks,
 
             rebase,
             pull,
             pull_remote,
-            stack,
             dry_run,
-            protected,
             show_format,
             show_stacked,
         })
     }
 
     fn update(&mut self) -> eyre::Result<()> {
-        let head_commit = self.repo.head_commit();
-        let branches = git_stack::git::Branches::new(self.repo.local_branches());
-        let protected_branches = branches.protected(&self.protected);
-        let base = self
-            .repo
+        self.head_commit = self.repo.head_commit();
+        self.branches.update(&self.repo);
+        self.protected_branches.update(&self.repo);
+
+        for stack in self.stacks.iter_mut() {
+            stack.update(&self.repo)?;
+        }
+
+        Ok(())
+    }
+}
+
+struct StackState {
+    base: git_stack::git::Branch,
+    onto: git_stack::git::Branch,
+    branches: git_stack::git::Branches,
+}
+
+impl StackState {
+    fn update(&mut self, repo: &dyn git_stack::git::Repo) -> eyre::Result<()> {
+        self.base = repo
             .find_local_branch(self.base.name.as_str())
             .ok_or_else(|| eyre::eyre!("can no longer find branch {}", self.base.name))?;
-        let onto = self
-            .repo
+        self.onto = repo
             .find_local_branch(self.onto.name.as_str())
             .ok_or_else(|| eyre::eyre!("can no longer find branch {}", self.onto.name))?;
-
-        self.head_commit = head_commit;
-        self.branches = branches;
-        self.protected_branches = protected_branches;
-        self.base = base;
-        self.onto = onto;
-
+        self.branches.update(repo);
         Ok(())
     }
 }
@@ -119,6 +194,35 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
     let repo = git_stack::git::GitRepo::new(repo);
     let mut state = State::new(repo, args)?;
 
+    if state.pull {
+        let mut pulled = false;
+        for stack in state.stacks.iter() {
+            if state.protected_branches.contains_oid(stack.onto.id) {
+                match git_pull(
+                    &mut state.repo,
+                    &state.pull_remote,
+                    stack.onto.name.as_str(),
+                ) {
+                    Ok(_) => {
+                        pulled = true;
+                    }
+                    Err(err) => {
+                        log::warn!("Skipping pull of `{}`, {}", stack.onto.name, err);
+                    }
+                }
+            } else {
+                log::warn!(
+                    "Skipping pull of `{}`, not a protected branch",
+                    stack.onto.name
+                );
+            }
+        }
+        if pulled {
+            state.update().with_code(proc_exit::Code::FAILURE)?;
+        }
+    }
+
+    let mut success = true;
     if state.rebase {
         let head_oid = state.repo.head_commit().id;
         let head_branch = if let Some(branches) = state.branches.get(head_oid) {
@@ -128,95 +232,53 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
                 .with_code(proc_exit::Code::USAGE_ERR);
         };
 
-        let script = plan_rebase(&mut state).with_code(proc_exit::Code::FAILURE)?;
+        let scripts: Result<Vec<_>, proc_exit::Exit> = state
+            .stacks
+            .iter()
+            .map(|stack| plan_rebase(&state, stack).with_code(proc_exit::Code::FAILURE))
+            .collect();
+        let scripts = scripts?;
 
         let mut executor = git_stack::git::Executor::new(&state.repo, state.dry_run);
-        let results = executor.run_script(&mut state.repo, &script);
-        for (err, name, dependents) in results.iter() {
-            log::error!("Failed to re-stack branch `{}`: {}", name, err);
-            if !dependents.is_empty() {
-                log::error!("  Blocked dependents: {}", dependents.iter().join(", "));
+        for script in scripts {
+            let results = executor.run_script(&mut state.repo, &script);
+            for (err, name, dependents) in results.iter() {
+                success = false;
+                log::error!("Failed to re-stack branch `{}`: {}", name, err);
+                if !dependents.is_empty() {
+                    log::error!("  Blocked dependents: {}", dependents.iter().join(", "));
+                }
             }
         }
         executor
             .close(&mut state.repo, &head_branch.name)
             .with_code(proc_exit::Code::FAILURE)?;
-        if !results.is_empty() {
-            return proc_exit::Code::FAILURE.ok();
-        }
+        state.update().with_code(proc_exit::Code::FAILURE)?;
     }
 
     show(&state, colored_stdout).with_code(proc_exit::Code::FAILURE)?;
 
+    if !success {
+        return proc_exit::Code::FAILURE.ok();
+    }
+
     Ok(())
 }
 
-fn plan_rebase(state: &mut State) -> eyre::Result<git_stack::git::Script> {
-    let head_oid = state.head_commit.id;
-
-    let onto_oid = if state.pull {
-        if state.protected_branches.contains_oid(state.onto.id) {
-            match git_pull(
-                &mut state.repo,
-                &state.pull_remote,
-                state.onto.name.as_str(),
-            ) {
-                Ok(onto_oid) => {
-                    state.update()?;
-                    onto_oid
-                }
-                Err(err) => {
-                    log::warn!("Skipping pull, {}", err);
-                    state.onto.id
-                }
-            }
-        } else {
-            log::warn!(
-                "Skipping pull, `{}` isn't a protected branch",
-                state.onto.name
-            );
-            state.onto.id
-        }
-    } else {
-        state.onto.id
-    };
-
-    let merge_base_oid = state
-        .repo
-        .merge_base(state.base.id, head_oid)
-        .ok_or_else(|| {
-            git2::Error::new(
-                git2::ErrorCode::NotFound,
-                git2::ErrorClass::Reference,
-                format!("could not find base between {} and HEAD", state.base.name),
-            )
-        })?;
-    let mut root = match state.stack {
-        git_stack::config::Stack::Current => {
-            let graphed_branches = state.branches.branch(&state.repo, merge_base_oid, head_oid);
-            graph(&state.repo, merge_base_oid, head_oid, graphed_branches)?
-        }
-        git_stack::config::Stack::Dependents => {
-            let graphed_branches = state
-                .branches
-                .dependents(&state.repo, merge_base_oid, head_oid);
-            graph(&state.repo, merge_base_oid, head_oid, graphed_branches)?
-        }
-        git_stack::config::Stack::Descendants => {
-            let graphed_branches = state.branches.descendants(&state.repo, merge_base_oid);
-            graph(&state.repo, merge_base_oid, head_oid, graphed_branches)?
-        }
-        git_stack::config::Stack::All => {
-            let mut graphed_branches = state.branches.all();
-            let root =
-                git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
-            root.extend(&state.repo, graphed_branches)?
-        }
-    };
+fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
+    let mut graphed_branches = stack.branches.clone();
+    if !graphed_branches.contains_oid(stack.base.id) {
+        graphed_branches.insert(stack.base.clone());
+    }
+    if !graphed_branches.contains_oid(stack.onto.id) {
+        graphed_branches.insert(stack.onto.clone());
+    }
+    let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
+    root = root.extend(&state.repo, graphed_branches)?;
 
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
 
-    git_stack::graph::rebase_branches(&mut root, onto_oid)?;
+    git_stack::graph::rebase_branches(&mut root, stack.onto.id)?;
 
     // TODO Identify commits to drop by tree id
     // TODO Identify commits to drop by guessing
@@ -231,47 +293,21 @@ fn plan_rebase(state: &mut State) -> eyre::Result<git_stack::git::Script> {
 }
 
 fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
-    let head_commit = state.repo.head_commit();
-    let head_oid = state.head_commit.id;
-    let merge_base_oid = state
-        .repo
-        .merge_base(state.base.id, head_oid)
-        .ok_or_else(|| {
-            git2::Error::new(
-                git2::ErrorCode::NotFound,
-                git2::ErrorClass::Reference,
-                format!("could not find base between {} and HEAD", state.base.name),
-            )
-        })?;
+    let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
+    for stack in state.stacks.iter() {
+        graphed_branches.extend(stack.branches.iter().flat_map(|(_, b)| b.to_owned()));
+    }
+    for stack in state.stacks.iter() {
+        if !graphed_branches.contains_oid(stack.base.id) {
+            graphed_branches.insert(stack.base.clone());
+        }
+        if !graphed_branches.contains_oid(stack.onto.id) {
+            graphed_branches.insert(stack.onto.clone());
+        }
+    }
+    let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
+    root = root.extend(&state.repo, graphed_branches)?;
 
-    let mut root = match state.stack {
-        git_stack::config::Stack::Current => {
-            let mut graphed_branches = state.branches.branch(&state.repo, merge_base_oid, head_oid);
-            if !graphed_branches.contains_oid(state.base.id) {
-                graphed_branches.insert(state.base.clone());
-            }
-            graph(&state.repo, merge_base_oid, head_oid, graphed_branches)?
-        }
-        git_stack::config::Stack::Dependents => {
-            let mut graphed_branches =
-                state
-                    .branches
-                    .dependents(&state.repo, merge_base_oid, head_oid);
-            if !graphed_branches.contains_oid(state.base.id) {
-                graphed_branches.insert(state.base.clone());
-            }
-            graph(&state.repo, merge_base_oid, head_oid, graphed_branches)?
-        }
-        git_stack::config::Stack::Descendants => {
-            let graphed_branches = state.branches.descendants(&state.repo, merge_base_oid);
-            graph(&state.repo, merge_base_oid, head_oid, graphed_branches)?
-        }
-        git_stack::config::Stack::All => {
-            let mut graphed_branches = state.branches.all();
-            let root = git_stack::graph::Node::new(head_commit.clone(), &mut graphed_branches);
-            root.extend(&state.repo, graphed_branches)?
-        }
-    };
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
     // TODO: Show unblocked branches
     if !state.show_stacked {
@@ -299,25 +335,6 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
     Ok(())
 }
 
-fn graph(
-    repo: &dyn git_stack::git::Repo,
-    base_id: git2::Oid,
-    head_id: git2::Oid,
-    mut graph_branches: git_stack::git::Branches,
-) -> eyre::Result<git_stack::graph::Node> {
-    let head_commit = repo.find_commit(head_id).unwrap();
-    let mut root = git_stack::graph::Node::new(head_commit, &mut graph_branches);
-    root = root.insert(
-        repo,
-        repo.find_commit(base_id).unwrap(),
-        &mut graph_branches,
-    )?;
-
-    root = root.extend(repo, graph_branches)?;
-
-    Ok(root)
-}
-
 fn resolve_explicit_base(
     repo: &dyn git_stack::git::Repo,
     base: &str,
@@ -329,11 +346,26 @@ fn resolve_explicit_base(
 fn resolve_implicit_base(
     repo: &dyn git_stack::git::Repo,
     head_oid: git2::Oid,
+    branches: &git_stack::git::Branches,
     protected_branches: &git_stack::git::Branches,
 ) -> eyre::Result<git_stack::git::Branch> {
     let branch = git_stack::git::find_protected_base(repo, protected_branches, head_oid)
         .ok_or_else(|| eyre::eyre!("could not find a protected branch to use as a base"))?;
-    log::debug!("Chose branch {} as the base", branch.name);
+    log::debug!(
+        "Chose branch {} as the base for {}",
+        branch.name,
+        branches
+            .get(head_oid)
+            .map(|b| b[0].name.clone())
+            .or_else(|| {
+                repo.find_commit(head_oid)?
+                    .summary
+                    .to_str()
+                    .ok()
+                    .map(ToOwned::to_owned)
+            })
+            .unwrap_or_else(|| "target".to_owned())
+    );
     Ok(branch.clone())
 }
 

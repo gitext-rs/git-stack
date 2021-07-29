@@ -17,6 +17,16 @@ impl Branches {
         }
     }
 
+    pub fn update(&mut self, repo: &dyn crate::git::Repo) {
+        let mut new = Self::new(
+            self.branches
+                .values()
+                .flatten()
+                .filter_map(|b| repo.find_local_branch(&b.name)),
+        );
+        std::mem::swap(&mut new, self);
+    }
+
     pub fn insert(&mut self, branch: crate::git::Branch) {
         self.branches
             .entry(branch.id)
