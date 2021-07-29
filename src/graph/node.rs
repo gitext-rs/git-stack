@@ -49,6 +49,23 @@ impl Node {
         Ok(self)
     }
 
+    pub fn extend(
+        mut self,
+        repo: &dyn crate::git::Repo,
+        mut branches: crate::git::Branches,
+    ) -> eyre::Result<Self> {
+        if !branches.is_empty() {
+            let mut branch_ids: Vec<_> = branches.oids().collect();
+            branch_ids.sort_by_key(|id| &branches.get(*id).unwrap()[0].name);
+            for branch_id in branch_ids {
+                let branch_commit = repo.find_commit(branch_id).unwrap();
+                self = self.insert(repo, branch_commit, &mut branches)?;
+            }
+        }
+
+        Ok(self)
+    }
+
     pub fn display(&self) -> DisplayTree<'_> {
         DisplayTree::new(self)
     }

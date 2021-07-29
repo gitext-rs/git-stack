@@ -350,13 +350,7 @@ fn graph(
         &mut graph_branches,
     )?;
 
-    if !graph_branches.is_empty() {
-        let branch_ids: Vec<_> = graph_branches.oids().collect();
-        for branch_id in branch_ids {
-            let branch_commit = repo.find_commit(branch_id).unwrap();
-            root = root.insert(repo, branch_commit, &mut graph_branches)?;
-        }
-    }
+    root = root.extend(repo, graph_branches)?;
 
     Ok(root)
 }
