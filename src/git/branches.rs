@@ -60,6 +60,38 @@ impl Branches {
         self.clone()
     }
 
+    pub fn descendants(&self, repo: &dyn crate::git::Repo, base_oid: git2::Oid) -> Self {
+        let branches = self
+            .branches
+            .iter()
+            .filter(|(branch_oid, branch)| {
+                let is_base_descendant = repo
+                    .merge_base(**branch_oid, base_oid)
+                    .map(|merge_oid| merge_oid == base_oid)
+                    .unwrap_or(false);
+                if is_base_descendant {
+                    true
+                } else {
+                    let branch_name = &branch
+                        .first()
+                        .expect("we always have at least one branch")
+                        .name;
+                    log::trace!(
+                        "Branch {} is not on the branch of {}",
+                        branch_name,
+                        base_oid
+                    );
+                    false
+                }
+            })
+            .map(|(oid, branches)| {
+                let branches: Vec<_> = branches.iter().cloned().collect();
+                (*oid, branches)
+            })
+            .collect();
+        Self { branches }
+    }
+
     pub fn dependents(
         &self,
         repo: &dyn crate::git::Repo,

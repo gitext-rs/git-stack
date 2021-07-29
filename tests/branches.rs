@@ -42,6 +42,30 @@ mod test_branches {
     }
 
     #[test]
+    fn test_descendants() {
+        let mut repo = git_stack::git::InMemoryRepo::new();
+        let plan =
+            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        fixture::populate_repo(&mut repo, plan);
+
+        let base_oid = repo.resolve("base").unwrap().id;
+
+        let branches = Branches::new(repo.local_branches());
+        let result = branches.descendants(&repo, base_oid);
+        let mut names: Vec<_> = result
+            .iter()
+            .flat_map(|(_, b)| b.iter().map(|b| b.name.as_str()))
+            .collect();
+        names.sort_unstable();
+
+        // Should pick up master (branches off base)
+        assert_eq!(
+            names,
+            ["base", "feature1", "feature2", "master", "off_master"]
+        );
+    }
+
+    #[test]
     fn test_dependents() {
         let mut repo = git_stack::git::InMemoryRepo::new();
         let plan =

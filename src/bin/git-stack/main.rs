@@ -263,6 +263,7 @@ fn plan_rebase(
         git_stack::config::Branch::Dependents => {
             branches.dependents(repo, merge_base_oid, head_oid)
         }
+        git_stack::config::Branch::Descendants => branches.descendants(repo, merge_base_oid),
     };
     let mut root = graph(repo, merge_base_oid, head_oid, graphed_branches)?;
 
@@ -304,6 +305,7 @@ fn show(
         git_stack::config::Branch::Dependents => {
             branches.dependents(repo, merge_base_oid, head_oid)
         }
+        git_stack::config::Branch::Descendants => branches.descendants(repo, merge_base_oid),
     };
     if !graphed_branches.contains_oid(base_branch.id) {
         graphed_branches.insert(base_branch.clone());

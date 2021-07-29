@@ -216,6 +216,7 @@ arg_enum! {
     pub enum Branch {
         Current,
         Dependents,
+        Descendants,
         // TODO: Add All support, challenge is we need to find the correct base for each branch
     }
 }
