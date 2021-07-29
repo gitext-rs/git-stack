@@ -154,95 +154,17 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
                 .with_code(proc_exit::Code::USAGE_ERR);
         };
 
-        let base_branch = resolve_base(&repo, args.base.as_deref(), head_oid, &protected_branches)
-            .with_code(proc_exit::Code::USAGE_ERR)?;
-
-        let onto_branch = if let Some(onto_name) = args.onto.as_deref() {
-            if let Some(onto_branch) = repo.find_local_branch(onto_name) {
-                itertools::Either::Left(onto_branch)
-            } else if let Some(onto_commit) = repo.resolve(onto_name) {
-                if let Some(onto_branches) = protected_branches.get(onto_commit.id) {
-                    let onto_branch = onto_branches.first().unwrap();
-                    itertools::Either::Left(onto_branch.clone())
-                } else {
-                    itertools::Either::Right((onto_name, onto_commit.id))
-                }
-            } else {
-                return Err(eyre::eyre!("Could not resolve `{}` as a commit", onto_name))
-                    .with_code(proc_exit::Code::FAILURE);
-            }
-        } else {
-            itertools::Either::Left(base_branch.clone())
-        };
-
-        let onto_oid = match onto_branch {
-            itertools::Either::Left(onto_branch) => {
-                if args.pull {
-                    if protected_branches.contains_oid(onto_branch.id) {
-                        if let Err(err) = git_pull(
-                            &mut repo,
-                            repo_config.pull_remote(),
-                            onto_branch.name.as_str(),
-                        ) {
-                            log::warn!("Skipping pull, {}", err);
-                        } else {
-                            branches = git_stack::git::Branches::new(repo.local_branches());
-                            protected_branches = branches.protected(&protected);
-                        }
-                    } else {
-                        log::warn!(
-                            "Skipping pull, `{}` isn't a protected branch",
-                            onto_branch.name
-                        );
-                    }
-                }
-                onto_branch.id
-            }
-            itertools::Either::Right((name, oid)) => {
-                if args.pull {
-                    log::warn!("Skipping pull, `{}` isn't a branch", name);
-                }
-                oid
-            }
-        };
-
-        let merge_base_oid = repo
-            .merge_base(base_branch.id, head_oid)
-            .ok_or_else(|| {
-                git2::Error::new(
-                    git2::ErrorCode::NotFound,
-                    git2::ErrorClass::Reference,
-                    format!("could not find base between {} and HEAD", base_branch.name),
-                )
-            })
-            .with_code(proc_exit::Code::USAGE_ERR)?;
-        let mut graphed_branches = match repo_config.branch() {
-            git_stack::config::Branch::Current => branches.branch(&repo, merge_base_oid, head_oid),
-            git_stack::config::Branch::Dependents => {
-                branches.dependents(&repo, merge_base_oid, head_oid)
-            }
-        };
-        if !graphed_branches.contains_oid(base_branch.id) {
-            graphed_branches.insert(base_branch.clone());
-        }
-        let mut root = graph(&repo, merge_base_oid, head_oid, graphed_branches)
-            .with_code(proc_exit::Code::CONFIG_ERR)?;
-
-        git_stack::graph::protect_branches(&mut root, &repo, &protected_branches)
-            .with_code(proc_exit::Code::CONFIG_ERR)?;
-
-        git_stack::graph::rebase_branches(&mut root, onto_oid)
-            .with_code(proc_exit::Code::CONFIG_ERR)?;
-
-        // TODO Identify commits to drop by tree id
-        // TODO Identify commits to drop by guessing
-        // TODO Snap branches to be on branches
-        // TODO Re-arrange fixup commits
-        // TODO Re-stack branches that have been individually rebased
-        git_stack::graph::delinearize(&mut root);
+        let script = plan_rebase(
+            &mut repo,
+            &repo_config,
+            &mut branches,
+            &mut protected_branches,
+            &protected,
+            args,
+        )
+        .with_code(proc_exit::Code::FAILURE)?;
 
         let mut executor = git_stack::git::Executor::new(&repo, args.dry_run);
-        let script = git_stack::graph::to_script(&root);
         let results = executor.run_script(&mut repo, &script);
         for (err, name, dependents) in results.iter() {
             log::error!("Failed to re-stack branch `{}`: {}", name, err);
@@ -269,6 +191,98 @@ fn stack(args: &Args, colored_stdout: bool) -> proc_exit::ExitResult {
     .with_code(proc_exit::Code::FAILURE)?;
 
     Ok(())
+}
+
+fn plan_rebase(
+    repo: &mut git_stack::git::GitRepo,
+    repo_config: &git_stack::config::RepoConfig,
+    branches: &mut git_stack::git::Branches,
+    protected_branches: &mut git_stack::git::Branches,
+    protected: &git_stack::git::ProtectedBranches,
+    args: &Args,
+) -> eyre::Result<git_stack::git::Script> {
+    let head_oid = repo.head_commit().id;
+
+    let base_branch = resolve_base(repo, args.base.as_deref(), head_oid, protected_branches)?;
+
+    let onto_branch = if let Some(onto_name) = args.onto.as_deref() {
+        if let Some(onto_branch) = repo.find_local_branch(onto_name) {
+            itertools::Either::Left(onto_branch)
+        } else if let Some(onto_commit) = repo.resolve(onto_name) {
+            if let Some(onto_branches) = protected_branches.get(onto_commit.id) {
+                let onto_branch = onto_branches.first().unwrap();
+                itertools::Either::Left(onto_branch.clone())
+            } else {
+                itertools::Either::Right((onto_name, onto_commit.id))
+            }
+        } else {
+            eyre::bail!("Could not resolve `{}` as a commit", onto_name);
+        }
+    } else {
+        itertools::Either::Left(base_branch.clone())
+    };
+
+    let onto_oid = match onto_branch {
+        itertools::Either::Left(onto_branch) => {
+            if args.pull {
+                if protected_branches.contains_oid(onto_branch.id) {
+                    if let Err(err) =
+                        git_pull(repo, repo_config.pull_remote(), onto_branch.name.as_str())
+                    {
+                        log::warn!("Skipping pull, {}", err);
+                    } else {
+                        *branches = git_stack::git::Branches::new(repo.local_branches());
+                        *protected_branches = branches.protected(protected);
+                    }
+                } else {
+                    log::warn!(
+                        "Skipping pull, `{}` isn't a protected branch",
+                        onto_branch.name
+                    );
+                }
+            }
+            onto_branch.id
+        }
+        itertools::Either::Right((name, oid)) => {
+            if args.pull {
+                log::warn!("Skipping pull, `{}` isn't a branch", name);
+            }
+            oid
+        }
+    };
+
+    let merge_base_oid = repo.merge_base(base_branch.id, head_oid).ok_or_else(|| {
+        git2::Error::new(
+            git2::ErrorCode::NotFound,
+            git2::ErrorClass::Reference,
+            format!("could not find base between {} and HEAD", base_branch.name),
+        )
+    })?;
+    let mut graphed_branches = match repo_config.branch() {
+        git_stack::config::Branch::Current => branches.branch(repo, merge_base_oid, head_oid),
+        git_stack::config::Branch::Dependents => {
+            branches.dependents(repo, merge_base_oid, head_oid)
+        }
+    };
+    if !graphed_branches.contains_oid(base_branch.id) {
+        graphed_branches.insert(base_branch.clone());
+    }
+    let mut root = graph(repo, merge_base_oid, head_oid, graphed_branches)?;
+
+    git_stack::graph::protect_branches(&mut root, repo, &protected_branches)?;
+
+    git_stack::graph::rebase_branches(&mut root, onto_oid)?;
+
+    // TODO Identify commits to drop by tree id
+    // TODO Identify commits to drop by guessing
+    // TODO Snap branches to be on branches
+    // TODO Re-arrange fixup commits
+    // TODO Re-stack branches that have been individually rebased
+    git_stack::graph::delinearize(&mut root);
+
+    let script = git_stack::graph::to_script(&root);
+
+    Ok(script)
 }
 
 fn show(
