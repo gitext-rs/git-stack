@@ -14,7 +14,6 @@ struct State {
 
     rebase: bool,
     pull: bool,
-    pull_remote: String,
     dry_run: bool,
 
     show_format: git_stack::config::Format,
@@ -23,7 +22,7 @@ struct State {
 
 impl State {
     fn new(
-        repo: git_stack::git::GitRepo,
+        mut repo: git_stack::git::GitRepo,
         args: &crate::args::Args,
     ) -> Result<Self, proc_exit::Exit> {
         let repo_config = git_stack::config::RepoConfig::from_all(repo.raw())
@@ -36,7 +35,6 @@ impl State {
             log::trace!("`--pull` implies `--rebase`");
             rebase = true;
         }
-        let pull_remote = repo_config.pull_remote().to_owned();
         let protected = git_stack::git::ProtectedBranches::new(
             repo_config.protected_branches().iter().map(|s| s.as_str()),
         )
@@ -45,6 +43,9 @@ impl State {
 
         let show_format = repo_config.show_format();
         let show_stacked = repo_config.show_stacked();
+
+        repo.set_push_remote(repo_config.push_remote());
+        repo.set_pull_remote(repo_config.pull_remote());
 
         let branches = git_stack::git::Branches::new(repo.local_branches());
         let protected_branches = branches.protected(&protected);
@@ -148,7 +149,6 @@ impl State {
 
             rebase,
             pull,
-            pull_remote,
             dry_run,
             show_format,
             show_stacked,
@@ -198,11 +198,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
         let mut pulled = false;
         for stack in state.stacks.iter() {
             if state.protected_branches.contains_oid(stack.onto.id) {
-                match git_pull(
-                    &mut state.repo,
-                    &state.pull_remote,
-                    stack.onto.name.as_str(),
-                ) {
+                match git_pull(&mut state.repo, stack.onto.name.as_str()) {
                     Ok(_) => {
                         pulled = true;
                     }
@@ -374,11 +370,8 @@ fn resolve_implicit_base(
     Ok(branch.clone())
 }
 
-fn git_pull(
-    repo: &mut git_stack::git::GitRepo,
-    remote: &str,
-    branch_name: &str,
-) -> eyre::Result<git2::Oid> {
+fn git_pull(repo: &mut git_stack::git::GitRepo, branch_name: &str) -> eyre::Result<git2::Oid> {
+    let remote = repo.pull_remote();
     log::debug!("git pull --rebase {} {}", remote, branch_name);
     let remote_branch_name = format!("{}/{}", remote, branch_name);
 
@@ -652,6 +645,36 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                         .info
                         .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
                 )?;
+                let branch = &node.branches[0];
+                match commit_relation(self.repo, branch.id, branch.pull_id) {
+                    Some((0, 0)) => {}
+                    Some((local, 0)) => {
+                        write!(
+                            f,
+                            "{} ",
+                            self.palette.warn.paint(format!("({} ahead)", local)),
+                        )?;
+                    }
+                    Some((0, remote)) => {
+                        write!(
+                            f,
+                            "{} ",
+                            self.palette.warn.paint(format!("({} behind)", remote)),
+                        )?;
+                    }
+                    Some((local, remote)) => {
+                        write!(
+                            f,
+                            "{} ",
+                            self.palette
+                                .warn
+                                .paint(format!("({} ahead, {} behind)", local, remote)),
+                        )?;
+                    }
+                    None => {
+                        write!(f, "{} ", self.palette.warn.paint("(no remote)"),)?;
+                    }
+                }
             } else {
                 write!(
                     f,
@@ -660,6 +683,38 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                         .branch
                         .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
                 )?;
+                let branch = &node.branches[0];
+                match commit_relation(self.repo, branch.id, branch.push_id) {
+                    Some((0, 0)) => {
+                        write!(f, "{} ", self.palette.info.paint("(pushed)"),)?;
+                    }
+                    Some((local, 0)) => {
+                        write!(
+                            f,
+                            "{} ",
+                            self.palette.info.paint(format!("({} ahead)", local)),
+                        )?;
+                    }
+                    Some((0, remote)) => {
+                        write!(
+                            f,
+                            "{} ",
+                            self.palette.warn.paint(format!("({} behind)", remote)),
+                        )?;
+                    }
+                    Some((local, remote)) => {
+                        write!(
+                            f,
+                            "{} ",
+                            self.palette
+                                .warn
+                                .paint(format!("({} ahead, {} behind)", local, remote)),
+                        )?;
+                    }
+                    None => {
+                        write!(f, "{} ", self.palette.info.paint("(no remote)"),)?;
+                    }
+                }
             }
 
             let summary = String::from_utf8_lossy(&node.local_commit.summary);
@@ -690,6 +745,24 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
         }
         Ok(())
     }
+}
+
+fn commit_relation(
+    repo: &git_stack::git::GitRepo,
+    local: git2::Oid,
+    remote: Option<git2::Oid>,
+) -> Option<(usize, usize)> {
+    let remote = remote?;
+    let base = repo.merge_base(local, remote)?;
+    let local_count = repo
+        .commits_from(local)
+        .take_while(|c| c.id != base)
+        .count();
+    let remote_count = repo
+        .commits_from(remote)
+        .take_while(|c| c.id != base)
+        .count();
+    Some((local_count, remote_count))
 }
 
 #[derive(Copy, Clone, Debug)]

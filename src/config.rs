@@ -5,6 +5,7 @@ use std::str::FromStr;
 pub struct RepoConfig {
     pub protected_branches: Option<Vec<String>>,
     pub stack: Option<Stack>,
+    pub push_remote: Option<String>,
     pub pull_remote: Option<String>,
     pub show_format: Option<Format>,
     pub show_stacked: Option<bool>,
@@ -13,6 +14,7 @@ pub struct RepoConfig {
 static PROTECTED_STACK_FIELD: &str = "stack.protected-branch";
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
 static STACK_FIELD: &str = "stack.stack";
+static PUSH_REMOTE_FIELD: &str = "stack.push-remote";
 static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
 static FORMAT_FIELD: &str = "stack.show-format";
 static STACKED_FIELD: &str = "stack.show-stacked";
@@ -66,6 +68,7 @@ impl RepoConfig {
     pub fn from_defaults() -> Self {
         let mut conf = Self::default();
         conf.stack = Some(conf.stack());
+        conf.push_remote = Some(conf.push_remote().to_owned());
         conf.pull_remote = Some(conf.pull_remote().to_owned());
         conf.show_format = Some(conf.show_format());
         conf.show_stacked = Some(conf.show_stacked());
@@ -108,6 +111,7 @@ impl RepoConfig {
             })
             .unwrap_or(None);
 
+        let push_remote = config.get_string(PUSH_REMOTE_FIELD).ok();
         let pull_remote = config.get_string(PULL_REMOTE_FIELD).ok();
 
         let stack = config
@@ -124,6 +128,7 @@ impl RepoConfig {
 
         Self {
             protected_branches,
+            push_remote,
             pull_remote,
             stack,
             show_format,
@@ -161,6 +166,7 @@ impl RepoConfig {
             (_, _) => (),
         }
 
+        self.push_remote = other.push_remote.or(self.push_remote);
         self.pull_remote = other.pull_remote.or(self.pull_remote);
         self.stack = other.stack.or(self.stack);
         self.show_format = other.show_format.or(self.show_format);
@@ -173,8 +179,14 @@ impl RepoConfig {
         self.protected_branches.as_deref().unwrap_or(&[])
     }
 
+    pub fn push_remote(&self) -> &str {
+        self.push_remote.as_deref().unwrap_or("origin")
+    }
+
     pub fn pull_remote(&self) -> &str {
-        self.pull_remote.as_deref().unwrap_or("origin")
+        self.pull_remote
+            .as_deref()
+            .unwrap_or_else(|| self.push_remote())
     }
 
     pub fn stack(&self) -> Stack {

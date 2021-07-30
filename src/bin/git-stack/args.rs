@@ -76,6 +76,7 @@ impl Args {
         git_stack::config::RepoConfig {
             protected_branches: None,
             stack: self.stack,
+            push_remote: None,
             pull_remote: None,
             show_format: self.format,
             show_stacked: None,

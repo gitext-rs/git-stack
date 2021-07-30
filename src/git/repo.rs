@@ -29,6 +29,8 @@ pub trait Repo {
 pub struct Branch {
     pub name: String,
     pub id: git2::Oid,
+    pub push_id: Option<git2::Oid>,
+    pub pull_id: Option<git2::Oid>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -56,6 +58,8 @@ impl Commit {
 
 pub struct GitRepo {
     repo: git2::Repository,
+    push_remote: Option<String>,
+    pull_remote: Option<String>,
     commits: std::cell::RefCell<std::collections::HashMap<git2::Oid, std::rc::Rc<Commit>>>,
 }
 
@@ -64,7 +68,25 @@ impl GitRepo {
         Self {
             repo,
             commits: Default::default(),
+            push_remote: None,
+            pull_remote: None,
         }
+    }
+
+    pub fn set_push_remote(&mut self, remote: &str) {
+        self.push_remote = Some(remote.to_owned());
+    }
+
+    pub fn set_pull_remote(&mut self, remote: &str) {
+        self.pull_remote = Some(remote.to_owned());
+    }
+
+    pub fn push_remote(&self) -> &str {
+        self.push_remote.as_deref().unwrap_or("origin")
+    }
+
+    pub fn pull_remote(&self) -> &str {
+        self.pull_remote.as_deref().unwrap_or("origin")
     }
 
     pub fn raw(&self) -> &git2::Repository {
@@ -187,9 +209,29 @@ impl GitRepo {
     pub fn find_local_branch(&self, name: &str) -> Option<Branch> {
         let branch = self.repo.find_branch(name, git2::BranchType::Local).ok()?;
         let id = branch.get().target().unwrap();
+
+        let push_id = self
+            .repo
+            .find_branch(
+                &format!("{}/{}", self.push_remote(), name),
+                git2::BranchType::Remote,
+            )
+            .ok()
+            .and_then(|b| b.get().target());
+        let pull_id = self
+            .repo
+            .find_branch(
+                &format!("{}/{}", self.pull_remote(), name),
+                git2::BranchType::Remote,
+            )
+            .ok()
+            .and_then(|b| b.get().target());
+
         Some(Branch {
             name: name.to_owned(),
             id,
+            push_id,
+            pull_id,
         })
     }
 
@@ -199,7 +241,7 @@ impl GitRepo {
             .branches(Some(git2::BranchType::Local))
             .into_iter()
             .flatten()
-            .flat_map(|branch| {
+            .flat_map(move |branch| {
                 let (branch, _) = branch.ok()?;
                 let name = if let Some(name) = branch.name().ok().flatten() {
                     name
@@ -211,9 +253,29 @@ impl GitRepo {
                     return None;
                 };
                 let id = branch.get().target().unwrap();
+
+                let push_id = self
+                    .repo
+                    .find_branch(
+                        &format!("{}/{}", self.push_remote(), name),
+                        git2::BranchType::Remote,
+                    )
+                    .ok()
+                    .and_then(|b| b.get().target());
+                let pull_id = self
+                    .repo
+                    .find_branch(
+                        &format!("{}/{}", self.pull_remote(), name),
+                        git2::BranchType::Remote,
+                    )
+                    .ok()
+                    .and_then(|b| b.get().target());
+
                 Some(Branch {
                     name: name.to_owned(),
                     id,
+                    push_id,
+                    pull_id,
                 })
             })
     }
@@ -411,6 +473,8 @@ impl InMemoryRepo {
             Branch {
                 name: name.to_owned(),
                 id,
+                push_id: None,
+                pull_id: None,
             },
         );
         Ok(())
