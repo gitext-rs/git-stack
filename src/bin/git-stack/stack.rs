@@ -321,14 +321,14 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
             writeln!(
                 std::io::stdout(),
                 "{}",
-                root.display().colored(colored_stdout).all(false)
+                DisplayTree::new(&root).colored(colored_stdout).all(false)
             )?;
         }
         git_stack::config::Format::Full => {
             writeln!(
                 std::io::stdout(),
                 "{}",
-                root.display().colored(colored_stdout).all(true)
+                DisplayTree::new(&root).colored(colored_stdout).all(true)
             )?;
         }
     }
@@ -541,4 +541,160 @@ fn git_pull(
     }
 
     Ok(last_id)
+}
+
+struct DisplayTree<'n> {
+    root: &'n git_stack::graph::Node,
+    palette: Palette,
+    all: bool,
+}
+
+impl<'n> DisplayTree<'n> {
+    pub fn new(root: &'n git_stack::graph::Node) -> Self {
+        Self {
+            root,
+            palette: Palette::plain(),
+            all: false,
+        }
+    }
+
+    pub fn colored(mut self, yes: bool) -> Self {
+        if yes {
+            self.palette = Palette::colored()
+        } else {
+            self.palette = Palette::plain()
+        }
+        self
+    }
+
+    pub fn all(mut self, yes: bool) -> Self {
+        self.all = yes;
+        self
+    }
+}
+
+impl<'n> std::fmt::Display for DisplayTree<'n> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        let mut tree = treeline::Tree::root(RenderNode {
+            node: Some(self.root),
+            palette: &self.palette,
+        });
+        to_tree(
+            self.root.children.as_slice(),
+            &mut tree,
+            &self.palette,
+            self.all,
+        );
+        tree.fmt(f)
+    }
+}
+
+fn to_tree<'n, 'p>(
+    nodes: &'n [Vec<git_stack::graph::Node>],
+    tree: &mut treeline::Tree<RenderNode<'n, 'p>>,
+    palette: &'p Palette,
+    show_all: bool,
+) {
+    for branch in nodes {
+        let mut branch_root = treeline::Tree::root(RenderNode {
+            node: None,
+            palette,
+        });
+        for node in branch {
+            if node.branches.is_empty() && node.children.is_empty() && !show_all {
+                log::trace!("Skipping commit {}", node.local_commit.id);
+                continue;
+            }
+            let mut child_tree = treeline::Tree::root(RenderNode {
+                node: Some(node),
+                palette,
+            });
+            to_tree(node.children.as_slice(), &mut child_tree, palette, show_all);
+            branch_root.push(child_tree);
+        }
+        tree.push(branch_root);
+    }
+}
+
+struct RenderNode<'n, 'p> {
+    node: Option<&'n git_stack::graph::Node>,
+    palette: &'p Palette,
+}
+
+impl<'n, 'p> std::fmt::Display for RenderNode<'n, 'p> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        if let Some(node) = self.node.as_ref() {
+            if node.branches.is_empty() {
+                write!(f, "{} ", self.palette.info.paint(node.local_commit.id))?;
+            } else if node.action == git_stack::graph::Action::Protected {
+                write!(
+                    f,
+                    "{} ",
+                    self.palette
+                        .info
+                        .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
+                )?;
+            } else {
+                write!(
+                    f,
+                    "{} ",
+                    self.palette
+                        .branch
+                        .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
+                )?;
+            }
+
+            let summary = String::from_utf8_lossy(&node.local_commit.summary);
+            if node.action == git_stack::graph::Action::Protected {
+                write!(f, "{}", self.palette.hint.paint(summary))?;
+            } else if node.local_commit.is_merge {
+                write!(f, "{}", self.palette.error.paint("merge commit"))?;
+            } else if node.branches.is_empty() && !node.children.is_empty() {
+                // Branches should be off of other branches
+                write!(f, "{}", self.palette.warn.paint(summary))?;
+            } else if node.local_commit.fixup_summary().is_some() {
+                // Needs to be squashed
+                write!(f, "{}", self.palette.warn.paint(summary))?;
+            } else if node.local_commit.wip_summary().is_some() {
+                // Not for pushing implicitly
+                write!(f, "{}", self.palette.error.paint(summary))?;
+            } else {
+                write!(f, "{}", self.palette.hint.paint(summary))?;
+            }
+        } else {
+            write!(f, "o")?;
+        }
+        Ok(())
+    }
+}
+
+#[derive(Copy, Clone, Debug)]
+struct Palette {
+    error: yansi::Style,
+    warn: yansi::Style,
+    info: yansi::Style,
+    branch: yansi::Style,
+    hint: yansi::Style,
+}
+
+impl Palette {
+    pub fn colored() -> Self {
+        Self {
+            error: yansi::Style::new(yansi::Color::Red),
+            warn: yansi::Style::new(yansi::Color::Yellow),
+            info: yansi::Style::new(yansi::Color::Blue),
+            branch: yansi::Style::new(yansi::Color::Green),
+            hint: yansi::Style::new(yansi::Color::Blue).dimmed(),
+        }
+    }
+
+    pub fn plain() -> Self {
+        Self {
+            error: yansi::Style::default(),
+            warn: yansi::Style::default(),
+            info: yansi::Style::default(),
+            branch: yansi::Style::default(),
+            hint: yansi::Style::default(),
+        }
+    }
 }
