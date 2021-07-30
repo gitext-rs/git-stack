@@ -6,6 +6,7 @@ pub struct Node {
     pub branches: Vec<crate::git::Branch>,
     pub children: Vec<Vec<Node>>,
     pub action: crate::graph::Action,
+    pub pushable: bool,
 }
 
 impl Node {
@@ -22,6 +23,7 @@ impl Node {
             branches,
             children,
             action: crate::graph::Action::Pick,
+            pushable: false,
         }
     }
 

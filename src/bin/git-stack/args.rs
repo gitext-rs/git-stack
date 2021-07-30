@@ -12,8 +12,11 @@ pub struct Args {
 
     /// Pull the parent branch and rebase onto it.
     #[structopt(long)]
-    // TODO: Add push unblocked branch support (no WIP, directly on protected)
     pub pull: bool,
+
+    /// Push all ready branches
+    #[structopt(long)]
+    pub push: bool,
 
     /// Visually edit history in your $EDITOR`
     #[structopt(short, long)]

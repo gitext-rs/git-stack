@@ -84,6 +84,49 @@ fn rebase_branches_internal(node: &mut Node, new_base: git2::Oid) -> Result<bool
     }
 }
 
+pub fn pushable(node: &mut Node) -> Result<(), git2::Error> {
+    if node.action.is_protected() || node.action.is_rebase() || node.branches.is_empty() {
+        for stack in node.children.iter_mut() {
+            pushable_stack(stack)?;
+        }
+    }
+    Ok(())
+}
+
+fn pushable_stack(nodes: &mut [Node]) -> Result<(), git2::Error> {
+    let mut cause = None;
+    for node in nodes.iter_mut() {
+        if node.action.is_protected() || node.action.is_rebase() {
+            assert_eq!(cause, None);
+            for stack in node.children.iter_mut() {
+                pushable_stack(stack)?;
+            }
+            continue;
+        }
+
+        if node.local_commit.wip_summary().is_some() {
+            cause = Some("contains WIP commit");
+        }
+
+        if !node.branches.is_empty() {
+            let branch = &node.branches[0];
+            if let Some(cause) = cause {
+                log::debug!("{} isn't pushable, {}", branch.name, cause);
+            } else if node.branches.iter().all(|b| Some(b.id) == b.push_id) {
+                log::debug!("{} is already pushed", branch.name);
+            } else {
+                log::debug!("{} is pushable", branch.name);
+                node.pushable = true;
+            }
+            return Ok(());
+        } else if !node.children.is_empty() {
+            cause = Some("ambiguous which branch owns some commits");
+        }
+    }
+
+    Ok(())
+}
+
 pub fn delinearize(node: &mut Node) {
     for child in node.children.iter_mut() {
         delinearize_internal(child);

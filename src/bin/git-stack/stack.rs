@@ -14,6 +14,7 @@ struct State {
 
     rebase: bool,
     pull: bool,
+    push: bool,
     dry_run: bool,
 
     show_format: git_stack::config::Format,
@@ -35,6 +36,7 @@ impl State {
             log::trace!("`--pull` implies `--rebase`");
             rebase = true;
         }
+        let push = args.push;
         let protected = git_stack::git::ProtectedBranches::new(
             repo_config.protected_branches().iter().map(|s| s.as_str()),
         )
@@ -149,6 +151,7 @@ impl State {
 
             rebase,
             pull,
+            push,
             dry_run,
             show_format,
             show_stacked,
@@ -252,6 +255,11 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
         state.update().with_code(proc_exit::Code::FAILURE)?;
     }
 
+    if state.push {
+        push(&mut state).with_code(proc_exit::Code::FAILURE)?;
+        state.update().with_code(proc_exit::Code::FAILURE)?;
+    }
+
     show(&state, colored_stdout).with_code(proc_exit::Code::FAILURE)?;
 
     if !success {
@@ -289,6 +297,30 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
     Ok(script)
 }
 
+fn push(state: &mut State) -> eyre::Result<()> {
+    let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
+    for stack in state.stacks.iter() {
+        graphed_branches.extend(stack.branches.iter().flat_map(|(_, b)| b.to_owned()));
+    }
+    for stack in state.stacks.iter() {
+        if !graphed_branches.contains_oid(stack.base.id) {
+            graphed_branches.insert(stack.base.clone());
+        }
+        if !graphed_branches.contains_oid(stack.onto.id) {
+            graphed_branches.insert(stack.onto.clone());
+        }
+    }
+    let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
+    root = root.extend(&state.repo, graphed_branches)?;
+
+    git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
+    git_stack::graph::pushable(&mut root)?;
+
+    git_push(&mut state.repo, &root, state.dry_run)?;
+
+    Ok(())
+}
+
 fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
     let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
     for stack in state.stacks.iter() {
@@ -306,7 +338,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
     root = root.extend(&state.repo, graphed_branches)?;
 
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
-    // TODO: Show unblocked branches
+    git_stack::graph::pushable(&mut root)?;
     if !state.show_stacked {
         git_stack::graph::delinearize(&mut root);
     }
@@ -547,6 +579,71 @@ fn git_pull(
     Ok(last_id)
 }
 
+fn git_push(
+    repo: &mut git_stack::git::GitRepo,
+    node: &git_stack::graph::Node,
+    dry_run: bool,
+) -> eyre::Result<()> {
+    let failed = git_push_internal(repo, node, dry_run);
+    if failed.is_empty() {
+        Ok(())
+    } else {
+        eyre::bail!("could not push {}", failed.into_iter().join(", "));
+    }
+}
+
+fn git_push_internal(
+    repo: &mut git_stack::git::GitRepo,
+    node: &git_stack::graph::Node,
+    dry_run: bool,
+) -> Vec<String> {
+    let mut failed = Vec::new();
+    for branch in node.branches.iter() {
+        if node.pushable {
+            let remote = repo.push_remote();
+            log::trace!(
+                "git push --force-with-lease --set-upstream {} {}",
+                remote,
+                branch.name
+            );
+            if !dry_run {
+                let status = std::process::Command::new("git")
+                    .arg("push")
+                    .arg("--force-with-lease")
+                    .arg("--set-upstream")
+                    .arg(repo.push_remote())
+                    .arg(&branch.name)
+                    .status();
+                match status {
+                    Ok(status) => {
+                        if !status.success() {
+                            failed.push(branch.name.clone());
+                        }
+                    }
+                    Err(err) => {
+                        log::debug!("`git push` failed with {}", err);
+                        failed.push(branch.name.clone());
+                    }
+                }
+            }
+        } else if node.action.is_protected() || node.action.is_rebase() {
+            log::debug!("Skipping push of `{}`, protected", branch.name);
+        } else {
+            log::debug!("Skipping push of `{}`", branch.name);
+        }
+    }
+
+    if failed.is_empty() {
+        for child in node.children.iter() {
+            for child_node in child.iter() {
+                failed.extend(git_push_internal(repo, child_node, dry_run));
+            }
+        }
+    }
+
+    failed
+}
+
 struct DisplayTree<'r, 'n> {
     repo: &'r git_stack::git::GitRepo,
     root: &'n git_stack::graph::Node,
@@ -679,7 +776,7 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                         )?;
                     }
                     None => {
-                        write!(f, "{} ", self.palette.warn.paint("(no remote)"),)?;
+                        write!(f, "{} ", self.palette.warn.paint("(no remote)"))?;
                     }
                 }
             } else {
@@ -690,36 +787,40 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                         .branch
                         .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
                 )?;
-                let branch = &node.branches[0];
-                match commit_relation(self.repo, branch.id, branch.push_id) {
-                    Some((0, 0)) => {
-                        write!(f, "{} ", self.palette.info.paint("(pushed)"),)?;
-                    }
-                    Some((local, 0)) => {
-                        write!(
-                            f,
-                            "{} ",
-                            self.palette.info.paint(format!("({} ahead)", local)),
-                        )?;
-                    }
-                    Some((0, remote)) => {
-                        write!(
-                            f,
-                            "{} ",
-                            self.palette.warn.paint(format!("({} behind)", remote)),
-                        )?;
-                    }
-                    Some((local, remote)) => {
-                        write!(
-                            f,
-                            "{} ",
-                            self.palette
-                                .warn
-                                .paint(format!("({} ahead, {} behind)", local, remote)),
-                        )?;
-                    }
-                    None => {
-                        write!(f, "{} ", self.palette.info.paint("(no remote)"),)?;
+                if node.pushable {
+                    write!(f, "{} ", self.palette.info.paint("(ready) "))?;
+                } else {
+                    let branch = &node.branches[0];
+                    match commit_relation(self.repo, branch.id, branch.push_id) {
+                        Some((0, 0)) => {
+                            write!(f, "{} ", self.palette.info.paint("(pushed)"))?;
+                        }
+                        Some((local, 0)) => {
+                            write!(
+                                f,
+                                "{} ",
+                                self.palette.info.paint(format!("({} ahead)", local)),
+                            )?;
+                        }
+                        Some((0, remote)) => {
+                            write!(
+                                f,
+                                "{} ",
+                                self.palette.warn.paint(format!("({} behind)", remote)),
+                            )?;
+                        }
+                        Some((local, remote)) => {
+                            write!(
+                                f,
+                                "{} ",
+                                self.palette
+                                    .warn
+                                    .paint(format!("({} ahead, {} behind)", local, remote)),
+                            )?;
+                        }
+                        None => {
+                            write!(f, "{} ", self.palette.info.paint("(no remote)"))?;
+                        }
                     }
                 }
             }
