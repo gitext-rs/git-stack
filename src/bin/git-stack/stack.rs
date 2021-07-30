@@ -321,14 +321,18 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
             writeln!(
                 std::io::stdout(),
                 "{}",
-                DisplayTree::new(&root).colored(colored_stdout).all(false)
+                DisplayTree::new(&state.repo, &root)
+                    .colored(colored_stdout)
+                    .all(false)
             )?;
         }
         git_stack::config::Format::Full => {
             writeln!(
                 std::io::stdout(),
                 "{}",
-                DisplayTree::new(&root).colored(colored_stdout).all(true)
+                DisplayTree::new(&state.repo, &root)
+                    .colored(colored_stdout)
+                    .all(true)
             )?;
         }
     }
@@ -543,15 +547,17 @@ fn git_pull(
     Ok(last_id)
 }
 
-struct DisplayTree<'n> {
+struct DisplayTree<'r, 'n> {
+    repo: &'r git_stack::git::GitRepo,
     root: &'n git_stack::graph::Node,
     palette: Palette,
     all: bool,
 }
 
-impl<'n> DisplayTree<'n> {
-    pub fn new(root: &'n git_stack::graph::Node) -> Self {
+impl<'r, 'n> DisplayTree<'r, 'n> {
+    pub fn new(repo: &'r git_stack::git::GitRepo, root: &'n git_stack::graph::Node) -> Self {
         Self {
+            repo,
             root,
             palette: Palette::plain(),
             all: false,
@@ -573,13 +579,15 @@ impl<'n> DisplayTree<'n> {
     }
 }
 
-impl<'n> std::fmt::Display for DisplayTree<'n> {
+impl<'r, 'n> std::fmt::Display for DisplayTree<'r, 'n> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let mut tree = treeline::Tree::root(RenderNode {
+            repo: self.repo,
             node: Some(self.root),
             palette: &self.palette,
         });
         to_tree(
+            self.repo,
             self.root.children.as_slice(),
             &mut tree,
             &self.palette,
@@ -589,14 +597,16 @@ impl<'n> std::fmt::Display for DisplayTree<'n> {
     }
 }
 
-fn to_tree<'n, 'p>(
+fn to_tree<'r, 'n, 'p>(
+    repo: &'r git_stack::git::GitRepo,
     nodes: &'n [Vec<git_stack::graph::Node>],
-    tree: &mut treeline::Tree<RenderNode<'n, 'p>>,
+    tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
     palette: &'p Palette,
     show_all: bool,
 ) {
     for branch in nodes {
         let mut branch_root = treeline::Tree::root(RenderNode {
+            repo,
             node: None,
             palette,
         });
@@ -606,22 +616,30 @@ fn to_tree<'n, 'p>(
                 continue;
             }
             let mut child_tree = treeline::Tree::root(RenderNode {
+                repo,
                 node: Some(node),
                 palette,
             });
-            to_tree(node.children.as_slice(), &mut child_tree, palette, show_all);
+            to_tree(
+                repo,
+                node.children.as_slice(),
+                &mut child_tree,
+                palette,
+                show_all,
+            );
             branch_root.push(child_tree);
         }
         tree.push(branch_root);
     }
 }
 
-struct RenderNode<'n, 'p> {
+struct RenderNode<'r, 'n, 'p> {
+    repo: &'r git_stack::git::GitRepo,
     node: Option<&'n git_stack::graph::Node>,
     palette: &'p Palette,
 }
 
-impl<'n, 'p> std::fmt::Display for RenderNode<'n, 'p> {
+impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
@@ -647,7 +665,13 @@ impl<'n, 'p> std::fmt::Display for RenderNode<'n, 'p> {
             let summary = String::from_utf8_lossy(&node.local_commit.summary);
             if node.action == git_stack::graph::Action::Protected {
                 write!(f, "{}", self.palette.hint.paint(summary))?;
-            } else if node.local_commit.is_merge {
+            } else if 1 < self
+                .repo
+                .raw()
+                .find_commit(node.local_commit.id)
+                .unwrap()
+                .parent_count()
+            {
                 write!(f, "{}", self.palette.error.paint("merge commit"))?;
             } else if node.branches.is_empty() && !node.children.is_empty() {
                 // Branches should be off of other branches

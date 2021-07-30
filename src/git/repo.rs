@@ -35,7 +35,6 @@ pub struct Branch {
 pub struct Commit {
     pub id: git2::Oid,
     pub summary: bstr::BString,
-    pub is_merge: bool,
 }
 
 impl Commit {
@@ -110,7 +109,6 @@ impl GitRepo {
             let commit = std::rc::Rc::new(Commit {
                 id: commit.id(),
                 summary,
-                is_merge: 1 < commit.parent_count(),
             });
             commits.insert(id, std::rc::Rc::clone(&commit));
             Some(commit)
