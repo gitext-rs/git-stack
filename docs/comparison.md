@@ -50,3 +50,17 @@ Cons:
 - Requires each commit start with an identifier, grouping by identifier into a PR
   - `git-stack` relies on branches (multi-commit PRs) and
      ["fixup" commits (auto-squashing)](https://thoughtbot.com/blog/autosquashing-git-commits)
+
+## `arcanist` (`arc`)
+
+[Website](https://secure.phabricator.com/book/phabricator/article/arcanist/)
+
+Pros:
+- Rebases each branch when merging
+- Show review status of each Diff (Phab's equivalent of PR)
+- Nicer status view than `git log`
+
+Cons:
+- Coupled to Phabricator which is EOL
+- Auto-rebasing doesn't preserve branch relationships
+- No auto-rebase outside of merging
