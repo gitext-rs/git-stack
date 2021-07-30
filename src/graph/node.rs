@@ -25,6 +25,27 @@ impl Node {
         }
     }
 
+    pub fn from_branches(
+        repo: &dyn crate::git::Repo,
+        mut branches: crate::git::Branches,
+    ) -> eyre::Result<Self> {
+        if branches.is_empty() {
+            eyre::bail!("no branches to graph");
+        }
+
+        let mut branch_ids: Vec<_> = branches.oids().collect();
+        branch_ids.sort_by_key(|id| &branches.get(*id).unwrap()[0].name);
+        let branch_id = branch_ids.remove(0);
+        let branch_commit = repo.find_commit(branch_id).unwrap();
+        let mut root = Self::new(branch_commit, &mut branches);
+        for branch_id in branch_ids {
+            let branch_commit = repo.find_commit(branch_id).unwrap();
+            root = root.insert(repo, branch_commit, &mut branches)?;
+        }
+
+        Ok(root)
+    }
+
     pub fn insert(
         mut self,
         repo: &dyn crate::git::Repo,
