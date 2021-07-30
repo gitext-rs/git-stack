@@ -72,7 +72,9 @@ fn rebase_branches_internal(node: &mut Node, new_base: git2::Oid) -> Result<bool
         return Ok(true);
     }
 
-    if node.action == crate::graph::Action::Protected {
+    if node.local_commit.id == new_base {
+        Ok(true)
+    } else if node.action == crate::graph::Action::Protected {
         node.action = crate::graph::Action::Rebase(new_base);
         Ok(true)
     } else {
