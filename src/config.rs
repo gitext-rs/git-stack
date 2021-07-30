@@ -223,6 +223,6 @@ arg_enum! {
 
 impl Default for Stack {
     fn default() -> Self {
-        Stack::Dependents
+        Stack::All
     }
 }
