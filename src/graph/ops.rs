@@ -53,23 +53,25 @@ pub fn rebase_branches(node: &mut Node, new_base: git2::Oid) -> Result<(), git2:
 
 /// Mark a new base commit for the last protected commit on each branch.
 fn rebase_branches_internal(node: &mut Node, new_base: git2::Oid) -> Result<bool, git2::Error> {
-    let mut all_children_rebased = true;
-    for child in node.children.iter_mut() {
-        let mut child_rebased = false;
-        for node in child.iter_mut().rev() {
-            let node_rebase = rebase_branches_internal(node, new_base)?;
-            if node_rebase {
-                child_rebased = true;
-                break;
+    if !node.children.is_empty() {
+        let mut all_children_rebased = true;
+        for child in node.children.iter_mut() {
+            let mut child_rebased = false;
+            for node in child.iter_mut().rev() {
+                let node_rebase = rebase_branches_internal(node, new_base)?;
+                if node_rebase {
+                    child_rebased = true;
+                    break;
+                }
+            }
+            if !child_rebased {
+                all_children_rebased = false;
             }
         }
-        if !child_rebased {
-            all_children_rebased = false;
-        }
-    }
 
-    if all_children_rebased {
-        return Ok(true);
+        if all_children_rebased {
+            return Ok(true);
+        }
     }
 
     if node.local_commit.id == new_base {
