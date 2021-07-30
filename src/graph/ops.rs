@@ -126,7 +126,7 @@ pub fn to_script(node: &Node) -> crate::git::Script {
             for child in node.children.iter() {
                 script
                     .dependents
-                    .extend(to_script_internal(child, node.local_commit.id, false));
+                    .extend(to_script_internal(child, node.local_commit.id));
             }
         }
         crate::graph::Action::Protected => {
@@ -140,7 +140,7 @@ pub fn to_script(node: &Node) -> crate::git::Script {
             for child in node.children.iter() {
                 script
                     .dependents
-                    .extend(to_script_internal(child, node.local_commit.id, true));
+                    .extend(to_script_internal(child, node.local_commit.id));
             }
         }
         crate::graph::Action::Rebase(new_base) => {
@@ -153,7 +153,7 @@ pub fn to_script(node: &Node) -> crate::git::Script {
             for child in node.children.iter() {
                 script
                     .dependents
-                    .extend(to_script_internal(child, new_base, false));
+                    .extend(to_script_internal(child, new_base));
             }
         }
     }
@@ -161,11 +161,7 @@ pub fn to_script(node: &Node) -> crate::git::Script {
     script
 }
 
-fn to_script_internal(
-    nodes: &[Node],
-    base_mark: git2::Oid,
-    mut is_protected: bool,
-) -> Option<crate::git::Script> {
+fn to_script_internal(nodes: &[Node], base_mark: git2::Oid) -> Option<crate::git::Script> {
     let mut script = crate::git::Script::new();
     for node in nodes {
         match node.action {
@@ -187,21 +183,15 @@ fn to_script_internal(
                     for child in node.children.iter() {
                         script
                             .dependents
-                            .extend(to_script_internal(child, child_mark, false));
+                            .extend(to_script_internal(child, child_mark));
                     }
                 }
-
-                is_protected = false;
             }
             crate::graph::Action::Protected => {
-                assert!(
-                    is_protected,
-                    "`protected_branches()` should only leave continuous protected commits"
-                );
                 for child in node.children.iter() {
                     script
                         .dependents
-                        .extend(to_script_internal(child, node.local_commit.id, true));
+                        .extend(to_script_internal(child, node.local_commit.id));
                 }
             }
             crate::graph::Action::Rebase(new_base) => {
@@ -214,9 +204,8 @@ fn to_script_internal(
                 for child in node.children.iter() {
                     script
                         .dependents
-                        .extend(to_script_internal(child, new_base, false));
+                        .extend(to_script_internal(child, new_base));
                 }
-                is_protected = true;
             }
         }
     }
