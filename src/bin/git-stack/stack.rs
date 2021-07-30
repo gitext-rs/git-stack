@@ -198,7 +198,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
         let mut pulled = false;
         for stack in state.stacks.iter() {
             if state.protected_branches.contains_oid(stack.onto.id) {
-                match git_pull(&mut state.repo, stack.onto.name.as_str()) {
+                match git_pull(&mut state.repo, stack.onto.name.as_str(), state.dry_run) {
                     Ok(_) => {
                         pulled = true;
                     }
@@ -370,10 +370,17 @@ fn resolve_implicit_base(
     Ok(branch.clone())
 }
 
-fn git_pull(repo: &mut git_stack::git::GitRepo, branch_name: &str) -> eyre::Result<git2::Oid> {
+fn git_pull(
+    repo: &mut git_stack::git::GitRepo,
+    branch_name: &str,
+    dry_run: bool,
+) -> eyre::Result<git2::Oid> {
     let remote = repo.pull_remote();
     log::debug!("git pull --rebase {} {}", remote, branch_name);
     let remote_branch_name = format!("{}/{}", remote, branch_name);
+    if dry_run {
+        return Ok(repo.find_local_branch(branch_name).unwrap().id);
+    }
 
     let mut last_id;
     {
