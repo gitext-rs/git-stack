@@ -34,7 +34,6 @@ fn populate_event(
                 let commit = git_stack::git::Commit {
                     id: commit_id,
                     summary: bstr::BString::from(summary),
-                    is_merge: false,
                 };
                 repo.push_commit(parent_id, commit);
 
@@ -42,6 +41,8 @@ fn populate_event(
                     let branch = git_stack::git::Branch {
                         name: branch.as_str().to_owned(),
                         id: commit_id,
+                        push_id: None,
+                        pull_id: None,
                     };
                     repo.mark_branch(branch);
                 }
