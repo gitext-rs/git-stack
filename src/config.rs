@@ -21,7 +21,20 @@ static STACKED_FIELD: &str = "stack.show-stacked";
 
 impl RepoConfig {
     pub fn from_all(repo: &git2::Repository) -> eyre::Result<Self> {
-        let config = Self::from_defaults();
+        log::trace!("Loading gitconfig");
+        let default_config = match git2::Config::open_default() {
+            Ok(config) => Some(config),
+            Err(err) => {
+                log::debug!("Failed to load git config: {}", err);
+                None
+            }
+        };
+        let config = Self::from_defaults_internal(default_config.as_ref());
+        let config = if let Some(default_config) = default_config.as_ref() {
+            config.update(Self::from_gitconfig(default_config))
+        } else {
+            config
+        };
         let config = config.update(Self::from_workdir(repo)?);
         let config = config.update(Self::from_repo(repo)?);
         Ok(config)
@@ -66,6 +79,18 @@ impl RepoConfig {
     }
 
     pub fn from_defaults() -> Self {
+        log::trace!("Loading gitconfig");
+        let config = match git2::Config::open_default() {
+            Ok(config) => Some(config),
+            Err(err) => {
+                log::debug!("Failed to load git config: {}", err);
+                None
+            }
+        };
+        Self::from_defaults_internal(config.as_ref())
+    }
+
+    fn from_defaults_internal(config: Option<&git2::Config>) -> Self {
         let mut conf = Self::default();
         conf.stack = Some(conf.stack());
         conf.push_remote = Some(conf.push_remote().to_owned());
@@ -75,16 +100,10 @@ impl RepoConfig {
 
         let mut protected_branches: Vec<String> = Vec::new();
 
-        log::trace!("Loading gitconfig");
-        match git2::Config::open_default() {
-            Ok(config) => {
-                let default_branch = default_branch(&config);
-                let default_branch_ignore = default_branch.to_owned();
-                protected_branches.push(default_branch_ignore);
-            }
-            Err(err) => {
-                log::debug!("Failed to load git config: {}", err);
-            }
+        if let Some(config) = config {
+            let default_branch = default_branch(&config);
+            let default_branch_ignore = default_branch.to_owned();
+            protected_branches.push(default_branch_ignore);
         }
         // Don't bother with removing duplicates if `default_branch` is the same as one of our
         // default protected branches
