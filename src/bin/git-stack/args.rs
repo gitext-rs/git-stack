@@ -18,16 +18,6 @@ pub struct Args {
     #[structopt(long)]
     pub push: bool,
 
-    /// Visually edit history in your $EDITOR`
-    #[structopt(short, long)]
-    // TODO: --interactive support
-    pub _interactive: bool,
-
-    /// Apply all fixups
-    #[structopt(long)]
-    // TODO: --fix support
-    pub _fix: bool,
-
     /// Which branch stacks to include
     #[structopt(
         short,

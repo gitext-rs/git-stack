@@ -171,8 +171,6 @@ impl GitRepo {
         head_id: git2::Oid,
         cherry_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error> {
-        // TODO: Look at doing this via rebase to preserve more of the original commit
-
         // Based on https://www.pygit2.org/recipes/git-cherry-pick.html
         let base_id = self.repo.merge_base(head_id, cherry_id)?;
         let base_commit = self.repo.find_commit(base_id)?;

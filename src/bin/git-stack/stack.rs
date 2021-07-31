@@ -284,12 +284,6 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
 
     git_stack::graph::rebase_branches(&mut root, stack.onto.id)?;
 
-    // TODO Identify commits to drop by tree id
-    // TODO Identify commits to drop by guessing
-    // TODO Snap branches to be on branches, but how do we know which is the base for the other?
-    // Only do for HEAD?
-    // TODO Re-arrange fixup commits
-    // TODO Re-stack branches that have been individually rebased
     git_stack::graph::delinearize(&mut root);
 
     let script = git_stack::graph::to_script(&root);

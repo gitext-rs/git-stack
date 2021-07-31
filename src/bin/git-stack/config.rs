@@ -14,7 +14,6 @@ pub fn dump_config(
         .with_code(proc_exit::Code::CONFIG_ERR)?
         .update(args.to_config());
 
-    // TODO: Format dumped output as `.gitconfig`
     let output = toml::to_string_pretty(&repo_config).with_code(proc_exit::Code::FAILURE)?;
 
     if output_path == std::path::Path::new("-") {
