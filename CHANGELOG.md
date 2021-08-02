@@ -8,4 +8,4 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ## [Unreleased] - ReleaseDate
 
 <!-- next-url -->
-[Unreleased]: https://github.com/assert-rs/predicates-rs/compare/3137a1293f...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/3137a1293f...HEAD

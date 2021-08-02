@@ -8,6 +8,15 @@ name = "git-stack"
 version = "0.1.0"
 edition = "2018"
 
+[package.metadata.release]
+pre-release-replacements = [
+  {file="CHANGELOG.md", search="Unreleased", replace="{{version}}", min=1},
+  {file="CHANGELOG.md", search="\\.\\.\\.HEAD", replace="...{{tag_name}}", exactly=1},
+  {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}", min=1},
+  {file="CHANGELOG.md", search="<!-- next-header -->", replace="<!-- next-header -->\n## [Unreleased] - ReleaseDate\n", exactly=1},
+  {file="CHANGELOG.md", search="<!-- next-url -->", replace="<!-- next-url -->\n[Unreleased]: https://github.com/epage/git-stack/compare/{{tag_name}}...HEAD", exactly=1},
+]
+
 [dependencies]
 git2 = { version = "0.13", default-features = false }
 log = "0.4"
