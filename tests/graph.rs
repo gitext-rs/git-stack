@@ -42,6 +42,7 @@ mod test_rebase {
             .commits_from(off_master_branch.id)
             .map(|c| c.id)
             .collect();
+        println!("{:#?}", ancestors);
         assert!(ancestors.contains(&master_branch.id));
     }
 
@@ -84,6 +85,7 @@ mod test_rebase {
             .commits_from(feature2_branch.id)
             .map(|c| c.id)
             .collect();
+        println!("{:#?}", ancestors);
         assert!(ancestors.contains(&master_branch.id));
         assert!(ancestors.contains(&feature1_branch.id));
     }

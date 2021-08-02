@@ -118,7 +118,7 @@ impl Executor {
             Command::SwitchMark(mark_oid) => {
                 let oid = *self
                     .marks
-                    .get(&mark_oid)
+                    .get(mark_oid)
                     .expect("We only switch to marks that are created");
 
                 let commit = repo.find_commit(oid).unwrap();
@@ -165,7 +165,7 @@ impl Executor {
                 log::trace!("git checkout {}  # {}", oid, commit.summary);
                 log::trace!("git switch -c {}", name);
                 if !self.dry_run {
-                    repo.branch(&name, *oid)?;
+                    repo.branch(name, *oid)?;
                 }
             }
         }

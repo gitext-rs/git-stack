@@ -730,6 +730,9 @@ struct RenderNode<'r, 'n, 'p> {
     palette: &'p Palette,
 }
 
+// Shared implementation doesn't mean shared requirements, we want to track according to
+// requirements
+#[allow(clippy::if_same_then_else)]
 impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {

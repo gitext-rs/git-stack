@@ -101,7 +101,7 @@ impl RepoConfig {
         let mut protected_branches: Vec<String> = Vec::new();
 
         if let Some(config) = config {
-            let default_branch = default_branch(&config);
+            let default_branch = default_branch(config);
             let default_branch_ignore = default_branch.to_owned();
             protected_branches.push(default_branch_ignore);
         }
@@ -209,11 +209,11 @@ impl RepoConfig {
     }
 
     pub fn stack(&self) -> Stack {
-        self.stack.unwrap_or_else(|| Default::default())
+        self.stack.unwrap_or_else(Default::default)
     }
 
     pub fn show_format(&self) -> Format {
-        self.show_format.unwrap_or_else(|| Default::default())
+        self.show_format.unwrap_or_else(Default::default)
     }
 
     pub fn show_stacked(&self) -> bool {
@@ -221,7 +221,7 @@ impl RepoConfig {
     }
 }
 
-fn default_branch<'c>(config: &'c git2::Config) -> &'c str {
+fn default_branch(config: &git2::Config) -> &str {
     config.get_str("init.defaultStack").ok().unwrap_or("main")
 }
 

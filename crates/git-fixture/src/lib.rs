@@ -163,7 +163,7 @@ impl Dag {
                             .as_str(),
                         Reference::Branch(branch) => branch.as_str(),
                     };
-                    checkout(cwd, &revspec)?;
+                    checkout(cwd, revspec)?;
                 }
             }
         }

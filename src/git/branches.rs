@@ -9,7 +9,7 @@ impl Branches {
         for branch in branches {
             grouped_branches
                 .entry(branch.id)
-                .or_insert_with(|| Vec::new())
+                .or_insert_with(Vec::new)
                 .push(branch);
         }
         Self {
@@ -30,7 +30,7 @@ impl Branches {
     pub fn insert(&mut self, branch: crate::git::Branch) {
         self.branches
             .entry(branch.id)
-            .or_insert_with(|| Vec::new())
+            .or_insert_with(Vec::new)
             .push(branch);
     }
 
@@ -95,7 +95,7 @@ impl Branches {
                 }
             })
             .map(|(oid, branches)| {
-                let branches: Vec<_> = branches.iter().cloned().collect();
+                let branches: Vec<_> = branches.to_vec();
                 (*oid, branches)
             })
             .collect();
@@ -147,7 +147,7 @@ impl Branches {
                 }
             })
             .map(|(oid, branches)| {
-                let branches: Vec<_> = branches.iter().cloned().collect();
+                let branches: Vec<_> = branches.to_vec();
                 (*oid, branches)
             })
             .collect();
@@ -199,7 +199,7 @@ impl Branches {
                 }
             })
             .map(|(oid, branches)| {
-                let branches: Vec<_> = branches.iter().cloned().collect();
+                let branches: Vec<_> = branches.to_vec();
                 (*oid, branches)
             })
             .collect();
@@ -252,15 +252,11 @@ pub fn find_protected_base<'b>(
         .collect();
     repo.commits_from(head_oid)
         .filter_map(|commit| {
-            if let Some(branches) = protected_base_oids.get(&commit.id) {
-                Some(
-                    branches
-                        .first()
-                        .expect("there should always be at least one"),
-                )
-            } else {
-                None
-            }
+            protected_base_oids.get(&commit.id).map(|branches| {
+                branches
+                    .first()
+                    .expect("there should always be at least one")
+            })
         })
         .next()
 }

@@ -200,7 +200,7 @@ impl GitRepo {
 
     pub fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
         let commit = self.repo.find_commit(id)?;
-        self.repo.branch(&name, &commit, true)?;
+        self.repo.branch(name, &commit, true)?;
         Ok(())
     }
 
@@ -500,6 +500,12 @@ impl InMemoryRepo {
         })?;
         self.head_id = Some(branch.id);
         Ok(())
+    }
+}
+
+impl Default for InMemoryRepo {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
