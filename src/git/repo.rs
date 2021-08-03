@@ -294,7 +294,9 @@ impl GitRepo {
     pub fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
         let branch = self.repo.find_branch(name, git2::BranchType::Local)?;
         self.repo.set_head(branch.get().name().unwrap())?;
-        self.repo.checkout_head(None)?;
+        let mut builder = git2::build::CheckoutBuilder::new();
+        builder.force();
+        self.repo.checkout_head(Some(&mut builder))?;
         Ok(())
     }
 }

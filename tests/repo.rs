@@ -242,10 +242,13 @@ fn switch() {
     }
 
     {
+        assert!(!repo.is_dirty());
+
         repo.switch("master").unwrap();
         let actual = repo.head_commit();
         let expected = repo.find_local_branch("master").unwrap();
         assert_eq!(actual.id, expected.id);
+        assert!(!repo.is_dirty());
     }
 
     temp.close().unwrap();
