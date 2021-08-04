@@ -20,6 +20,7 @@ pub trait Repo {
     ) -> Result<git2::Oid, git2::Error>;
 
     fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error>;
+    fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error>;
     fn find_local_branch(&self, name: &str) -> Option<Branch>;
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_>;
     fn detach(&mut self) -> Result<(), git2::Error>;
@@ -37,6 +38,7 @@ pub struct Branch {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Commit {
     pub id: git2::Oid,
+    pub tree_id: git2::Oid,
     pub summary: bstr::BString,
 }
 
@@ -145,6 +147,7 @@ impl GitRepo {
             let summary: bstr::BString = commit.summary_bytes().unwrap().into();
             let commit = std::rc::Rc::new(Commit {
                 id: commit.id(),
+                tree_id: commit.tree_id(),
                 summary,
             });
             commits.insert(id, std::rc::Rc::clone(&commit));
@@ -269,6 +272,12 @@ impl GitRepo {
         Ok(())
     }
 
+    pub fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error> {
+        // HACK: We shouldn't limit ourselves to `Local`
+        let mut branch = self.repo.find_branch(name, git2::BranchType::Local)?;
+        branch.delete()
+    }
+
     pub fn find_local_branch(&self, name: &str) -> Option<Branch> {
         let branch = self.repo.find_branch(name, git2::BranchType::Local).ok()?;
         let id = branch.get().target().unwrap();
@@ -357,6 +366,7 @@ impl GitRepo {
     }
 
     pub fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
+        // HACK: We shouldn't limit ourselves to `Local`
         let branch = self.repo.find_branch(name, git2::BranchType::Local)?;
         self.repo.set_head(branch.get().name().unwrap())?;
         let mut builder = git2::build::CheckoutBuilder::new();
@@ -408,6 +418,10 @@ impl Repo for GitRepo {
 
     fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
         self.branch(name, id)
+    }
+
+    fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error> {
+        self.delete_branch(name)
     }
 
     fn find_local_branch(&self, name: &str) -> Option<Branch> {
@@ -556,6 +570,16 @@ impl InMemoryRepo {
         Ok(())
     }
 
+    pub fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error> {
+        self.branches.remove(name).map(|_| ()).ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                format!("could not remove branch {:?}", name),
+            )
+        })
+    }
+
     pub fn find_local_branch(&self, name: &str) -> Option<Branch> {
         self.branches.get(name).cloned()
     }
@@ -648,6 +672,10 @@ impl Repo for InMemoryRepo {
 
     fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
         self.branch(name, id)
+    }
+
+    fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error> {
+        self.delete_branch(name)
     }
 
     fn find_local_branch(&self, name: &str) -> Option<Branch> {

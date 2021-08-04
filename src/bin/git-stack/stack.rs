@@ -290,6 +290,14 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
 
     git_stack::graph::rebase_branches(&mut root, stack.onto.id)?;
 
+    let onto_base_id = state.repo.merge_base(stack.base.id, stack.onto.id).unwrap();
+    let onto_commits: Vec<_> = state
+        .repo
+        .commits_from(stack.onto.id)
+        .take_while(|c| c.id != onto_base_id)
+        .collect();
+    git_stack::graph::drop_by_tree_id(&mut root, &onto_commits)?;
+
     git_stack::graph::delinearize(&mut root);
 
     let script = git_stack::graph::to_script(&root);
@@ -338,7 +346,19 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
     root = root.extend(&state.repo, graphed_branches)?;
 
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
+
     git_stack::graph::pushable(&mut root)?;
+
+    for stack in state.stacks.iter() {
+        let onto_base_id = state.repo.merge_base(stack.base.id, stack.onto.id).unwrap();
+        let onto_commits: Vec<_> = state
+            .repo
+            .commits_from(stack.onto.id)
+            .take_while(|c| c.id != onto_base_id)
+            .collect();
+        git_stack::graph::drop_by_tree_id(&mut root, &onto_commits)?;
+    }
+
     if !state.show_stacked {
         git_stack::graph::delinearize(&mut root);
     }
@@ -804,6 +824,8 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                         }
                     }
                 }
+            } else if node.action.is_delete() {
+                write!(f, "{} ", self.palette.warn.paint("drop"))?;
             } else if 1 < self
                 .repo
                 .raw()

@@ -3,6 +3,7 @@ pub enum Action {
     Pick,
     Protected,
     Rebase(git2::Oid),
+    Delete,
 }
 
 impl Action {
@@ -16,5 +17,9 @@ impl Action {
 
     pub fn is_rebase(&self) -> bool {
         matches!(self, Action::Rebase(_))
+    }
+
+    pub fn is_delete(&self) -> bool {
+        matches!(self, Action::Delete)
     }
 }

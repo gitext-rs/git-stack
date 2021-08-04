@@ -41,12 +41,15 @@ pub enum Command {
     CherryPick(git2::Oid),
     /// Mark a branch for creation at the current commit
     CreateBranch(String),
+    /// Mark a branch for deletion
+    DeleteBranch(String),
 }
 
 pub struct Executor {
     head_oid: git2::Oid,
     marks: std::collections::HashMap<git2::Oid, git2::Oid>,
     branches: Vec<(git2::Oid, String)>,
+    delete_branches: Vec<String>,
     dry_run: bool,
     detached: bool,
 }
@@ -58,6 +61,7 @@ impl Executor {
             head_oid,
             marks: Default::default(),
             branches: Default::default(),
+            delete_branches: Default::default(),
             dry_run,
             detached: false,
         }
@@ -151,6 +155,9 @@ impl Executor {
                 let branch_oid = self.head_oid;
                 self.branches.push((branch_oid, name.to_owned()));
             }
+            Command::DeleteBranch(name) => {
+                self.delete_branches.push(name.to_owned());
+            }
         }
 
         Ok(())
@@ -175,11 +182,19 @@ impl Executor {
         }
         self.branches.clear();
 
+        for name in self.delete_branches.iter() {
+            log::trace!("git branch -D {}", name);
+            if !self.dry_run {
+                repo.delete_branch(name)?;
+            }
+        }
+
         Ok(())
     }
 
     pub fn abandon(&mut self, repo: &dyn crate::git::Repo) {
         self.branches.clear();
+        self.delete_branches.clear();
         self.head_oid = repo.head_commit().id;
     }
 
@@ -189,6 +204,7 @@ impl Executor {
         restore_branch: &str,
     ) -> Result<(), git2::Error> {
         assert_eq!(&self.branches, &[]);
+        assert_eq!(self.delete_branches, Vec::<String>::new());
         log::trace!("git switch {}", restore_branch);
         if !self.dry_run {
             if self.detached {
