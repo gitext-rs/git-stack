@@ -737,8 +737,13 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
-                write!(f, "{} ", self.palette.info.paint(node.local_commit.id))?;
-            } else if node.action == git_stack::graph::Action::Protected {
+                if node.children.is_empty() {
+                    write!(f, "{} ", self.palette.info.paint(node.local_commit.id))?;
+                } else {
+                    // Branches should be off of other branches
+                    write!(f, "{} ", self.palette.warn.paint(node.local_commit.id))?;
+                }
+            } else if node.action.is_protected() || node.action.is_rebase() {
                 write!(
                     f,
                     "{} ",
@@ -746,36 +751,6 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                         .info
                         .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
                 )?;
-                let branch = &node.branches[0];
-                match commit_relation(self.repo, branch.id, branch.pull_id) {
-                    Some((0, 0)) => {}
-                    Some((local, 0)) => {
-                        write!(
-                            f,
-                            "{} ",
-                            self.palette.warn.paint(format!("({} ahead)", local)),
-                        )?;
-                    }
-                    Some((0, remote)) => {
-                        write!(
-                            f,
-                            "{} ",
-                            self.palette.warn.paint(format!("({} behind)", remote)),
-                        )?;
-                    }
-                    Some((local, remote)) => {
-                        write!(
-                            f,
-                            "{} ",
-                            self.palette
-                                .warn
-                                .paint(format!("({} ahead, {} behind)", local, remote)),
-                        )?;
-                    }
-                    None => {
-                        write!(f, "{} ", self.palette.warn.paint("(no remote)"))?;
-                    }
-                }
             } else {
                 write!(
                     f,
@@ -784,19 +759,18 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                         .branch
                         .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
                 )?;
-                if node.pushable {
-                    write!(f, "{} ", self.palette.info.paint("(ready) "))?;
-                } else {
+            }
+
+            if node.action.is_protected() || node.action.is_rebase() {
+                if !node.branches.is_empty() {
                     let branch = &node.branches[0];
-                    match commit_relation(self.repo, branch.id, branch.push_id) {
-                        Some((0, 0)) => {
-                            write!(f, "{} ", self.palette.info.paint("(pushed)"))?;
-                        }
+                    match commit_relation(self.repo, branch.id, branch.pull_id) {
+                        Some((0, 0)) => {}
                         Some((local, 0)) => {
                             write!(
                                 f,
                                 "{} ",
-                                self.palette.info.paint(format!("({} ahead)", local)),
+                                self.palette.warn.paint(format!("({} ahead)", local)),
                             )?;
                         }
                         Some((0, remote)) => {
@@ -816,15 +790,10 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                             )?;
                         }
                         None => {
-                            write!(f, "{} ", self.palette.info.paint("(no remote)"))?;
+                            write!(f, "{} ", self.palette.warn.paint("(no remote)"))?;
                         }
                     }
                 }
-            }
-
-            let summary = String::from_utf8_lossy(&node.local_commit.summary);
-            if node.action == git_stack::graph::Action::Protected {
-                write!(f, "{}", self.palette.hint.paint(summary))?;
             } else if 1 < self
                 .repo
                 .raw()
@@ -832,10 +801,51 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                 .unwrap()
                 .parent_count()
             {
-                write!(f, "{}", self.palette.error.paint("merge commit"))?;
-            } else if node.branches.is_empty() && !node.children.is_empty() {
-                // Branches should be off of other branches
-                write!(f, "{}", self.palette.warn.paint(summary))?;
+                write!(f, "{} ", self.palette.error.paint("merge commit"))?;
+            } else {
+                if !node.branches.is_empty() {
+                    if node.pushable {
+                        write!(f, "{} ", self.palette.info.paint("(ready) "))?;
+                    } else {
+                        let branch = &node.branches[0];
+                        match commit_relation(self.repo, branch.id, branch.push_id) {
+                            Some((0, 0)) => {
+                                write!(f, "{} ", self.palette.info.paint("(pushed)"))?;
+                            }
+                            Some((local, 0)) => {
+                                write!(
+                                    f,
+                                    "{} ",
+                                    self.palette.info.paint(format!("({} ahead)", local)),
+                                )?;
+                            }
+                            Some((0, remote)) => {
+                                write!(
+                                    f,
+                                    "{} ",
+                                    self.palette.warn.paint(format!("({} behind)", remote)),
+                                )?;
+                            }
+                            Some((local, remote)) => {
+                                write!(
+                                    f,
+                                    "{} ",
+                                    self.palette
+                                        .warn
+                                        .paint(format!("({} ahead, {} behind)", local, remote)),
+                                )?;
+                            }
+                            None => {
+                                write!(f, "{} ", self.palette.info.paint("(no remote)"))?;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let summary = String::from_utf8_lossy(&node.local_commit.summary);
+            if node.action.is_protected() || node.action.is_rebase() {
+                write!(f, "{}", self.palette.hint.paint(summary))?;
             } else if node.local_commit.fixup_summary().is_some() {
                 // Needs to be squashed
                 write!(f, "{}", self.palette.warn.paint(summary))?;
