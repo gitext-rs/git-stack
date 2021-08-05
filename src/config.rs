@@ -37,6 +37,7 @@ impl RepoConfig {
         };
         let config = config.update(Self::from_workdir(repo)?);
         let config = config.update(Self::from_repo(repo)?);
+        let config = config.update(Self::from_env());
         Ok(config)
     }
 
@@ -76,6 +77,49 @@ impl RepoConfig {
         } else {
             Ok(Default::default())
         }
+    }
+
+    pub fn from_env() -> Self {
+        let mut config = Self::default();
+
+        let params = git_config_env::ConfigParameters::new();
+        for (key, value) in params.iter() {
+            log::trace!("Env config: {}={:?}", key, value);
+            if key == PROTECTED_STACK_FIELD {
+                if let Some(value) = value {
+                    config
+                        .protected_branches
+                        .get_or_insert_with(Vec::new)
+                        .push(value.into_owned());
+                }
+            } else if key == STACK_FIELD {
+                if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
+                    config.stack = Some(value);
+                }
+            } else if key == PUSH_REMOTE_FIELD {
+                if let Some(value) = value {
+                    config.push_remote = Some(value.into_owned());
+                }
+            } else if key == PULL_REMOTE_FIELD {
+                if let Some(value) = value {
+                    config.pull_remote = Some(value.into_owned());
+                }
+            } else if key == FORMAT_FIELD {
+                if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
+                    config.show_format = Some(value);
+                }
+            } else if key == STACKED_FIELD {
+                config.show_stacked = Some(value.as_ref().map(|v| v == "true").unwrap_or(true));
+            } else {
+                log::warn!(
+                    "Unsupported config: {}={}",
+                    key,
+                    value.as_deref().unwrap_or("")
+                );
+            }
+        }
+
+        config
     }
 
     pub fn from_defaults() -> Self {
