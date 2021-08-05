@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_else_if)]
+
 use std::io::Write;
 
 use structopt::StructOpt;
