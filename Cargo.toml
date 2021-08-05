@@ -19,6 +19,7 @@ pre-release-replacements = [
 
 [dependencies]
 git2 = { version = "0.13", default-features = false }
+git-config-env = "0.1"
 log = "0.4"
 structopt = "0.3"
 clap = "2"
