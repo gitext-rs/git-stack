@@ -185,6 +185,26 @@ impl GitRepo {
         let mut result_index = self
             .repo
             .merge_trees(&base_tree, &head_tree, &cherry_tree, None)?;
+        if result_index.has_conflicts() {
+            let conflicts = result_index
+                .conflicts()?
+                .map(|conflict| {
+                    let conflict = conflict.unwrap();
+                    let our_path = conflict
+                        .our
+                        .as_ref()
+                        .map(|c| bytes2path(&c.path))
+                        .or_else(|| conflict.their.as_ref().map(|c| bytes2path(&c.path)))
+                        .unwrap();
+                    format!("{}", our_path.display())
+                })
+                .join("\n  ");
+            return Err(git2::Error::new(
+                git2::ErrorCode::Unmerged,
+                git2::ErrorClass::Index,
+                format!("cherry-pick conflicts:\n  {}\n", conflicts),
+            ));
+        }
         let result_id = result_index.write_tree_to(&self.repo)?;
         let result_tree = self.repo.find_tree(result_id)?;
         let new_id = self.repo.commit(
@@ -585,4 +605,18 @@ impl Repo for InMemoryRepo {
     fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
         self.switch(name)
     }
+}
+
+// From git2 crate
+#[cfg(unix)]
+fn bytes2path(b: &[u8]) -> &std::path::Path {
+    use std::os::unix::prelude::*;
+    std::path::Path::new(std::ffi::OsStr::from_bytes(b))
+}
+
+// From git2 crate
+#[cfg(windows)]
+fn bytes2path(b: &[u8]) -> &std::path::Path {
+    use std::str;
+    std::path::Path::new(str::from_utf8(b).unwrap())
 }
