@@ -198,6 +198,10 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
     let mut state = State::new(repo, args)?;
 
     if state.pull {
+        if state.repo.is_dirty() {
+            return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
+        }
+
         let mut pulled = false;
         for stack in state.stacks.iter() {
             if state.protected_branches.contains_oid(stack.onto.id) {
@@ -223,6 +227,10 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
 
     let mut success = true;
     if state.rebase {
+        if state.repo.is_dirty() {
+            return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
+        }
+
         let head_oid = state.repo.head_commit().id;
         let head_branch = if let Some(branches) = state.branches.get(head_oid) {
             branches[0].clone()
