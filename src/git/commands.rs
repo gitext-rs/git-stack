@@ -48,6 +48,7 @@ pub struct Executor {
     marks: std::collections::HashMap<git2::Oid, git2::Oid>,
     branches: Vec<(git2::Oid, String)>,
     dry_run: bool,
+    detached: bool,
 }
 
 impl Executor {
@@ -58,6 +59,7 @@ impl Executor {
             marks: Default::default(),
             branches: Default::default(),
             dry_run,
+            detached: false,
         }
     }
 
@@ -158,6 +160,7 @@ impl Executor {
             // In case we are changing the branch HEAD is attached to
             if !self.dry_run {
                 repo.detach()?;
+                self.detached = true;
             }
 
             for (oid, name) in self.branches.iter() {
@@ -187,7 +190,9 @@ impl Executor {
         assert_eq!(&self.branches, &[]);
         log::trace!("git switch {}", restore_branch);
         if !self.dry_run {
-            repo.switch(restore_branch)?;
+            if self.detached {
+                repo.switch(restore_branch)?;
+            }
             self.head_oid = repo.head_commit().id;
         }
 
