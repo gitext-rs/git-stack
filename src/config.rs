@@ -83,7 +83,22 @@ impl RepoConfig {
         let mut config = Self::default();
 
         let params = git_config_env::ConfigParameters::new();
-        for (key, value) in params.iter() {
+        config = config.update(Self::from_env_iter(params.iter()));
+
+        let params = git_config_env::ConfigEnv::new();
+        config = config.update(Self::from_env_iter(
+            params.iter().map(|(k, v)| (k, Some(v))),
+        ));
+
+        config
+    }
+
+    fn from_env_iter<'s>(
+        iter: impl Iterator<Item = (std::borrow::Cow<'s, str>, Option<std::borrow::Cow<'s, str>>)>,
+    ) -> Self {
+        let mut config = Self::default();
+
+        for (key, value) in iter {
             log::trace!("Env config: {}={:?}", key, value);
             if key == PROTECTED_STACK_FIELD {
                 if let Some(value) = value {
