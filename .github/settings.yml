@@ -37,7 +37,7 @@ labels:
 branches:
   - name: master
     protection:
-      # Manual: required_conversation_resolution: true, see https://github.com/probot/settings/issues/458
+      required_conversation_resolution: true
       required_status_checks:
         # Required. Require branches to be up to date before merging.
         strict: false
