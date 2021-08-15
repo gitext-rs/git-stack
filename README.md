@@ -20,6 +20,14 @@ Dual-licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE)
 - [Contribute](CONTRIBUTING.md)
 - [CHANGELOG](CHANGELOG.md)
 
+## Status
+
+This software is pre-release.  We only recommend this for people who are
+willing to go the extra mile when filing bug reports.  Extra effort is needed
+to create bug reports that are actionable and we do not have the resources yet
+to help step people through this process.  We do not expect any data loss with
+default features.
+
 ## About
 
 `git-stack` is [another approach](docs/comparison.md) to bringing the
