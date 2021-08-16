@@ -72,6 +72,7 @@ impl Executor {
         let branch_name = script.branch().unwrap_or("detached");
 
         log::trace!("Applying `{}`", branch_name);
+        log::trace!("Script: {:#?}", script.commands);
         let res = script
             .commands
             .iter()
