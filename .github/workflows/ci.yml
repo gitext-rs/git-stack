@@ -8,7 +8,7 @@ on:
     - "!/LICENSE-*"
   push:
     branches:
-    - master
+    - main
     paths:
     - '**'
     - '!/*.md'
