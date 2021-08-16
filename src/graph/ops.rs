@@ -237,6 +237,9 @@ fn to_script_internal(nodes: &[Node], base_mark: git2::Oid) -> Option<crate::git
             crate::graph::Action::Protected => {
                 for child in node.children.iter() {
                     script
+                        .commands
+                        .push(crate::git::Command::RegisterMark(node.local_commit.id));
+                    script
                         .dependents
                         .extend(to_script_internal(child, node.local_commit.id));
                 }
