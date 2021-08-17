@@ -47,12 +47,26 @@ impl Commit {
     }
 
     pub fn wip_summary(&self) -> Option<&bstr::BStr> {
-        static WIP_PREFIXES: &[&[u8]] = &[b"WIP:", b"draft:", b"Draft:"];
+        // Gitlab MRs only: b"[Draft]", b"(Draft)",
+        static WIP_PREFIXES: &[&[u8]] = &[
+            b"WIP:", b"draft:", b"Draft:", // Gitlab commits
+            b"wip ", b"WIP ", // Less formal
+        ];
 
-        WIP_PREFIXES
-            .iter()
-            .filter_map(|prefix| self.summary.strip_prefix(*prefix).map(ByteSlice::as_bstr))
-            .next()
+        if self.summary == b"WIP".as_bstr() || self.summary == b"wip".as_bstr() {
+            // Very informal
+            Some(b"".as_bstr())
+        } else {
+            WIP_PREFIXES
+                .iter()
+                .filter_map(|prefix| {
+                    self.summary
+                        .strip_prefix(*prefix)
+                        .map(ByteSlice::trim)
+                        .map(ByteSlice::as_bstr)
+                })
+                .next()
+        }
     }
 }
 
