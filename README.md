@@ -2,6 +2,8 @@
 
 > **Stacked branch management for Git**
 
+![Screenshot](./docs/screenshot.png)
+
 [![codecov](https://codecov.io/gh/epage/git-stack/branch/master/graph/badge.svg)](https://codecov.io/gh/epage/git-stack)
 [![Documentation](https://img.shields.io/badge/docs-master-blue.svg)][Documentation]
 ![License](https://img.shields.io/crates/l/git-stack.svg)
