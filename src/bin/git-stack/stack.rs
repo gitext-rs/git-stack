@@ -636,9 +636,9 @@ fn git_push_internal(
     }
 
     if failed.is_empty() {
-        for child in node.children.iter() {
-            for child_node in child.iter() {
-                failed.extend(git_push_internal(repo, child_node, dry_run));
+        for stack in node.stacks.iter() {
+            for stack_node in stack.iter() {
+                failed.extend(git_push_internal(repo, stack_node, dry_run));
             }
         }
     }
@@ -687,7 +687,7 @@ impl<'r, 'n> std::fmt::Display for DisplayTree<'r, 'n> {
         });
         to_tree(
             self.repo,
-            self.root.children.as_slice(),
+            self.root.stacks.as_slice(),
             &mut tree,
             &self.palette,
             self.all,
@@ -710,7 +710,7 @@ fn to_tree<'r, 'n, 'p>(
             palette,
         });
         for node in branch {
-            if node.branches.is_empty() && node.children.is_empty() && !show_all {
+            if node.branches.is_empty() && node.stacks.is_empty() && !show_all {
                 log::trace!("Skipping commit {}", node.local_commit.id);
                 continue;
             }
@@ -721,7 +721,7 @@ fn to_tree<'r, 'n, 'p>(
             });
             to_tree(
                 repo,
-                node.children.as_slice(),
+                node.stacks.as_slice(),
                 &mut child_tree,
                 palette,
                 show_all,
@@ -745,7 +745,7 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
-                if node.children.is_empty() {
+                if node.stacks.is_empty() {
                     write!(f, "{} ", self.palette.info.paint(node.local_commit.id))?;
                 } else {
                     // Branches should be off of other branches

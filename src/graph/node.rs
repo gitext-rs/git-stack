@@ -4,7 +4,7 @@ use itertools::Itertools;
 pub struct Node {
     pub local_commit: std::rc::Rc<crate::git::Commit>,
     pub branches: Vec<crate::git::Branch>,
-    pub children: Vec<Vec<Node>>,
+    pub stacks: Vec<Vec<Node>>,
     pub action: crate::graph::Action,
     pub pushable: bool,
 }
@@ -17,11 +17,11 @@ impl Node {
         let branches = possible_branches
             .remove(local_commit.id)
             .unwrap_or_else(Vec::new);
-        let children = Vec::new();
+        let stacks = Vec::new();
         Self {
             local_commit,
             branches,
-            children,
+            stacks,
             action: crate::graph::Action::Pick,
             pushable: false,
         }
@@ -119,14 +119,14 @@ impl Node {
 
         let mut root = Node::new(base_commit, branches);
 
-        let mut children: Vec<_> = repo
+        let mut stack: Vec<_> = repo
             .commits_from(head_oid)
             .take_while(|commit| commit.id != base_oid)
             .map(|commit| Node::new(commit, branches))
             .collect();
-        children.reverse();
-        if !children.is_empty() {
-            root.children.push(children);
+        stack.reverse();
+        if !stack.is_empty() {
+            root.stacks.push(stack);
         }
 
         Ok(root)
@@ -136,13 +136,13 @@ impl Node {
         let other_oid = other.local_commit.id;
         if self.local_commit.id == other_oid {
             self.merge(other);
-        } else if self.children.len() == 1 {
-            let child = &mut self.children[0];
-            for node in child.iter_mut() {
+        } else if self.stacks.len() == 1 {
+            let stack = &mut self.stacks[0];
+            for node in stack.iter_mut() {
                 if node.local_commit.id == other_oid {
                     node.merge(other);
-                    if let Some(ext) = child.last_mut().unwrap().children.pop() {
-                        child.extend(ext);
+                    if let Some(ext) = stack.last_mut().unwrap().stacks.pop() {
+                        stack.extend(ext);
                     }
                     return;
                 }
@@ -158,30 +158,30 @@ impl Node {
         std::mem::swap(&mut other.branches, &mut branches);
         self.branches.extend(branches);
 
-        merge_children(self, other);
+        merge_stacks(self, other);
     }
 }
 
-fn merge_children(lhs_node: &mut Node, rhs_node: Node) {
+fn merge_stacks(lhs_node: &mut Node, rhs_node: Node) {
     assert_eq!(lhs_node.local_commit.id, rhs_node.local_commit.id);
 
-    let rhs_node_children = rhs_node.children;
-    for mut rhs_node_children_branch in rhs_node_children {
-        assert!(!rhs_node_children_branch.is_empty());
-        for mut lhs_node_children_branch in lhs_node.children.iter_mut() {
-            merge_branch(&mut lhs_node_children_branch, &mut rhs_node_children_branch);
-            if rhs_node_children_branch.is_empty() {
+    let rhs_node_stacks = rhs_node.stacks;
+    for mut rhs_node_stack in rhs_node_stacks {
+        assert!(!rhs_node_stack.is_empty());
+        for mut lhs_node_stack in lhs_node.stacks.iter_mut() {
+            merge_stack(&mut lhs_node_stack, &mut rhs_node_stack);
+            if rhs_node_stack.is_empty() {
                 break;
             }
         }
-        if !rhs_node_children_branch.is_empty() {
-            lhs_node.children.push(rhs_node_children_branch);
+        if !rhs_node_stack.is_empty() {
+            lhs_node.stacks.push(rhs_node_stack);
         }
     }
 }
 
 /// If a merge occurs, `rhs_nodes` will be empty
-fn merge_branch(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
+fn merge_stack(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
     assert!(
         !lhs_nodes.is_empty(),
         "to exist, there has to be at least one node"
@@ -220,9 +220,9 @@ fn merge_branch(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
             } else {
                 let remaining = rhs_nodes.split_off(index);
                 let mut fake_rhs_node = rhs_nodes.pop().expect("if should catch this");
-                assert!(fake_rhs_node.children.is_empty(), "assuming rhs is linear");
-                fake_rhs_node.children.push(remaining);
-                merge_children(&mut lhs_nodes[index - 1], fake_rhs_node);
+                assert!(fake_rhs_node.stacks.is_empty(), "assuming rhs is linear");
+                fake_rhs_node.stacks.push(remaining);
+                merge_stacks(&mut lhs_nodes[index - 1], fake_rhs_node);
                 rhs_nodes.clear();
             }
         }
