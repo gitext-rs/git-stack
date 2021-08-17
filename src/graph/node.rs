@@ -141,6 +141,9 @@ impl Node {
             for node in child.iter_mut() {
                 if node.local_commit.id == other_oid {
                     node.merge(other);
+                    if let Some(ext) = child.last_mut().unwrap().children.pop() {
+                        child.extend(ext);
+                    }
                     return;
                 }
             }
