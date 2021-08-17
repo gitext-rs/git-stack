@@ -5,8 +5,11 @@
 ### Sources
 
 Configuration is read from the following (in precedence order):
+- [`git -c`](https://git-scm.com/docs/git#Documentation/git.txt--cltnamegtltvaluegt)
+- [`GIT_CONFIG`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-GITCONFIGCOUNT)
 - `$REPO/.git/config`
 - `$REPO/.gitconfig`
+- [Other `.gitconfig`](https://git-scm.com/docs/git-config#FILES)
 
 ### Config Fields
 

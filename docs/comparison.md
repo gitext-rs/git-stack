@@ -8,10 +8,10 @@ Pros:
 - Authors can upload multiple PRs at once with each PR showing only the commits relevant for it.
 
 Cons:
-- Custom config file, rather than `.gitconfig`
+- Not integrated into `git` workflow (e.g. custom config file, rather than `.gitconfig`)
 - Incompatible with fork workflow / requires upstream access
-  - Manage custom branches
-  - Merge from `ghstack`
+  - It manage custom branches
+  - You must merge from `ghstack`
 - Incompatible with host-side merge tools (auto-merge, merge queues, etc) and branch-protections
 - Leaves behind stale branches in upstream, requiring custom cleanup
 - Requires Python runtime / virtualenv
@@ -25,7 +25,7 @@ Pros:
 
 Cons:
 - Requires each commit start with an identifier, grouping by identifier into a PR
-  - `git-stack` relies on branches (multi-commit PRs) and
+  - In contrast, `git-stack` relies on branches (multi-commit PRs) and
      ["fixup" commits (auto-squashing)](https://thoughtbot.com/blog/autosquashing-git-commits)
 
 ## `git-ps`
@@ -42,13 +42,17 @@ Cons:
 
 [Website](https://stacked-git.github.io/)
 
+Cons:
+- I've looked over the docs multiple times and haven't quite "gotten it" for
+  how to use this in a PR workflow.
+
 ## `git-branchless`
 
 [Website](https://git.sr.ht/~krobelus/git-branchless)
 
 Cons:
 - Requires each commit start with an identifier, grouping by identifier into a PR
-  - `git-stack` relies on branches (multi-commit PRs) and
+  - In contrast, `git-stack` relies on branches (multi-commit PRs) and
      ["fixup" commits (auto-squashing)](https://thoughtbot.com/blog/autosquashing-git-commits)
 
 ## `arcanist` (`arc`)
@@ -62,5 +66,5 @@ Pros:
 
 Cons:
 - Coupled to Phabricator which is EOL
-- Auto-rebasing doesn't preserve branch relationships
-- No auto-rebase outside of merging
+- Auto-rebasing doesn't preserve branch relationships (stacks)
+- No auto-rebase outside of "landing" a Diff (merging a PR)

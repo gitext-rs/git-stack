@@ -32,12 +32,16 @@ default features.
 
 ## About
 
-`git-stack` is [another approach](docs/comparison.md) to bringing the
+Like Stacked-Diffs? `git-stack` is [another approach](docs/comparison.md) to bringing the
 [Stacked Diff workflow](https://jg.gg/2018/09/29/stacked-diffs-versus-pull-requests/)
-to PRs that aims to unintrusive to a project's workflow.  Branches are the unit
+to PRs that aims to be unintrusive to a project's workflow.  Branches are the unit
 of work and review in `git-stack`.  As you create branches on top of each
 other (i.e. "stacked" brances), `git-stack` will takes care of all of the
 micromanagement for you.
+
+Unfamiliar with Stacked-Diffs? `git-stack` helps keep all of your local
+branches up-to-date, especially when you have a branches off of branches (i.e.
+stacked)
 
 For example, from your development branch, run:
 ```bash
@@ -70,13 +74,15 @@ branches.
 Features:
 - Upstream parent branch auto-detection
 - Maintain branches relative to each other through rebase
-- Defers all permanent changes until the end (e.g. HEAD, branch targets), always leaving you in a good
-  state (similar to [`git revise`](https://github.com/mystor/git-revise/)
+- Defers all permanent changes until the end (e.g. HEAD, re-targeting
+  branches), always leaving you in a good state
+  (similar to [`git revise`](https://github.com/mystor/git-revise/))
 - Separates out pull/push remotes for working from a fork
+- On `--push`, detects which branches are "ready" (e.g. root of stack, no WIP)
 
 Non-features
-- Conflict resolution: `git-stack` will give up and you'll have to use `git
-  rebase` yourself to resolve the conflict.
+- Conflict resolution: `git-stack` will give up and you'll have to use
+  `git rebase` yourself to resolve the conflict.
 
 To see how `git-stack` compares to other stacked git tools, see the [Comparison](docs/comparison.md).
 
@@ -93,16 +99,15 @@ cargo install git-stack
 
 ### Configuring `git-stack`
 
-Protected branches: `git-stack` has some defaults for protected branches (upstream controlled branches).
-- To see them, run `git-stack --dump-config -`.
+Protected branches: run `git-stack --protected -v` to test your config
 - To locally protect additional branches, run `git-stack --protect <glob>`.
 - When adopting `git-stack` as a team, you can move the protected branches from
   `$REPO/.git/config` to `$REPO/.gitconfig` and commit it.
 
-To test your config, run `git-stack --protected -v`
-
 Pull remote: when working from a fork (upstream is a different remote than
 `origin`), in `$REPO/.git/config`, set `stack.pull-remote` to your remote.
+
+To see the config, run `git-stack --dump-config -`.
 
 For more, see [Reference](docs/reference.md).
 
@@ -120,6 +125,9 @@ git add -A; git commit --fixup HEAD~~
 
 # See what this looks like
 git-stack
+
+# To push whats ready
+git-stack --push
 ```
 
 ## FAQ
@@ -132,7 +140,8 @@ git-stack
 
 ### How do I add a commit to a branch (PR)?
 
-- If this is for fixing a problem in a previous commit, `git commit --fixup <ref>` and then `git-stack --rebase` will move it to where it needs to be.
+- If this is for fixing a problem in a previous commit, `git commit --fixup
+  <ref>` and then `git-stack --rebase` will move it to where it needs to be.
 - If this is to append to the PR, for now you'll have to use `git rebase -i`
 
 ### How do I start a new feature?
@@ -141,8 +150,9 @@ git-stack
 
 ### Why don't you just ...?
 
-Have an idea, we'd love to hear it!  There are probably `git` operations or
-workflows we haven't heard of and would welcome the opportunity to learn more.
+Have an idea, we'd love to [hear it](https://github.com/epage/git-stack/discussions/categories)!
+There are probably `git` operations or workflows we haven't heard of and would
+welcome the opportunity to learn more.
 
 ### How do I stack my PRs in Github?
 
