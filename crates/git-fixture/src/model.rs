@@ -23,7 +23,7 @@ pub enum Event {
 #[serde(deny_unknown_fields)]
 pub struct Tree {
     #[serde(default)]
-    pub tracked: std::collections::HashMap<std::path::PathBuf, bstr::BString>,
+    pub tracked: std::collections::HashMap<std::path::PathBuf, FileContent>,
     #[serde(default)]
     pub state: TreeState,
     #[serde(default)]
@@ -34,6 +34,24 @@ pub struct Tree {
     pub branch: Option<Branch>,
     #[serde(default)]
     pub mark: Option<Mark>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, derive_more::IsVariant)]
+#[serde(rename_all = "snake_case")]
+#[serde(untagged)]
+#[serde(deny_unknown_fields)]
+pub enum FileContent {
+    Binary(Vec<u8>),
+    Text(String),
+}
+
+impl FileContent {
+    pub fn as_bytes(&self) -> &[u8] {
+        match self {
+            FileContent::Binary(v) => v.as_slice(),
+            FileContent::Text(v) => v.as_bytes(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

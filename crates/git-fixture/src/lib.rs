@@ -88,7 +88,7 @@ impl Dag {
                                 format!("Failed to create {}", parent.display())
                             })?;
                         }
-                        std::fs::write(&path, content)
+                        std::fs::write(&path, content.as_bytes())
                             .wrap_err_with(|| format!("Failed to write {}", path.display()))?;
                         if !tree.state.is_tracked() {
                             std::process::Command::new("git")
