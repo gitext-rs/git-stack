@@ -98,15 +98,6 @@ impl Dag {
                                 .ok()?;
                         }
                     }
-                    for (path, content) in tree.untracked.iter() {
-                        if let Some(parent) = path.parent() {
-                            std::fs::create_dir_all(parent).wrap_err_with(|| {
-                                format!("Failed to create {}", parent.display())
-                            })?;
-                        }
-                        std::fs::write(path, content)
-                            .wrap_err_with(|| format!("Failed to write {}", path.display()))?;
-                    }
                     if tree.state.is_committed() {
                         // Detach
                         if let Ok(pre_commit) = current_oid(cwd) {

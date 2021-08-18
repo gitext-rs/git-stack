@@ -25,8 +25,6 @@ pub struct Tree {
     #[serde(default)]
     pub tracked: std::collections::HashMap<std::path::PathBuf, bstr::BString>,
     #[serde(default)]
-    pub untracked: std::collections::HashMap<std::path::PathBuf, bstr::BString>,
-    #[serde(default)]
     pub state: TreeState,
     #[serde(default)]
     pub message: Option<String>,
