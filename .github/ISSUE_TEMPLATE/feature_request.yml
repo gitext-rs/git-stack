@@ -1,0 +1,25 @@
+name: Feature request
+description: Suggest an idea for this project
+labels: 'question'
+body:
+  - type: checkboxes
+    attributes:
+      options:
+        - label: I have searched the [discussions](https://github.com/epage/git-stack/discussions)
+        - label: I have searched the existing issues
+  - type: input
+    attributes:
+      label: Version
+      description: Output of `git stack -V`
+  - type: textarea
+    attributes:
+      label: Use Case
+      description: Describe the problem you're trying to solve.
+  - type: textarea
+    attributes:
+      label: Requirements
+      description: Describe what is needed to satisfy your use case.
+  - type: textarea
+    attributes:
+      label: Possible Solutions
+      description: A clear and concise description of any solutions or features you've managed to come up with.
