@@ -9,6 +9,7 @@ description = "Stacked branch management for Git"
 version = "0.1.0"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/epage/git-stack.git"
+documentation = "https://github.com/epage/git-stack.git"
 readme = "README.md"
 categories = ["command-line-interface", "development-tools"]
 keywords = ["git", "cli"]

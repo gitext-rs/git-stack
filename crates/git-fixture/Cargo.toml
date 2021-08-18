@@ -1,6 +1,12 @@
 [package]
 name = "git-fixture"
+description = "Reproducible git trees for bug reporting and testing"
 version = "0.1.0"
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/epage/git-stack.git"
+documentation = "https://docs.rs/git-fixture"
+categories = ["command-line-interface", "development-tools"]
+keywords = ["git", "cli"]
 edition = "2018"
 
 [dependencies]
