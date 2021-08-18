@@ -100,12 +100,12 @@ cargo install git-stack
 
 ### Configuring `git-stack`
 
-Protected branches: run `git-stack --protected -v` to test your config
+**Protected branches:** run `git-stack --protected -v` to test your config
 - To locally protect additional branches, run `git-stack --protect <glob>`.
 - When adopting `git-stack` as a team, you can move the protected branches from
   `$REPO/.git/config` to `$REPO/.gitconfig` and commit it.
 
-Pull remote: when working from a fork (upstream is a different remote than
+**Pull remote:** when working from a fork (upstream is a different remote than
 `origin`), in `$REPO/.git/config`, set `stack.pull-remote` to your remote.
 
 To see the config, run `git-stack --dump-config -`.
