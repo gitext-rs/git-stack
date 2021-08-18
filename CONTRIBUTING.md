@@ -16,6 +16,14 @@ ergonomics of API.  You can do this by opening an [issue][new issue]. It's
 helpful to look through [all issues][all issues] in case its already being
 talked about.
 
+### Reproducing Bugs
+
+To make reproduction easier, we've created a YAML format for describing git
+trees.  You can verify your yaml file by the `git-fixture` command.
+
+- [Schema](crates/git-fixture/docs/schema.json)
+- [Examples](tests/fixtures/)
+
 ## Pull Requests
 
 Looking for an idea? Check our [issues][issues]. If it's look more open ended,

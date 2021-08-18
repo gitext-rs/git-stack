@@ -1,0 +1,179 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Dag",
+  "type": "object",
+  "properties": {
+    "init": {
+      "default": true,
+      "type": "boolean"
+    },
+    "events": {
+      "default": [],
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/Event"
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Event": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "import"
+          ],
+          "properties": {
+            "import": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "tree"
+          ],
+          "properties": {
+            "tree": {
+              "$ref": "#/definitions/Tree"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "children"
+          ],
+          "properties": {
+            "children": {
+              "type": "array",
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/definitions/Event"
+                }
+              }
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "head"
+          ],
+          "properties": {
+            "head": {
+              "$ref": "#/definitions/Reference"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "Tree": {
+      "type": "object",
+      "properties": {
+        "tracked": {
+          "default": {},
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/definitions/FileContent"
+          }
+        },
+        "state": {
+          "default": "committed",
+          "allOf": [
+            {
+              "$ref": "#/definitions/TreeState"
+            }
+          ]
+        },
+        "message": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "author": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "branch": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "mark": {
+          "default": null,
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "FileContent": {
+      "anyOf": [
+        {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint8",
+            "minimum": 0.0
+          }
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "TreeState": {
+      "type": "string",
+      "enum": [
+        "committed",
+        "staged",
+        "tracked"
+      ]
+    },
+    "Reference": {
+      "anyOf": [
+        {
+          "type": "object",
+          "required": [
+            "branch"
+          ],
+          "properties": {
+            "branch": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "required": [
+            "mark"
+          ],
+          "properties": {
+            "mark": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    }
+  }
+}

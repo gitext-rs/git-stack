@@ -1,14 +1,22 @@
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub struct Dag {
+    #[serde(default = "init_default")]
     pub init: bool,
+    #[serde(default)]
     pub events: Vec<Event>,
     #[serde(skip)]
     pub import_root: std::path::PathBuf,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, derive_more::IsVariant)]
+fn init_default() -> bool {
+    true
+}
+
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, derive_more::IsVariant, schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Event {
@@ -18,7 +26,7 @@ pub enum Event {
     Head(Reference),
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub struct Tree {
@@ -36,7 +44,9 @@ pub struct Tree {
     pub mark: Option<Mark>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, derive_more::IsVariant)]
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema, derive_more::IsVariant,
+)]
 #[serde(rename_all = "snake_case")]
 #[serde(untagged)]
 #[serde(deny_unknown_fields)]
@@ -54,7 +64,7 @@ impl FileContent {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub struct Merge {
@@ -65,7 +75,9 @@ pub struct Merge {
     pub mark: Option<Mark>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, derive_more::IsVariant)]
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema, derive_more::IsVariant,
+)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum TreeState {
@@ -80,7 +92,9 @@ impl Default for TreeState {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, derive_more::IsVariant)]
+#[derive(
+    Clone, Debug, serde::Serialize, serde::Deserialize, derive_more::IsVariant, schemars::JsonSchema,
+)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub enum Reference {
@@ -89,7 +103,16 @@ pub enum Reference {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
 )]
 #[serde(transparent)]
 pub struct Mark(String);
@@ -133,7 +156,16 @@ impl std::borrow::Borrow<str> for Mark {
 }
 
 #[derive(
-    Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize,
+    Clone,
+    Debug,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
 )]
 #[serde(transparent)]
 pub struct Branch(String);
