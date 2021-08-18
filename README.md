@@ -37,7 +37,7 @@ Like Stacked-Diffs? `git-stack` is [another approach](docs/comparison.md) to bri
 [Stacked Diff workflow](https://jg.gg/2018/09/29/stacked-diffs-versus-pull-requests/)
 to PRs that aims to be unintrusive to a project's workflow.  Branches are the unit
 of work and review in `git-stack`.  As you create branches on top of each
-other (i.e. "stacked" brances), `git-stack` will takes care of all of the
+other (i.e. "stacked" branches), `git-stack` will takes care of all of the
 micromanagement for you.
 
 Unfamiliar with Stacked-Diffs? `git-stack` helps keep all of your local
@@ -105,7 +105,7 @@ cargo install git-stack
 - When adopting `git-stack` as a team, you can move the protected branches from
   `$REPO/.git/config` to `$REPO/.gitconfig` and commit it.
 
-**Pull remote:** when working from a fork (upstream is a different remote than
+**Pull remotea** when working from a fork (upstream is a different remote than
 `origin`), in `$REPO/.git/config`, set `stack.pull-remote` to your remote.
 
 To see the config, run `git-stack --dump-config -`.
