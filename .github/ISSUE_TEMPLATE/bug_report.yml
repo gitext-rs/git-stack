@@ -6,12 +6,3 @@ body:
       options:
         - label: I have searched the [discussions](https://github.com/epage/git-stack/discussions)
         - label: I have searched the existing issues
-  - type: textarea
-    attributes:
-      label: Description
-    validations:
-      required: true
-  - type: input
-    attributes:
-      label: Version
-      description: Output of `git stack -V`
