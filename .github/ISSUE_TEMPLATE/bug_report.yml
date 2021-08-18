@@ -15,19 +15,3 @@ body:
     attributes:
       label: Version
       description: Output of `git stack -V`
-  - type: textarea
-    attributes:
-      label: Steps to reproduce
-      description: "For describing git state, see [`git-fixture`](CONTRIBUTING.md)"
-  - type: textarea
-    attributes:
-      label: Actual Behaviour
-      description: When I do like *this*, *that* is happening and I think it shouldn't.
-  - type: textarea
-    attributes:
-      label: Expected Behaviour
-      description: I think *this* should happen instead.
-  - type: textarea
-    attributes:
-      label: Debug Output
-      description: Run with `-vv`
