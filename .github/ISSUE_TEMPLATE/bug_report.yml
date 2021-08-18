@@ -19,7 +19,7 @@ body:
   - type: textarea
     attributes:
       label: Steps to reproduce
-      description: "For describing git state, see [`git-fixture`](CONTRIBUTING.md)"
+      description: "For describing git state, see [`git-fixture`](../CONTRIBUTING.md)"
   - type: textarea
     attributes:
       label: Actual Behaviour
