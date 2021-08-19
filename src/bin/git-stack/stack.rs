@@ -363,6 +363,9 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
                     .all(true)
             )?;
         }
+        git_stack::config::Format::Debug => {
+            writeln!(std::io::stdout(), "{:#?}", root)?;
+        }
     }
 
     Ok(())

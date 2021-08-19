@@ -291,6 +291,7 @@ arg_enum! {
         Silent,
         Brief,
         Full,
+        Debug,
     }
 }
 
