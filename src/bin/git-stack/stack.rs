@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::io::Write;
 
 use bstr::ByteSlice;
@@ -202,12 +203,19 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
             return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
         }
 
-        let mut pulled = false;
+        let mut pulled_ids = HashSet::new();
         for stack in state.stacks.iter() {
+            let mut stack_pulled_ids = HashSet::new();
             if state.protected_branches.contains_oid(stack.onto.id) {
                 match git_pull(&mut state.repo, stack.onto.name.as_str(), state.dry_run) {
-                    Ok(_) => {
-                        pulled = true;
+                    Ok(pull_range) => {
+                        stack_pulled_ids.extend(
+                            state
+                                .repo
+                                .commits_from(pull_range.1)
+                                .take_while(|c| c.id != pull_range.0)
+                                .map(|c| c.id),
+                        );
                     }
                     Err(err) => {
                         log::warn!("Skipping pull of `{}`, {}", stack.onto.name, err);
@@ -219,8 +227,24 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
                     stack.onto.name
                 );
             }
+            if !stack_pulled_ids.is_empty() {
+                match drop_branches(
+                    &mut state.repo,
+                    stack_pulled_ids.difference(&pulled_ids).cloned(),
+                    &stack.onto.name,
+                    &state.branches,
+                    &state.protected_branches,
+                    state.dry_run,
+                ) {
+                    Ok(()) => {}
+                    Err(err) => {
+                        log::warn!("Could not remove branches obsoleted by pull: {}", err);
+                    }
+                }
+                pulled_ids.extend(stack_pulled_ids);
+            }
         }
-        if pulled {
+        if !pulled_ids.is_empty() {
             state.update().with_code(proc_exit::Code::FAILURE)?;
         }
     }
@@ -429,15 +453,17 @@ fn git_pull(
     repo: &mut git_stack::git::GitRepo,
     branch_name: &str,
     dry_run: bool,
-) -> eyre::Result<git2::Oid> {
+) -> eyre::Result<(git2::Oid, git2::Oid)> {
     let remote = repo.pull_remote();
     log::debug!("git pull --rebase {} {}", remote, branch_name);
     let remote_branch_name = format!("{}/{}", remote, branch_name);
     if dry_run {
-        return Ok(repo.find_local_branch(branch_name).unwrap().id);
+        let branch_id = repo.find_local_branch(branch_name).unwrap().id;
+        return Ok((branch_id, branch_id));
     }
 
-    let mut last_id;
+    let pulled_range;
+    let mut tip_id;
     {
         // A little uncertain about some of the weirder authentication needs, just deferring to `git`
         // instead of using `libgit2`
@@ -479,7 +505,8 @@ fn git_pull(
             remote_branch_name,
             remote_branch_annotated.id()
         );
-        last_id = remote_branch_annotated.id();
+        let end_id = remote_branch_annotated.id();
+        tip_id = end_id;
 
         let base_id = repo
             .merge_base(local_branch_annotated.id(), remote_branch_annotated.id())
@@ -493,12 +520,14 @@ fn git_pull(
         let base_annotated = repo.raw().find_annotated_commit(base_id).unwrap();
         log::trace!("rebase base {}", base_annotated.id());
 
-        if repo.merge_base(local_branch_annotated.id(), remote_branch_annotated.id())
-            == Some(remote_branch_annotated.id())
-        {
+        let merge_base_id =
+            repo.merge_base(local_branch_annotated.id(), remote_branch_annotated.id());
+        if merge_base_id == Some(remote_branch_annotated.id()) {
             log::debug!("{} is up-to-date with {}", branch_name, remote_branch_name);
-            return Ok(local_branch_annotated.id());
+            return Ok((local_branch_annotated.id(), local_branch_annotated.id()));
         }
+        let start_id = merge_base_id.unwrap_or(end_id);
+        pulled_range = (start_id, end_id);
 
         let mut rebase = repo
             .raw()
@@ -552,7 +581,7 @@ fn git_pull(
                         remote_branch_name
                     )
                 })?;
-            last_id = commit_id;
+            tip_id = commit_id;
         }
 
         rebase.finish(None).wrap_err_with(|| {
@@ -575,7 +604,7 @@ fn git_pull(
                 remote_branch_name
             )
         })?;
-        repo.branch(branch_name, last_id).wrap_err_with(|| {
+        repo.branch(branch_name, tip_id).wrap_err_with(|| {
             eyre::eyre!(
                 "failed to update `{}` to `{}`",
                 branch_name,
@@ -591,7 +620,7 @@ fn git_pull(
         })?;
     } else {
         log::trace!("Updating {}", branch_name);
-        repo.branch(branch_name, last_id).wrap_err_with(|| {
+        repo.branch(branch_name, tip_id).wrap_err_with(|| {
             eyre::eyre!(
                 "failed to update `{}` to `{}`",
                 branch_name,
@@ -600,7 +629,53 @@ fn git_pull(
         })?;
     }
 
-    Ok(last_id)
+    Ok(pulled_range)
+}
+
+fn drop_branches(
+    repo: &mut git_stack::git::GitRepo,
+    commit_ids: impl Iterator<Item = git2::Oid>,
+    potential_head: &str,
+    branches: &git_stack::git::Branches,
+    protected_branches: &git_stack::git::Branches,
+    dry_run: bool,
+) -> eyre::Result<()> {
+    let head_branch = repo.head_branch();
+    let head_branch_name = head_branch.as_ref().map(|b| b.name.as_str());
+
+    for commit_id in commit_ids {
+        let commit_branches: HashSet<_> = branches.get(commit_id).into_iter().flatten().collect();
+        let commit_protected_branches: HashSet<_> = protected_branches
+            .get(commit_id)
+            .into_iter()
+            .flatten()
+            .collect();
+        let mut commit_unprotected: Vec<_> = commit_branches
+            .difference(&commit_protected_branches)
+            .collect();
+        commit_unprotected.sort_unstable();
+        for branch in commit_unprotected {
+            if branch.name == potential_head {
+                continue;
+            } else if head_branch_name == Some(branch.name.as_str()) {
+                // Dom't leave HEAD detached but instead switch to the branch we pulled
+                log::trace!("git switch {}", potential_head);
+                if !dry_run {
+                    repo.switch(potential_head)?;
+                }
+                log::trace!("git branch -D {}", branch.name);
+                if !dry_run {
+                    repo.delete_branch(&branch.name)?;
+                }
+            } else {
+                log::trace!("git branch -D {}", branch.name);
+                if !dry_run {
+                    repo.delete_branch(&branch.name)?;
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 fn git_push(
