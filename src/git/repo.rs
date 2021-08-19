@@ -7,6 +7,7 @@ pub trait Repo {
 
     fn find_commit(&self, id: git2::Oid) -> Option<std::rc::Rc<Commit>>;
     fn head_commit(&self) -> std::rc::Rc<Commit>;
+    fn head_branch(&self) -> Option<Branch>;
     fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>>;
     fn commits_from(
         &self,
@@ -161,6 +162,36 @@ impl GitRepo {
             .target()
             .unwrap();
         self.find_commit(head_id).unwrap()
+    }
+
+    pub fn head_branch(&self) -> Option<Branch> {
+        let resolved = self.repo.head().unwrap().resolve().unwrap();
+        let name = resolved.shorthand()?;
+        let id = resolved.target()?;
+
+        let push_id = self
+            .repo
+            .find_branch(
+                &format!("{}/{}", self.push_remote(), name),
+                git2::BranchType::Remote,
+            )
+            .ok()
+            .and_then(|b| b.get().target());
+        let pull_id = self
+            .repo
+            .find_branch(
+                &format!("{}/{}", self.pull_remote(), name),
+                git2::BranchType::Remote,
+            )
+            .ok()
+            .and_then(|b| b.get().target());
+
+        Some(Branch {
+            name: name.to_owned(),
+            id,
+            push_id,
+            pull_id,
+        })
     }
 
     pub fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>> {
@@ -352,6 +383,10 @@ impl Repo for GitRepo {
         self.head_commit()
     }
 
+    fn head_branch(&self) -> Option<Branch> {
+        self.head_branch()
+    }
+
     fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>> {
         self.resolve(revspec)
     }
@@ -463,6 +498,13 @@ impl InMemoryRepo {
 
     pub fn head_commit(&self) -> std::rc::Rc<Commit> {
         self.commits.get(&self.head_id.unwrap()).cloned().unwrap().1
+    }
+
+    pub fn head_branch(&self) -> Option<Branch> {
+        self.branches
+            .values()
+            .find(|b| b.id == self.head_id.unwrap())
+            .cloned()
     }
 
     pub fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>> {
@@ -598,6 +640,10 @@ impl Repo for InMemoryRepo {
         cherry_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error> {
         self.cherry_pick(head_id, cherry_id)
+    }
+
+    fn head_branch(&self) -> Option<Branch> {
+        self.head_branch()
     }
 
     fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {

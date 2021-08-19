@@ -231,13 +231,11 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
             return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
         }
 
-        let head_oid = state.repo.head_commit().id;
-        let head_branch = if let Some(branches) = state.branches.get(head_oid) {
-            branches[0].clone()
-        } else {
-            return Err(eyre::eyre!("Must not be in a detached HEAD state."))
-                .with_code(proc_exit::Code::USAGE_ERR);
-        };
+        let head_branch = state
+            .repo
+            .head_branch()
+            .ok_or_else(|| eyre::eyre!("Must not be in a detached HEAD state."))
+            .with_code(proc_exit::Code::USAGE_ERR)?;
 
         let scripts: Result<Vec<_>, proc_exit::Exit> = state
             .stacks
@@ -543,8 +541,9 @@ fn git_pull(
         })?;
     }
 
-    let local_branch = repo.find_local_branch(branch_name).unwrap();
-    if local_branch.id == repo.head_commit().id {
+    let head_branch = repo.head_branch();
+    let head_branch_name = head_branch.as_ref().map(|b| b.name.as_str());
+    if head_branch_name == Some(branch_name) {
         log::trace!("Updating {} (HEAD)", branch_name);
         repo.detach().wrap_err_with(|| {
             eyre::eyre!(
