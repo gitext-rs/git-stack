@@ -68,3 +68,13 @@ Cons:
 - Coupled to Phabricator which is EOL
 - Auto-rebasing doesn't preserve branch relationships (stacks)
 - No auto-rebase outside of "landing" a Diff (merging a PR)
+
+## depo-tools
+
+[Website](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html)
+
+- `git rebase-update` to pull, rebase, and cleanup merged changes
+- `git map` and `git map-branches` for showing branch and commit relationships
+- `git reparent-branch` to rebase a tree of branches onto another branch
+- `git nav-downstream` / `git nav-upstream` to move between parent / child branches in a stack
+  - `git nav-downstream` prompts on ambiguity
