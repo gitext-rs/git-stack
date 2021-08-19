@@ -42,10 +42,7 @@ impl RepoConfig {
     }
 
     pub fn from_repo(repo: &git2::Repository) -> eyre::Result<Self> {
-        let workdir = repo
-            .workdir()
-            .ok_or_else(|| eyre::eyre!("Cannot read config in bare repository."))?;
-        let config_path = workdir.join(".git/config");
+        let config_path = git_dir_config(repo);
         log::trace!("Loading {}", config_path.display());
         if config_path.exists() {
             match git2::Config::open(&config_path) {
@@ -215,10 +212,7 @@ impl RepoConfig {
     }
 
     pub fn write_repo(&self, repo: &git2::Repository) -> eyre::Result<()> {
-        let workdir = repo
-            .workdir()
-            .ok_or_else(|| eyre::eyre!("Cannot read config in bare repository."))?;
-        let config_path = workdir.join(".git/config");
+        let config_path = git_dir_config(repo);
         log::trace!("Loading {}", config_path.display());
         let mut config = git2::Config::open(&config_path)?;
         log::info!("Writing {}", config_path.display());
@@ -278,6 +272,10 @@ impl RepoConfig {
     pub fn show_stacked(&self) -> bool {
         self.show_stacked.unwrap_or(true)
     }
+}
+
+fn git_dir_config(repo: &git2::Repository) -> std::path::PathBuf {
+    repo.path().join("config")
 }
 
 fn default_branch(config: &git2::Config) -> &str {
