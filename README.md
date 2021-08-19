@@ -105,7 +105,7 @@ cargo install git-stack
 - When adopting `git-stack` as a team, you can move the protected branches from
   `$REPO/.git/config` to `$REPO/.gitconfig` and commit it.
 
-**Pull remotea** when working from a fork (upstream is a different remote than
+**Pull remotes** when working from a fork (upstream is a different remote than
 `origin`), in `$REPO/.git/config`, set `stack.pull-remote` to your remote.
 
 To see the config, run `git-stack --dump-config -`.
