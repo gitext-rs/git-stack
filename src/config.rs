@@ -9,6 +9,8 @@ pub struct RepoConfig {
     pub pull_remote: Option<String>,
     pub show_format: Option<Format>,
     pub show_stacked: Option<bool>,
+
+    pub capacity: Option<usize>,
 }
 
 static PROTECTED_STACK_FIELD: &str = "stack.protected-branch";
@@ -18,6 +20,8 @@ static PUSH_REMOTE_FIELD: &str = "stack.push-remote";
 static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
 static FORMAT_FIELD: &str = "stack.show-format";
 static STACKED_FIELD: &str = "stack.show-stacked";
+static BACKUP_CAPACITY_FIELD: &str = "branch-backup.capacity";
+const DEFAULT_CAPACITY: usize = 30;
 
 impl RepoConfig {
     pub fn from_all(repo: &git2::Repository) -> eyre::Result<Self> {
@@ -122,6 +126,8 @@ impl RepoConfig {
                 }
             } else if key == STACKED_FIELD {
                 config.show_stacked = Some(value.as_ref().map(|v| v == "true").unwrap_or(true));
+            } else if key == BACKUP_CAPACITY_FIELD {
+                config.capacity = value.as_deref().and_then(|s| s.parse::<usize>().ok());
             } else {
                 log::warn!(
                     "Unsupported config: {}={}",
@@ -153,6 +159,7 @@ impl RepoConfig {
         conf.pull_remote = Some(conf.pull_remote().to_owned());
         conf.show_format = Some(conf.show_format());
         conf.show_stacked = Some(conf.show_stacked());
+        conf.capacity = Some(DEFAULT_CAPACITY);
 
         let mut protected_branches: Vec<String> = Vec::new();
 
@@ -200,6 +207,10 @@ impl RepoConfig {
             .and_then(|s| FromStr::from_str(s).ok());
 
         let show_stacked = config.get_bool(STACKED_FIELD).ok();
+        let capacity = config
+            .get_i64(BACKUP_CAPACITY_FIELD)
+            .map(|i| i as usize)
+            .ok();
 
         Self {
             protected_branches,
@@ -208,6 +219,8 @@ impl RepoConfig {
             stack,
             show_format,
             show_stacked,
+
+            capacity,
         }
     }
 
@@ -243,6 +256,7 @@ impl RepoConfig {
         self.stack = other.stack.or(self.stack);
         self.show_format = other.show_format.or(self.show_format);
         self.show_stacked = other.show_stacked.or(self.show_stacked);
+        self.capacity = other.capacity.or(self.capacity);
 
         self
     }
@@ -271,6 +285,11 @@ impl RepoConfig {
 
     pub fn show_stacked(&self) -> bool {
         self.show_stacked.unwrap_or(true)
+    }
+
+    pub fn capacity(&self) -> Option<usize> {
+        let capacity = self.capacity.unwrap_or(DEFAULT_CAPACITY);
+        (capacity != 0).then(|| capacity)
     }
 }
 
