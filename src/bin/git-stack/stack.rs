@@ -264,18 +264,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
         backups.capacity(state.backup_capacity);
         let mut backup = git_stack::backup::Backup::from_repo(&state.repo)
             .with_code(proc_exit::Code::FAILURE)?;
-        for branch in backup.branches.iter_mut() {
-            if let Some(protected) = git_stack::git::find_protected_base(
-                &state.repo,
-                &state.protected_branches,
-                branch.id,
-            ) {
-                branch.metadata.insert(
-                    "parent".to_owned(),
-                    serde_json::Value::String(protected.name.clone()),
-                );
-            }
-        }
+        backup.insert_parent(&state.repo, &state.branches, &state.protected_branches);
         backups.push(backup)?;
 
         let head_branch = state

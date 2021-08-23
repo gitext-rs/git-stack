@@ -72,21 +72,9 @@ fn push(args: args::PushArgs) -> proc_exit::ExitResult {
     let mut backup =
         git_stack::backup::Backup::from_repo(&repo).with_code(proc_exit::Code::FAILURE)?;
     if let Some(message) = args.message.as_deref() {
-        backup.metadata.insert(
-            "message".to_owned(),
-            serde_json::Value::String(message.to_owned()),
-        );
+        backup.insert_message(message);
     }
-    for branch in backup.branches.iter_mut() {
-        if let Some(protected) =
-            git_stack::git::find_protected_base(&repo, &protected_branches, branch.id)
-        {
-            branch.metadata.insert(
-                "parent".to_owned(),
-                serde_json::Value::String(protected.name.clone()),
-            );
-        }
-    }
+    backup.insert_parent(&repo, &branches, &protected_branches);
     stack.push(backup)?;
 
     Ok(())
