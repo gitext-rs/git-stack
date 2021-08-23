@@ -219,51 +219,73 @@ impl GitRepo {
         head_id: git2::Oid,
         cherry_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error> {
-        // Based on https://www.pygit2.org/recipes/git-cherry-pick.html
-        let base_id = self.repo.merge_base(head_id, cherry_id)?;
-        let base_commit = self.repo.find_commit(base_id)?;
-        let base_tree = self.repo.find_tree(base_commit.tree_id())?;
-
-        let head_commit = self.repo.find_commit(head_id)?;
-        let head_tree = self.repo.find_tree(head_commit.tree_id())?;
-
-        let cherry_commit = self.repo.find_commit(cherry_id)?;
-        let cherry_tree = self.repo.find_tree(cherry_commit.tree_id())?;
-
-        let mut result_index = self
-            .repo
-            .merge_trees(&base_tree, &head_tree, &cherry_tree, None)?;
-        if result_index.has_conflicts() {
-            let conflicts = result_index
-                .conflicts()?
-                .map(|conflict| {
-                    let conflict = conflict.unwrap();
-                    let our_path = conflict
-                        .our
-                        .as_ref()
-                        .map(|c| bytes2path(&c.path))
-                        .or_else(|| conflict.their.as_ref().map(|c| bytes2path(&c.path)))
-                        .unwrap();
-                    format!("{}", our_path.display())
-                })
-                .join("\n  ");
-            return Err(git2::Error::new(
-                git2::ErrorCode::Unmerged,
-                git2::ErrorClass::Index,
-                format!("cherry-pick conflicts:\n  {}\n", conflicts),
-            ));
+        let base_id = self
+            .commits_from(cherry_id)
+            .filter(|c| c.id != cherry_id)
+            .map(|c| c.id)
+            .next()
+            .unwrap_or(cherry_id);
+        if base_id == head_id {
+            return Ok(cherry_id);
         }
-        let result_id = result_index.write_tree_to(&self.repo)?;
-        let result_tree = self.repo.find_tree(result_id)?;
-        let new_id = self.repo.commit(
-            None,
-            &cherry_commit.author(),
-            &cherry_commit.committer(),
-            cherry_commit.message().unwrap(),
-            &result_tree,
-            &[&head_commit],
+        let base_commit = self.repo.find_annotated_commit(base_id)?;
+        let head_commit = self.repo.find_annotated_commit(head_id)?;
+        let cherry_commit = self.repo.find_annotated_commit(cherry_id)?;
+        let mut rebase = self.repo.rebase(
+            Some(&cherry_commit),
+            Some(&base_commit),
+            Some(&head_commit),
+            Some(git2::RebaseOptions::new().inmemory(true)),
         )?;
-        Ok(new_id)
+
+        let mut tip_id = head_id;
+        while let Some(op) = rebase.next() {
+            op.map_err(|e| {
+                let _ = rebase.abort();
+                e
+            })?;
+            let inmemory_index = rebase.inmemory_index().unwrap();
+            if inmemory_index.has_conflicts() {
+                let conflicts = inmemory_index
+                    .conflicts()?
+                    .map(|conflict| {
+                        let conflict = conflict.unwrap();
+                        let our_path = conflict
+                            .our
+                            .as_ref()
+                            .map(|c| bytes2path(&c.path))
+                            .or_else(|| conflict.their.as_ref().map(|c| bytes2path(&c.path)))
+                            .unwrap();
+                        format!("{}", our_path.display())
+                    })
+                    .join("\n  ");
+                return Err(git2::Error::new(
+                    git2::ErrorCode::Unmerged,
+                    git2::ErrorClass::Index,
+                    format!("cherry-pick conflicts:\n  {}\n", conflicts),
+                ));
+            }
+
+            let sig = self.repo.signature().unwrap();
+            let commit_id = match rebase.commit(None, &sig, None).map_err(|e| {
+                let _ = rebase.abort();
+                e
+            }) {
+                Ok(commit_id) => Ok(commit_id),
+                Err(err) => {
+                    if err.class() == git2::ErrorClass::Rebase
+                        && err.code() == git2::ErrorCode::Applied
+                    {
+                        log::trace!("Skipping {}, already applied to {}", cherry_id, head_id);
+                        return Ok(tip_id);
+                    }
+                    Err(err)
+                }
+            }?;
+            tip_id = commit_id;
+        }
+        rebase.finish(None)?;
+        Ok(tip_id)
     }
 
     pub fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
