@@ -29,7 +29,8 @@ impl Stack {
             .filter_map(|e| {
                 let e = e.ok()?;
                 let e = e.file_type().ok()?.is_dir().then(|| e)?;
-                let stack_name = e.path().file_name()?.to_str()?.to_owned();
+                let p = e.path();
+                let stack_name = p.file_name()?.to_str()?.to_owned();
                 let stack_root = stack_root(repo.raw().path(), &stack_name);
                 Some(Self {
                     name: stack_name,
@@ -38,11 +39,7 @@ impl Stack {
                 })
             })
             .collect();
-        if !stacks
-            .iter()
-            .find(|v| v.name == Self::DEFAULT_STACK)
-            .is_some()
-        {
+        if !stacks.iter().any(|v| v.name == Self::DEFAULT_STACK) {
             stacks.insert(0, Self::new(Self::DEFAULT_STACK, repo));
         }
         stacks.into_iter()
@@ -59,9 +56,10 @@ impl Stack {
             .filter_map(|e| {
                 let e = e.ok()?;
                 let e = e.file_type().ok()?.is_file().then(|| e)?;
-                let e = (e.path().extension()? == Self::EXT).then(|| e)?;
-                let index = e.path().file_stem()?.to_str()?.parse::<usize>().ok()?;
-                Some((index, e.path().to_owned()))
+                let p = e.path();
+                let p = (p.extension()? == Self::EXT).then(|| p)?;
+                let index = p.file_stem()?.to_str()?.parse::<usize>().ok()?;
+                Some((index, p))
             })
             .collect();
         elements.sort_unstable();

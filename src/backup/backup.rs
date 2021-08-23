@@ -7,14 +7,14 @@ pub struct Backup {
 }
 
 impl Backup {
-    pub fn load(path: &std::path::PathBuf) -> Result<Self, std::io::Error> {
+    pub fn load(path: &std::path::Path) -> Result<Self, std::io::Error> {
         let file = std::fs::File::open(path)?;
         let reader = std::io::BufReader::new(file);
         let b = serde_json::from_reader(reader)?;
         Ok(b)
     }
 
-    pub fn save(&self, path: &std::path::PathBuf) -> Result<(), std::io::Error> {
+    pub fn save(&self, path: &std::path::Path) -> Result<(), std::io::Error> {
         let s = serde_json::to_string_pretty(self)?;
         std::fs::write(path, &s)?;
         Ok(())

@@ -41,7 +41,7 @@ fn run() -> proc_exit::ExitResult {
 
     let subcommand = args.subcommand;
     let push_args = args.push;
-    match subcommand.unwrap_or_else(|| args::Subcommand::Push(push_args)) {
+    match subcommand.unwrap_or(args::Subcommand::Push(push_args)) {
         args::Subcommand::Push(sub_args) => push(sub_args),
         args::Subcommand::List(sub_args) => list(sub_args),
         args::Subcommand::Clear(sub_args) => clear(sub_args),

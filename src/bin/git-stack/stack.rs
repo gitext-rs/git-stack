@@ -253,7 +253,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
         }
     }
 
-    const BACKUP_NAME: &'static str = "git-stack";
+    const BACKUP_NAME: &str = "git-stack";
     let mut success = true;
     if state.rebase {
         if state.repo.is_dirty() {
