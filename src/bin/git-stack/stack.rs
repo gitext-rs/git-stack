@@ -17,6 +17,7 @@ struct State {
     pull: bool,
     push: bool,
     dry_run: bool,
+    backup_capacity: Option<usize>,
 
     show_format: git_stack::config::Format,
     show_stacked: bool,
@@ -43,6 +44,7 @@ impl State {
         )
         .with_code(proc_exit::Code::CONFIG_ERR)?;
         let dry_run = args.dry_run;
+        let backup_capacity = repo_config.capacity();
 
         let show_format = repo_config.show_format();
         let show_stacked = repo_config.show_stacked();
@@ -154,6 +156,8 @@ impl State {
             pull,
             push,
             dry_run,
+            backup_capacity,
+
             show_format,
             show_stacked,
         })
@@ -249,11 +253,30 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
         }
     }
 
+    const BACKUP_NAME: &str = "git-stack";
     let mut success = true;
     if state.rebase {
         if state.repo.is_dirty() {
             return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
         }
+
+        let mut backups = git_stack::backup::Stack::new(BACKUP_NAME, &state.repo);
+        backups.capacity(state.backup_capacity);
+        let mut backup = git_stack::backup::Backup::from_repo(&state.repo)
+            .with_code(proc_exit::Code::FAILURE)?;
+        for branch in backup.branches.iter_mut() {
+            if let Some(protected) = git_stack::git::find_protected_base(
+                &state.repo,
+                &state.protected_branches,
+                branch.id,
+            ) {
+                branch.metadata.insert(
+                    "parent".to_owned(),
+                    serde_json::Value::String(protected.name.clone()),
+                );
+            }
+        }
+        backups.push(backup)?;
 
         let head_branch = state
             .repo
@@ -291,6 +314,10 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
     }
 
     show(&state, colored_stdout).with_code(proc_exit::Code::FAILURE)?;
+
+    if state.rebase {
+        log::info!("To undo, run `git branch-backup pop {}", BACKUP_NAME);
+    }
 
     if !success {
         return proc_exit::Code::FAILURE.ok();

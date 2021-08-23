@@ -19,7 +19,7 @@ on:
     tags:
     - "v*"
 env:
-  BIN_NAME: git-stack
+  CRATE_NAME: git-stack
 jobs:
   create-release:
     name: create-release
@@ -95,17 +95,19 @@ jobs:
       shell: bash
       run: |
         outdir="./target/${{ env.TARGET_DIR }}/release"
-        staging="${{ env.BIN_NAME }}-${{ needs.create-release.outputs.release_version }}-${{ matrix.target }}"
+        staging="${{ env.CRATE_NAME }}-${{ needs.create-release.outputs.release_version }}-${{ matrix.target }}"
         mkdir -p "$staging"/{complete,doc}
         cp {README.md,LICENSE-*} "$staging/"
         cp {CHANGELOG.md,docs/*} "$staging/doc/"
         if [ "${{ matrix.os }}" = "windows-2019" ]; then
-          cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}.exe" "$staging/"
+          cp "target/${{ matrix.target }}/release/git-stack.exe" "$staging/"
+          cp "target/${{ matrix.target }}/release/git-branch-backup.exe" "$staging/"
           cd "$staging"
           7z a "../$staging.zip" .
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
         else
-          cp "target/${{ matrix.target }}/release/${{ env.BIN_NAME }}" "$staging/"
+          cp "target/${{ matrix.target }}/release/git-stack" "$staging/"
+          cp "target/${{ matrix.target }}/release/git-branch-backup" "$staging/"
           tar czf "$staging.tar.gz" -C "$staging" .
           echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
         fi
