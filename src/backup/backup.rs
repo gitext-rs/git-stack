@@ -42,9 +42,23 @@ impl Backup {
     }
 
     pub fn apply(&self, repo: &mut dyn crate::git::Repo) -> Result<(), git2::Error> {
+        let head_branch = repo.head_branch();
+        let head_branch_name = head_branch.as_ref().map(|b| b.name.as_str());
         for branch in self.branches.iter() {
-            log::debug!("Restoring {}", branch.name);
-            repo.branch(&branch.name, branch.id)?;
+            let existing = repo.find_local_branch(&branch.name);
+            if existing.map(|b| b.id) == Some(branch.id) {
+                log::trace!("No change for {}", branch.name);
+            } else {
+                if head_branch_name == Some(branch.name.as_str()) {
+                    log::debug!("Restoring {} (HEAD)", branch.name);
+                    repo.detach()?;
+                    repo.branch(&branch.name, branch.id)?;
+                    repo.switch(&branch.name)?;
+                } else {
+                    log::debug!("Restoring {}", branch.name);
+                    repo.branch(&branch.name, branch.id)?;
+                }
+            }
         }
         Ok(())
     }
