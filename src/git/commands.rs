@@ -188,6 +188,7 @@ impl Executor {
                 repo.delete_branch(name)?;
             }
         }
+        self.delete_branches.clear();
 
         Ok(())
     }
