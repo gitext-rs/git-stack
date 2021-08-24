@@ -858,12 +858,20 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
-                if node.stacks.is_empty() {
-                    write!(f, "{} ", self.palette.info.paint(node.local_commit.id))?;
+                let abbrev_id = self
+                    .repo
+                    .raw()
+                    .find_object(node.local_commit.id, None)
+                    .unwrap()
+                    .short_id()
+                    .unwrap();
+                let style = if node.stacks.is_empty() {
+                    self.palette.info
                 } else {
                     // Branches should be off of other branches
-                    write!(f, "{} ", self.palette.warn.paint(node.local_commit.id))?;
-                }
+                    self.palette.warn
+                };
+                write!(f, "{} ", style.paint(abbrev_id.as_str().unwrap()))?;
             } else {
                 write!(
                     f,
