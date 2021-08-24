@@ -871,7 +871,7 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                     // Branches should be off of other branches
                     self.palette.warn
                 };
-                write!(f, "{} ", style.paint(abbrev_id.as_str().unwrap()))?;
+                write!(f, "{}", style.paint(abbrev_id.as_str().unwrap()))?;
             } else {
                 write!(
                     f,
