@@ -156,8 +156,11 @@ impl Executor {
                 }
             }
             Command::CreateBranch(name) => {
-                let branch_oid = self.head_oid;
-                self.branches.push((branch_oid, name.to_owned()));
+                let new_branch_oid = self.head_oid;
+                let old_branch = repo.find_local_branch(name);
+                if Some(new_branch_oid) != old_branch.map(|b| b.id) {
+                    self.branches.push((new_branch_oid, name.to_owned()));
+                }
             }
             Command::DeleteBranch(name) => {
                 self.delete_branches.push(name.to_owned());
