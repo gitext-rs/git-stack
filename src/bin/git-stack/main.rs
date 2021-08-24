@@ -1,4 +1,6 @@
 #![allow(clippy::collapsible_else_if)]
+#![allow(clippy::let_and_return)]
+#![allow(clippy::if_same_then_else)]
 
 use std::io::Write;
 

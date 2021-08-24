@@ -405,22 +405,15 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
 
     match state.show_format {
         git_stack::config::Format::Silent => (),
-        git_stack::config::Format::Brief => {
+        git_stack::config::Format::Branches
+        | git_stack::config::Format::BranchCommits
+        | git_stack::config::Format::Commits => {
             writeln!(
                 std::io::stdout(),
                 "{}",
                 DisplayTree::new(&state.repo, &root)
                     .colored(colored_stdout)
-                    .all(false)
-            )?;
-        }
-        git_stack::config::Format::Full => {
-            writeln!(
-                std::io::stdout(),
-                "{}",
-                DisplayTree::new(&state.repo, &root)
-                    .colored(colored_stdout)
-                    .all(true)
+                    .show(state.show_format)
             )?;
         }
         git_stack::config::Format::Debug => {
@@ -763,7 +756,7 @@ struct DisplayTree<'r, 'n> {
     repo: &'r git_stack::git::GitRepo,
     root: &'n git_stack::graph::Node,
     palette: Palette,
-    all: bool,
+    show: git_stack::config::Format,
 }
 
 impl<'r, 'n> DisplayTree<'r, 'n> {
@@ -772,7 +765,7 @@ impl<'r, 'n> DisplayTree<'r, 'n> {
             repo,
             root,
             palette: Palette::plain(),
-            all: false,
+            show: Default::default(),
         }
     }
 
@@ -785,8 +778,8 @@ impl<'r, 'n> DisplayTree<'r, 'n> {
         self
     }
 
-    pub fn all(mut self, yes: bool) -> Self {
-        self.all = yes;
+    pub fn show(mut self, show: git_stack::config::Format) -> Self {
+        self.show = show;
         self
     }
 }
@@ -803,7 +796,7 @@ impl<'r, 'n> std::fmt::Display for DisplayTree<'r, 'n> {
             self.root.stacks.as_slice(),
             &mut tree,
             &self.palette,
-            self.all,
+            self.show,
         );
         tree.fmt(f)
     }
@@ -814,7 +807,7 @@ fn to_tree<'r, 'n, 'p>(
     nodes: &'n [Vec<git_stack::graph::Node>],
     tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
     palette: &'p Palette,
-    show_all: bool,
+    show: git_stack::config::Format,
 ) {
     for branch in nodes {
         let mut branch_root = treeline::Tree::root(RenderNode {
@@ -823,7 +816,20 @@ fn to_tree<'r, 'n, 'p>(
             palette,
         });
         for node in branch {
-            if node.branches.is_empty() && node.stacks.is_empty() && !show_all {
+            let skip = match show {
+                git_stack::config::Format::Silent => true,
+                git_stack::config::Format::Commits => false,
+                git_stack::config::Format::BranchCommits => {
+                    let protected = node.action.is_protected() || node.action.is_rebase();
+                    protected && node.branches.is_empty()
+                }
+                git_stack::config::Format::Branches => {
+                    let boring_commit = node.branches.is_empty() && node.stacks.is_empty();
+                    boring_commit
+                }
+                git_stack::config::Format::Debug => false,
+            };
+            if skip {
                 log::trace!("Skipping commit {}", node.local_commit.id);
                 continue;
             }
@@ -832,13 +838,7 @@ fn to_tree<'r, 'n, 'p>(
                 node: Some(node),
                 palette,
             });
-            to_tree(
-                repo,
-                node.stacks.as_slice(),
-                &mut child_tree,
-                palette,
-                show_all,
-            );
+            to_tree(repo, node.stacks.as_slice(), &mut child_tree, palette, show);
             branch_root.push(child_tree);
         }
         tree.push(branch_root);
@@ -858,113 +858,42 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
-                if node.stacks.is_empty() {
-                    write!(f, "{} ", self.palette.info.paint(node.local_commit.id))?;
+                let abbrev_id = self
+                    .repo
+                    .raw()
+                    .find_object(node.local_commit.id, None)
+                    .unwrap()
+                    .short_id()
+                    .unwrap();
+                let style = if node.stacks.is_empty() {
+                    self.palette.info
                 } else {
                     // Branches should be off of other branches
-                    write!(f, "{} ", self.palette.warn.paint(node.local_commit.id))?;
-                }
-            } else if node.action.is_protected() || node.action.is_rebase() {
-                write!(
-                    f,
-                    "{} ",
-                    self.palette
-                        .info
-                        .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
-                )?;
+                    self.palette.warn
+                };
+                write!(f, "{}", style.paint(abbrev_id.as_str().unwrap()))?;
             } else {
                 write!(
                     f,
-                    "{} ",
-                    self.palette
-                        .branch
-                        .paint(node.branches.iter().map(|b| b.name.as_str()).join(", ")),
+                    "{}",
+                    node.branches
+                        .iter()
+                        .map(|b| {
+                            format!(
+                                "{}{}",
+                                format_branch_name(b, node, self.palette),
+                                format_branch_status(b, self.repo, node, self.palette),
+                            )
+                        })
+                        .join(", ")
                 )?;
             }
 
-            if node.action.is_protected() || node.action.is_rebase() {
-                if !node.branches.is_empty() {
-                    let branch = &node.branches[0];
-                    match commit_relation(self.repo, branch.id, branch.pull_id) {
-                        Some((0, 0)) => {}
-                        Some((local, 0)) => {
-                            write!(
-                                f,
-                                "{} ",
-                                self.palette.warn.paint(format!("({} ahead)", local)),
-                            )?;
-                        }
-                        Some((0, remote)) => {
-                            write!(
-                                f,
-                                "{} ",
-                                self.palette.warn.paint(format!("({} behind)", remote)),
-                            )?;
-                        }
-                        Some((local, remote)) => {
-                            write!(
-                                f,
-                                "{} ",
-                                self.palette
-                                    .warn
-                                    .paint(format!("({} ahead, {} behind)", local, remote)),
-                            )?;
-                        }
-                        None => {
-                            write!(f, "{} ", self.palette.warn.paint("(no remote)"))?;
-                        }
-                    }
-                }
-            } else if node.action.is_delete() {
-                write!(f, "{} ", self.palette.warn.paint("drop"))?;
-            } else if 1 < self
-                .repo
-                .raw()
-                .find_commit(node.local_commit.id)
-                .unwrap()
-                .parent_count()
-            {
-                write!(f, "{} ", self.palette.error.paint("merge commit"))?;
-            } else {
-                if !node.branches.is_empty() {
-                    if node.pushable {
-                        write!(f, "{} ", self.palette.info.paint("(ready) "))?;
-                    } else {
-                        let branch = &node.branches[0];
-                        match commit_relation(self.repo, branch.id, branch.push_id) {
-                            Some((0, 0)) => {
-                                write!(f, "{} ", self.palette.info.paint("(pushed)"))?;
-                            }
-                            Some((local, 0)) => {
-                                write!(
-                                    f,
-                                    "{} ",
-                                    self.palette.info.paint(format!("({} ahead)", local)),
-                                )?;
-                            }
-                            Some((0, remote)) => {
-                                write!(
-                                    f,
-                                    "{} ",
-                                    self.palette.warn.paint(format!("({} behind)", remote)),
-                                )?;
-                            }
-                            Some((local, remote)) => {
-                                write!(
-                                    f,
-                                    "{} ",
-                                    self.palette
-                                        .warn
-                                        .paint(format!("({} ahead, {} behind)", local, remote)),
-                                )?;
-                            }
-                            None => {
-                                write!(f, "{} ", self.palette.info.paint("(no remote)"))?;
-                            }
-                        }
-                    }
-                }
-            }
+            write!(
+                f,
+                "{} ",
+                format_commit_status(self.repo, node, self.palette)
+            )?;
 
             let summary = String::from_utf8_lossy(&node.local_commit.summary);
             if node.action.is_protected() || node.action.is_rebase() {
@@ -982,6 +911,112 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
             write!(f, "o")?;
         }
         Ok(())
+    }
+}
+
+fn format_branch_name<'d>(
+    branch: &'d git_stack::git::Branch,
+    node: &'d git_stack::graph::Node,
+    palette: &'d Palette,
+) -> impl std::fmt::Display + 'd {
+    if node.action.is_protected() || node.action.is_rebase() {
+        palette.info.paint(branch.name.as_str())
+    } else {
+        palette.good.paint(branch.name.as_str())
+    }
+}
+
+fn format_branch_status<'d>(
+    branch: &'d git_stack::git::Branch,
+    repo: &'d git_stack::git::GitRepo,
+    node: &'d git_stack::graph::Node,
+    palette: &'d Palette,
+) -> String {
+    // See format_commit_status
+    if node.action.is_protected() || node.action.is_rebase() {
+        match commit_relation(repo, branch.id, branch.pull_id) {
+            Some((0, 0)) => format!(""),
+            Some((local, 0)) => {
+                format!(" {}", palette.warn.paint(format!("({} ahead)", local)))
+            }
+            Some((0, remote)) => {
+                format!(" {}", palette.warn.paint(format!("({} behind)", remote)))
+            }
+            Some((local, remote)) => {
+                format!(
+                    " {}",
+                    palette
+                        .warn
+                        .paint(format!("({} ahead, {} behind)", local, remote)),
+                )
+            }
+            None => {
+                format!(" {}", palette.warn.paint("(no remote)"))
+            }
+        }
+    } else if node.action.is_delete() {
+        format!("")
+    } else if 1 < repo
+        .raw()
+        .find_commit(node.local_commit.id)
+        .unwrap()
+        .parent_count()
+    {
+        format!("")
+    } else {
+        if node.branches.is_empty() {
+            format!("")
+        } else {
+            if node.pushable {
+                format!(" {}", palette.info.paint("(ready) "))
+            } else {
+                let branch = &node.branches[0];
+                match commit_relation(repo, branch.id, branch.push_id) {
+                    Some((0, 0)) => {
+                        format!(" {}", palette.good.paint("(pushed)"))
+                    }
+                    Some((local, 0)) => {
+                        format!(" {}", palette.info.paint(format!("({} ahead)", local)))
+                    }
+                    Some((0, remote)) => {
+                        format!(" {}", palette.warn.paint(format!("({} behind)", remote)))
+                    }
+                    Some((local, remote)) => {
+                        format!(
+                            " {}",
+                            palette
+                                .warn
+                                .paint(format!("({} ahead, {} behind)", local, remote)),
+                        )
+                    }
+                    None => {
+                        format!(" {}", palette.info.paint("(no remote)"))
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn format_commit_status<'d>(
+    repo: &'d git_stack::git::GitRepo,
+    node: &'d git_stack::graph::Node,
+    palette: &'d Palette,
+) -> String {
+    // See format_commit_status
+    if node.action.is_protected() || node.action.is_rebase() {
+        format!("")
+    } else if node.action.is_delete() {
+        format!("{} ", palette.warn.paint("(drop)"))
+    } else if 1 < repo
+        .raw()
+        .find_commit(node.local_commit.id)
+        .unwrap()
+        .parent_count()
+    {
+        format!("{} ", palette.error.paint("(merge commit)"))
+    } else {
+        format!("")
     }
 }
 
@@ -1008,7 +1043,7 @@ struct Palette {
     error: yansi::Style,
     warn: yansi::Style,
     info: yansi::Style,
-    branch: yansi::Style,
+    good: yansi::Style,
     hint: yansi::Style,
 }
 
@@ -1018,7 +1053,7 @@ impl Palette {
             error: yansi::Style::new(yansi::Color::Red),
             warn: yansi::Style::new(yansi::Color::Yellow),
             info: yansi::Style::new(yansi::Color::Blue),
-            branch: yansi::Style::new(yansi::Color::Green),
+            good: yansi::Style::new(yansi::Color::Green),
             hint: yansi::Style::new(yansi::Color::Blue).dimmed(),
         }
     }
@@ -1028,7 +1063,7 @@ impl Palette {
             error: yansi::Style::default(),
             warn: yansi::Style::default(),
             info: yansi::Style::default(),
-            branch: yansi::Style::default(),
+            good: yansi::Style::default(),
             hint: yansi::Style::default(),
         }
     }
