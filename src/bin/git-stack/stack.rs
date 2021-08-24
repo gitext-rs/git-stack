@@ -914,7 +914,7 @@ fn format_branch_name<'d>(
     if node.action.is_protected() || node.action.is_rebase() {
         palette.info.paint(branch.name.as_str())
     } else {
-        palette.branch.paint(branch.name.as_str())
+        palette.good.paint(branch.name.as_str())
     }
 }
 
@@ -965,7 +965,7 @@ fn format_branch_status<'d>(
                 let branch = &node.branches[0];
                 match commit_relation(repo, branch.id, branch.push_id) {
                     Some((0, 0)) => {
-                        format!(" {}", palette.info.paint("(pushed)"))
+                        format!(" {}", palette.good.paint("(pushed)"))
                     }
                     Some((local, 0)) => {
                         format!(" {}", palette.info.paint(format!("({} ahead)", local)))
@@ -1035,7 +1035,7 @@ struct Palette {
     error: yansi::Style,
     warn: yansi::Style,
     info: yansi::Style,
-    branch: yansi::Style,
+    good: yansi::Style,
     hint: yansi::Style,
 }
 
@@ -1045,7 +1045,7 @@ impl Palette {
             error: yansi::Style::new(yansi::Color::Red),
             warn: yansi::Style::new(yansi::Color::Yellow),
             info: yansi::Style::new(yansi::Color::Blue),
-            branch: yansi::Style::new(yansi::Color::Green),
+            good: yansi::Style::new(yansi::Color::Green),
             hint: yansi::Style::new(yansi::Color::Blue).dimmed(),
         }
     }
@@ -1055,7 +1055,7 @@ impl Palette {
             error: yansi::Style::default(),
             warn: yansi::Style::default(),
             info: yansi::Style::default(),
-            branch: yansi::Style::default(),
+            good: yansi::Style::default(),
             hint: yansi::Style::default(),
         }
     }
