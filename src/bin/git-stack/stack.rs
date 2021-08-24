@@ -405,22 +405,15 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
 
     match state.show_format {
         git_stack::config::Format::Silent => (),
-        git_stack::config::Format::Brief => {
+        git_stack::config::Format::Branches
+        | git_stack::config::Format::BranchCommits
+        | git_stack::config::Format::Commits => {
             writeln!(
                 std::io::stdout(),
                 "{}",
                 DisplayTree::new(&state.repo, &root)
                     .colored(colored_stdout)
-                    .all(false)
-            )?;
-        }
-        git_stack::config::Format::Full => {
-            writeln!(
-                std::io::stdout(),
-                "{}",
-                DisplayTree::new(&state.repo, &root)
-                    .colored(colored_stdout)
-                    .all(true)
+                    .show(state.show_format)
             )?;
         }
         git_stack::config::Format::Debug => {
@@ -763,7 +756,7 @@ struct DisplayTree<'r, 'n> {
     repo: &'r git_stack::git::GitRepo,
     root: &'n git_stack::graph::Node,
     palette: Palette,
-    all: bool,
+    show: git_stack::config::Format,
 }
 
 impl<'r, 'n> DisplayTree<'r, 'n> {
@@ -772,7 +765,7 @@ impl<'r, 'n> DisplayTree<'r, 'n> {
             repo,
             root,
             palette: Palette::plain(),
-            all: false,
+            show: Default::default(),
         }
     }
 
@@ -785,8 +778,8 @@ impl<'r, 'n> DisplayTree<'r, 'n> {
         self
     }
 
-    pub fn all(mut self, yes: bool) -> Self {
-        self.all = yes;
+    pub fn show(mut self, show: git_stack::config::Format) -> Self {
+        self.show = show;
         self
     }
 }
@@ -803,7 +796,7 @@ impl<'r, 'n> std::fmt::Display for DisplayTree<'r, 'n> {
             self.root.stacks.as_slice(),
             &mut tree,
             &self.palette,
-            self.all,
+            self.show,
         );
         tree.fmt(f)
     }
@@ -814,7 +807,7 @@ fn to_tree<'r, 'n, 'p>(
     nodes: &'n [Vec<git_stack::graph::Node>],
     tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
     palette: &'p Palette,
-    show_all: bool,
+    show: git_stack::config::Format,
 ) {
     for branch in nodes {
         let mut branch_root = treeline::Tree::root(RenderNode {
@@ -823,7 +816,20 @@ fn to_tree<'r, 'n, 'p>(
             palette,
         });
         for node in branch {
-            if node.branches.is_empty() && node.stacks.is_empty() && !show_all {
+            let skip = match show {
+                git_stack::config::Format::Silent => true,
+                git_stack::config::Format::Commits => false,
+                git_stack::config::Format::BranchCommits => {
+                    let protected = node.action.is_protected() || node.action.is_rebase();
+                    protected && node.branches.is_empty()
+                }
+                git_stack::config::Format::Branches => {
+                    let boring_commit = node.branches.is_empty() && node.stacks.is_empty();
+                    boring_commit
+                }
+                git_stack::config::Format::Debug => false,
+            };
+            if skip {
                 log::trace!("Skipping commit {}", node.local_commit.id);
                 continue;
             }
@@ -832,13 +838,7 @@ fn to_tree<'r, 'n, 'p>(
                 node: Some(node),
                 palette,
             });
-            to_tree(
-                repo,
-                node.stacks.as_slice(),
-                &mut child_tree,
-                palette,
-                show_all,
-            );
+            to_tree(repo, node.stacks.as_slice(), &mut child_tree, palette, show);
             branch_root.push(child_tree);
         }
         tree.push(branch_root);

@@ -306,15 +306,16 @@ arg_enum! {
     #[serde(rename_all = "kebab-case")]
     pub enum Format {
         Silent,
-        Brief,
-        Full,
+        Branches,
+        BranchCommits,
+        Commits,
         Debug,
     }
 }
 
 impl Default for Format {
     fn default() -> Self {
-        Format::Brief
+        Format::BranchCommits
     }
 }
 
