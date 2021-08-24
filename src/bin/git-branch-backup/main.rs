@@ -104,7 +104,7 @@ fn list(args: args::ListArgs, colored: bool) -> proc_exit::ExitResult {
         } else {
             palette.good
         };
-        let backup = match git_stack::backup::Backup::load(&backup_path) {
+        let backup = match git_stack::backup::Backup::load(backup_path) {
             Ok(backup) => backup,
             Err(err) => {
                 log::error!("Failed to load backup {}: {}", backup_path.display(), err);

@@ -1,3 +1,5 @@
+#![allow(clippy::collapsible_else_if)]
+
 #[macro_use]
 extern crate clap;
 
