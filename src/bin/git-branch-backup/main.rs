@@ -70,6 +70,10 @@ fn push(args: args::PushArgs) -> proc_exit::ExitResult {
 
     stack.capacity(repo_config.capacity());
 
+    if repo.is_dirty() {
+        log::warn!("Working tree is dirty, only capturing committed changes");
+    }
+
     let mut backup =
         git_stack::backup::Backup::from_repo(&repo).with_code(proc_exit::Code::FAILURE)?;
     if let Some(message) = args.message.as_deref() {
@@ -205,6 +209,10 @@ fn pop(args: args::PopArgs) -> proc_exit::ExitResult {
     let mut repo = git_stack::git::GitRepo::new(repo);
     let mut stack = git_stack::backup::Stack::new(&args.stack, &repo);
 
+    if repo.is_dirty() {
+        return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
+    }
+
     match stack.peek() {
         Some(last) => {
             let backup =
@@ -227,6 +235,10 @@ fn apply(args: args::ApplyArgs) -> proc_exit::ExitResult {
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let mut repo = git_stack::git::GitRepo::new(repo);
     let mut stack = git_stack::backup::Stack::new(&args.stack, &repo);
+
+    if repo.is_dirty() {
+        return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
+    }
 
     match stack.peek() {
         Some(last) => {
