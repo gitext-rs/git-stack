@@ -68,10 +68,10 @@ impl Stack {
 
     pub fn push(&mut self, backup: Backup) -> Result<std::path::PathBuf, std::io::Error> {
         let elems: Vec<_> = self.iter().collect();
-        let last = elems.iter().last();
-        let next_index = match last {
-            Some(last) => {
-                let current_index = last
+        let last_path = elems.iter().last();
+        let next_index = match last_path {
+            Some(last_path) => {
+                let current_index = last_path
                     .file_stem()
                     .unwrap()
                     .to_str()
@@ -82,6 +82,13 @@ impl Stack {
             }
             None => 0,
         };
+        let last = last_path.as_deref().and_then(|p| Backup::load(p).ok());
+        if last.as_ref() == Some(&backup) {
+            let last_path = last_path.unwrap().to_owned();
+            log::trace!("Reusing backup {}", last_path.display());
+            return Ok(last_path);
+        }
+
         std::fs::create_dir_all(&self.root)?;
         let new_path = self.root.join(format!("{}.{}", next_index, Self::EXT));
         backup.save(&new_path)?;
