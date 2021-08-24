@@ -67,6 +67,10 @@ impl Executor {
         }
     }
 
+    pub fn is_dirty(&self) -> bool {
+        !self.branches.is_empty() || !self.delete_branches.is_empty() || self.detached
+    }
+
     pub fn run_script<'s>(
         &mut self,
         repo: &mut dyn crate::git::Repo,
