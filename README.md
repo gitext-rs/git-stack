@@ -80,6 +80,7 @@ Features:
   (similar to [`git revise`](https://github.com/mystor/git-revise/))
 - Separates out pull/push remotes for working from a fork
 - On `--push`, detects which branches are "ready" (e.g. root of stack, no WIP)
+- Undo support: backs up branch state prior to rewriting history
 
 Non-features
 - Conflict resolution: `git-stack` will give up and you'll have to use
@@ -96,6 +97,7 @@ Or use rust to install:
 ```bash
 cargo install git-stack
 ```
+
 ## Getting Started
 
 ### Configuring `git-stack`
