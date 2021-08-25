@@ -127,60 +127,6 @@ fn pushable_stack(nodes: &mut [Node]) -> Result<(), git2::Error> {
     Ok(())
 }
 
-pub fn drop_by_tree_id(
-    node: &mut Node,
-    onto: &[std::rc::Rc<crate::git::Commit>],
-) -> Result<(), git2::Error> {
-    if node.action.is_protected() || node.action.is_rebase() {
-        let tree_ids: std::collections::HashSet<_> = onto.iter().map(|c| c.tree_id).collect();
-
-        let mut moved_stacks = Vec::new();
-        for stack in node.stacks.iter_mut() {
-            moved_stacks.extend(stack_drop_by_tree_id(stack, &tree_ids)?);
-        }
-        node.stacks.extend(moved_stacks);
-    }
-    Ok(())
-}
-
-fn stack_drop_by_tree_id(
-    nodes: &mut [Node],
-    onto: &std::collections::HashSet<git2::Oid>,
-) -> Result<Vec<Vec<Node>>, git2::Error> {
-    let mut moved_stacks = Vec::new();
-    let mut last_protected = None;
-    for (i, node) in nodes.iter_mut().enumerate() {
-        match node.action {
-            crate::graph::Action::Protected | crate::graph::Action::Rebase(_) => {
-                last_protected = Some(i);
-                for stack in node.stacks.iter_mut() {
-                    moved_stacks.extend(stack_drop_by_tree_id(stack, onto)?);
-                }
-            }
-            crate::graph::Action::Pick => {
-                if onto.contains(&node.local_commit.tree_id) {
-                    node.action = crate::graph::Action::Delete;
-                    let mut node_stacks = Vec::new();
-                    std::mem::swap(&mut node.stacks, &mut node_stacks);
-                    moved_stacks.extend(node_stacks);
-                } else {
-                    break;
-                }
-            }
-            crate::graph::Action::Delete => {
-                break;
-            }
-        }
-    }
-
-    if let Some(last_protected) = last_protected {
-        nodes[last_protected].stacks.extend(moved_stacks);
-        moved_stacks = Vec::new();
-    }
-
-    Ok(moved_stacks)
-}
-
 pub fn delinearize(node: &mut Node) {
     for stack in node.stacks.iter_mut() {
         delinearize_internal(stack);
