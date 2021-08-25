@@ -305,7 +305,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
     show(&state, colored_stdout).with_code(proc_exit::Code::FAILURE)?;
 
     if state.rebase {
-        log::info!("To undo, run `git branch-backup pop {}", BACKUP_NAME);
+        log::info!("To undo, run `git branch-backup pop {}`", BACKUP_NAME);
     }
 
     if !success {
