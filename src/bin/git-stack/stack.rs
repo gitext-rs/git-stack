@@ -847,9 +847,9 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                     .short_id()
                     .unwrap();
                 let style = if node.stacks.is_empty() {
-                    self.palette.info
+                    self.palette.hint
                 } else if node.action.is_protected() || node.action.is_rebase() {
-                    self.palette.info
+                    self.palette.hint
                 } else {
                     // Branches should be off of other branches
                     self.palette.warn
