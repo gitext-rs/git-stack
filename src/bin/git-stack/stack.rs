@@ -801,7 +801,8 @@ fn to_tree<'r, 'n, 'p>(
                 git_stack::config::Format::Commits => false,
                 git_stack::config::Format::BranchCommits => {
                     let protected = node.action.is_protected() || node.action.is_rebase();
-                    protected && node.branches.is_empty()
+                    let boring_commit = node.branches.is_empty() && node.stacks.is_empty();
+                    protected && boring_commit
                 }
                 git_stack::config::Format::Branches => {
                     let boring_commit = node.branches.is_empty() && node.stacks.is_empty();

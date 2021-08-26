@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Ensure default format shows all branches
+
 ## [0.2.1] - 2021-08-25
 
 #### Fixes
