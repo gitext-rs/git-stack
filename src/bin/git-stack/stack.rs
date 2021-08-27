@@ -266,6 +266,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
 
     const BACKUP_NAME: &str = "git-stack";
     let mut success = true;
+    let mut backed_up = false;
     if state.rebase {
         if state.repo.is_dirty() {
             return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
@@ -276,7 +277,10 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
         let mut backup = git_stack::backup::Backup::from_repo(&state.repo)
             .with_code(proc_exit::Code::FAILURE)?;
         backup.insert_parent(&state.repo, &state.branches, &state.protected_branches);
-        backups.push(backup)?;
+        if !state.dry_run {
+            backups.push(backup)?;
+            backed_up = true;
+        }
 
         let head_branch = state
             .repo
@@ -315,7 +319,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
 
     show(&state, colored_stdout).with_code(proc_exit::Code::FAILURE)?;
 
-    if state.rebase {
+    if backed_up {
         log::info!("To undo, run `git branch-backup pop {}`", BACKUP_NAME);
     }
 
