@@ -129,21 +129,21 @@ fn pushable_stack(nodes: &mut [Node]) -> Result<(), git2::Error> {
 
 pub fn delinearize(node: &mut Node) {
     for stack in node.stacks.iter_mut() {
-        delinearize_internal(stack);
+        delinearize_stack(stack);
     }
 }
 
-fn delinearize_internal(nodes: &mut Vec<Node>) {
+fn delinearize_stack(nodes: &mut Vec<Node>) {
     for node in nodes.iter_mut() {
         for stack in node.stacks.iter_mut() {
-            delinearize_internal(stack);
+            delinearize_stack(stack);
         }
     }
 
     let splits: Vec<_> = nodes
         .iter()
         .enumerate()
-        .filter(|(_, n)| !n.branches.is_empty())
+        .filter(|(_, n)| !n.stacks.is_empty() || !n.branches.is_empty())
         .map(|(i, _)| i + 1)
         .rev()
         .collect();
