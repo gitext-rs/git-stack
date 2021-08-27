@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.2.2] - 2021-08-27
+
 #### Fixes
 
 - Rebase
@@ -51,7 +53,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/epage/git-stack/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/epage/git-stack/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/epage/git-stack/compare/v0.1.0...v0.2.0
 [v0.1.0]: https://github.com/epage/git-stack/compare/3137a1293f...v0.1.0
