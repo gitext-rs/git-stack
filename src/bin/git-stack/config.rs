@@ -14,7 +14,7 @@ pub fn dump_config(
         .with_code(proc_exit::Code::CONFIG_ERR)?
         .update(args.to_config());
 
-    let output = toml::to_string_pretty(&repo_config).with_code(proc_exit::Code::FAILURE)?;
+    let output = repo_config.to_string();
 
     if output_path == std::path::Path::new("-") {
         std::io::stdout().write_all(output.as_bytes())?;

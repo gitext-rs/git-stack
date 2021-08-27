@@ -339,7 +339,6 @@ dependencies = [
  "serde",
  "serde_json",
  "structopt",
- "toml",
  "treeline",
  "vec1",
  "yansi",
