@@ -193,6 +193,17 @@ impl StackState {
         self.branches.update(repo);
         Ok(())
     }
+
+    fn graphed_branches(&self) -> git_stack::git::Branches {
+        let mut graphed_branches = self.branches.clone();
+        if !graphed_branches.contains_oid(self.base.id) {
+            graphed_branches.insert(self.base.clone());
+        }
+        if !graphed_branches.contains_oid(self.onto.id) {
+            graphed_branches.insert(self.onto.clone());
+        }
+        graphed_branches
+    }
 }
 
 pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitResult {
@@ -255,6 +266,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
 
     const BACKUP_NAME: &str = "git-stack";
     let mut success = true;
+    let mut backed_up = false;
     if state.rebase {
         if state.repo.is_dirty() {
             return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
@@ -265,7 +277,10 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
         let mut backup = git_stack::backup::Backup::from_repo(&state.repo)
             .with_code(proc_exit::Code::FAILURE)?;
         backup.insert_parent(&state.repo, &state.branches, &state.protected_branches);
-        backups.push(backup)?;
+        if !state.dry_run {
+            backups.push(backup)?;
+            backed_up = true;
+        }
 
         let head_branch = state
             .repo
@@ -304,7 +319,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
 
     show(&state, colored_stdout).with_code(proc_exit::Code::FAILURE)?;
 
-    if state.rebase {
+    if backed_up {
         log::info!("To undo, run `git branch-backup pop {}`", BACKUP_NAME);
     }
 
@@ -316,21 +331,12 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
 }
 
 fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
-    let mut graphed_branches = stack.branches.clone();
-    if !graphed_branches.contains_oid(stack.base.id) {
-        graphed_branches.insert(stack.base.clone());
-    }
-    if !graphed_branches.contains_oid(stack.onto.id) {
-        graphed_branches.insert(stack.onto.clone());
-    }
+    let mut graphed_branches = stack.graphed_branches();
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
-    root = root.extend(&state.repo, graphed_branches)?;
-
+    root = root.extend_branches(&state.repo, graphed_branches)?;
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
 
     git_stack::graph::rebase_branches(&mut root, stack.onto.id)?;
-
-    git_stack::graph::delinearize(&mut root);
 
     let script = git_stack::graph::to_script(&root);
 
@@ -340,18 +346,11 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
 fn push(state: &mut State) -> eyre::Result<()> {
     let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
     for stack in state.stacks.iter() {
-        graphed_branches.extend(stack.branches.iter().flat_map(|(_, b)| b.to_owned()));
-    }
-    for stack in state.stacks.iter() {
-        if !graphed_branches.contains_oid(stack.base.id) {
-            graphed_branches.insert(stack.base.clone());
-        }
-        if !graphed_branches.contains_oid(stack.onto.id) {
-            graphed_branches.insert(stack.onto.clone());
-        }
+        let stack_graphed_branches = stack.graphed_branches();
+        graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
     }
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
-    root = root.extend(&state.repo, graphed_branches)?;
+    root = root.extend_branches(&state.repo, graphed_branches)?;
 
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
     git_stack::graph::pushable(&mut root)?;
@@ -362,25 +361,36 @@ fn push(state: &mut State) -> eyre::Result<()> {
 }
 
 fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
-    let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
-    for stack in state.stacks.iter() {
-        graphed_branches.extend(stack.branches.iter().flat_map(|(_, b)| b.to_owned()));
-    }
-    for stack in state.stacks.iter() {
-        if !graphed_branches.contains_oid(stack.base.id) {
-            graphed_branches.insert(stack.base.clone());
-        }
-        if !graphed_branches.contains_oid(stack.onto.id) {
-            graphed_branches.insert(stack.onto.clone());
-        }
-    }
-    let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
-    root = root.extend(&state.repo, graphed_branches)?;
+    let mut roots = state
+        .stacks
+        .iter()
+        .map(|stack| -> eyre::Result<git_stack::graph::Node> {
+            let mut graphed_branches = stack.graphed_branches();
+            let mut root =
+                git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
+            root = root.extend_branches(&state.repo, graphed_branches)?;
+            git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
 
-    git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
+            if state.dry_run {
+                // Show as-if we performed all mutations
+                git_stack::graph::rebase_branches(&mut root, stack.onto.id)?;
+            }
+
+            eyre::Result::Ok(root)
+        });
+    let mut root = roots.next().unwrap_or_else(|| {
+        let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
+        let root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
+        Ok(root)
+    })?;
+    for other in roots {
+        let applied = root.extend(other?);
+        assert!(applied);
+    }
+
     git_stack::graph::pushable(&mut root)?;
-    if !state.show_stacked {
-        git_stack::graph::delinearize(&mut root);
+    if state.show_stacked {
+        git_stack::graph::linearize_by_size(&mut root);
     }
 
     match state.show_format {
@@ -714,7 +724,7 @@ fn git_push_internal(
                     }
                 }
             }
-        } else if node.action.is_protected() || node.action.is_rebase() {
+        } else if node.action.is_protected() {
             log::debug!("Skipping push of `{}`, protected", branch.name);
         } else {
             log::debug!("Skipping push of `{}`", branch.name);
@@ -784,7 +794,7 @@ impl<'r, 'n> std::fmt::Display for DisplayTree<'r, 'n> {
 
 fn to_tree<'r, 'n, 'p>(
     repo: &'r git_stack::git::GitRepo,
-    nodes: &'n [Vec<git_stack::graph::Node>],
+    nodes: &'n [git_stack::graph::Stack],
     tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
     palette: &'p Palette,
     show: git_stack::config::Format,
@@ -800,7 +810,7 @@ fn to_tree<'r, 'n, 'p>(
                 git_stack::config::Format::Silent => true,
                 git_stack::config::Format::Commits => false,
                 git_stack::config::Format::BranchCommits => {
-                    let protected = node.action.is_protected() || node.action.is_rebase();
+                    let protected = node.action.is_protected();
                     let boring_commit = node.branches.is_empty() && node.stacks.is_empty();
                     protected && boring_commit
                 }
@@ -847,7 +857,9 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                     .short_id()
                     .unwrap();
                 let style = if node.stacks.is_empty() {
-                    self.palette.info
+                    self.palette.hint
+                } else if node.action.is_protected() {
+                    self.palette.hint
                 } else {
                     // Branches should be off of other branches
                     self.palette.warn
@@ -877,7 +889,7 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
             )?;
 
             let summary = String::from_utf8_lossy(&node.local_commit.summary);
-            if node.action.is_protected() || node.action.is_rebase() {
+            if node.action.is_protected() {
                 write!(f, "{}", self.palette.hint.paint(summary))?;
             } else if node.local_commit.fixup_summary().is_some() {
                 // Needs to be squashed
@@ -900,7 +912,7 @@ fn format_branch_name<'d>(
     node: &'d git_stack::graph::Node,
     palette: &'d Palette,
 ) -> impl std::fmt::Display + 'd {
-    if node.action.is_protected() || node.action.is_rebase() {
+    if node.action.is_protected() {
         palette.info.paint(branch.name.as_str())
     } else {
         palette.good.paint(branch.name.as_str())
@@ -914,7 +926,7 @@ fn format_branch_status<'d>(
     palette: &'d Palette,
 ) -> String {
     // See format_commit_status
-    if node.action.is_protected() || node.action.is_rebase() {
+    if node.action.is_protected() {
         match commit_relation(repo, branch.id, branch.pull_id) {
             Some((0, 0)) => format!(""),
             Some((local, 0)) => {
@@ -985,7 +997,7 @@ fn format_commit_status<'d>(
     palette: &'d Palette,
 ) -> String {
     // See format_commit_status
-    if node.action.is_protected() || node.action.is_rebase() {
+    if node.action.is_protected() {
         format!("")
     } else if node.action.is_delete() {
         format!("{} ", palette.warn.paint("(drop)"))

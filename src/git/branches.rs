@@ -234,6 +234,15 @@ impl Branches {
     }
 }
 
+impl IntoIterator for Branches {
+    type Item = (git2::Oid, Vec<crate::git::Branch>);
+    type IntoIter = std::collections::btree_map::IntoIter<git2::Oid, Vec<crate::git::Branch>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.branches.into_iter()
+    }
+}
+
 pub fn find_protected_base<'b>(
     repo: &dyn crate::git::Repo,
     protected_branches: &'b Branches,

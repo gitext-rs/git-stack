@@ -26,15 +26,16 @@ mod test_rebase {
         let mut root = Node::from_branches(&repo, graph_branches).unwrap();
         git_stack::graph::protect_branches(&mut root, &repo, &protected_branches).unwrap();
         git_stack::graph::rebase_branches(&mut root, master_commit.id).unwrap();
-        git_stack::graph::delinearize(&mut root);
         let script = git_stack::graph::to_script(&root);
 
         let mut executor = git_stack::git::Executor::new(&repo, false);
         let result = executor.run_script(&mut repo, &script);
         assert_eq!(result, vec![]);
         executor.close(&mut repo, "off_master").unwrap();
+        dbg!(&script);
 
         let master_branch = repo.find_local_branch("master").unwrap();
+        dbg!(&master_branch.id);
         assert_eq!(master_branch.id, master_commit.id);
 
         let off_master_branch = repo.find_local_branch("off_master").unwrap();
@@ -42,7 +43,7 @@ mod test_rebase {
             .commits_from(off_master_branch.id)
             .map(|c| c.id)
             .collect();
-        println!("{:#?}", ancestors);
+        dbg!(&ancestors);
         assert!(ancestors.contains(&master_branch.id));
     }
 
@@ -68,8 +69,8 @@ mod test_rebase {
         let mut root = Node::from_branches(&repo, graph_branches).unwrap();
         git_stack::graph::protect_branches(&mut root, &repo, &protected_branches).unwrap();
         git_stack::graph::rebase_branches(&mut root, master_commit.id).unwrap();
-        git_stack::graph::delinearize(&mut root);
         let script = git_stack::graph::to_script(&root);
+        dbg!(&script);
 
         let mut executor = git_stack::git::Executor::new(&repo, false);
         let result = executor.run_script(&mut repo, &script);
@@ -77,16 +78,19 @@ mod test_rebase {
         executor.close(&mut repo, "off_master").unwrap();
 
         let master_branch = repo.find_local_branch("master").unwrap();
+        dbg!(&master_branch.id);
         assert_eq!(master_branch.id, master_commit.id);
 
-        let feature1_branch = repo.find_local_branch("feature1").unwrap();
         let feature2_branch = repo.find_local_branch("feature2").unwrap();
         let ancestors: Vec<_> = repo
             .commits_from(feature2_branch.id)
             .map(|c| c.id)
             .collect();
-        println!("{:#?}", ancestors);
+        dbg!(&ancestors);
         assert!(ancestors.contains(&master_branch.id));
+
+        let feature1_branch = repo.find_local_branch("feature1").unwrap();
+        dbg!(&feature1_branch.id);
         assert!(ancestors.contains(&feature1_branch.id));
     }
 }

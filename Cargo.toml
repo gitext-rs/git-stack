@@ -57,6 +57,7 @@ toml = "0.5"
 ignore = "0.4"
 bstr = "0.2"
 maplit = "1"
+vec1 = "1"
 
 [dev-dependencies]
 git-fixture = { version = "0.1", path = "crates/git-fixture" }
