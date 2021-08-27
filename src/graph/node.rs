@@ -44,13 +44,13 @@ impl Node {
         let mut root = Self::new(branch_commit, &mut branches);
         for branch_id in branch_ids {
             let branch_commit = repo.find_commit(branch_id).unwrap();
-            root = root.insert(repo, branch_commit, &mut branches)?;
+            root = root.insert_commit(repo, branch_commit, &mut branches)?;
         }
 
         Ok(root)
     }
 
-    pub fn insert(
+    pub fn insert_commit(
         mut self,
         repo: &dyn crate::git::Repo,
         local_commit: std::rc::Rc<crate::git::Commit>,
@@ -75,7 +75,7 @@ impl Node {
         Ok(self)
     }
 
-    pub fn extend(
+    pub fn extend_branches(
         mut self,
         repo: &dyn crate::git::Repo,
         mut branches: crate::git::Branches,
@@ -85,7 +85,7 @@ impl Node {
             branch_ids.sort_by_key(|id| &branches.get(*id).unwrap()[0].name);
             for branch_id in branch_ids {
                 let branch_commit = repo.find_commit(branch_id).unwrap();
-                self = self.insert(repo, branch_commit, &mut branches)?;
+                self = self.insert_commit(repo, branch_commit, &mut branches)?;
             }
         }
 

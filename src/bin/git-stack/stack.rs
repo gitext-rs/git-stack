@@ -329,7 +329,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
 fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
     let mut graphed_branches = stack.graphed_branches();
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
-    root = root.extend(&state.repo, graphed_branches)?;
+    root = root.extend_branches(&state.repo, graphed_branches)?;
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
 
     git_stack::graph::rebase_branches(&mut root, stack.onto.id)?;
@@ -346,7 +346,7 @@ fn push(state: &mut State) -> eyre::Result<()> {
         graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
     }
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
-    root = root.extend(&state.repo, graphed_branches)?;
+    root = root.extend_branches(&state.repo, graphed_branches)?;
 
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
     git_stack::graph::pushable(&mut root)?;
@@ -363,7 +363,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
         graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
     }
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
-    root = root.extend(&state.repo, graphed_branches)?;
+    root = root.extend_branches(&state.repo, graphed_branches)?;
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
 
     git_stack::graph::pushable(&mut root)?;
