@@ -157,6 +157,40 @@ fn delinearize_stack(nodes: &mut Vec<Node>) {
     }
 }
 
+pub fn linearize_by_size(node: &mut Node) {
+    for stack in node.stacks.iter_mut() {
+        linearize_stack(stack);
+    }
+    node.stacks.sort_by_key(|s| s.len());
+}
+
+fn linearize_stack(nodes: &mut Vec<Node>) {
+    let append = {
+        let last = nodes
+            .last_mut()
+            .expect("stacks always have at least one node");
+        match last.stacks.len() {
+            0 => {
+                return;
+            }
+            1 => {
+                let mut append = last.stacks.pop().unwrap();
+                linearize_stack(&mut append);
+                assert!(last.stacks.is_empty());
+                append
+            }
+            _ => {
+                for stack in last.stacks.iter_mut() {
+                    linearize_stack(stack);
+                }
+                last.stacks.sort_by_key(|s| s.len());
+                last.stacks.pop().unwrap()
+            }
+        }
+    };
+    nodes.extend(append);
+}
+
 pub fn to_script(node: &Node) -> crate::git::Script {
     let mut script = crate::git::Script::new();
 

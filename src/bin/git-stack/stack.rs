@@ -379,8 +379,9 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
 
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
     git_stack::graph::pushable(&mut root)?;
-    if !state.show_stacked {
-        git_stack::graph::delinearize(&mut root);
+    git_stack::graph::delinearize(&mut root);
+    if state.show_stacked {
+        git_stack::graph::linearize_by_size(&mut root);
     }
 
     match state.show_format {
