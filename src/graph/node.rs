@@ -218,7 +218,9 @@ fn merge_stack(lhs_nodes: &mut Stack, rhs_nodes: &mut Vec<Node>) {
         });
 
     match index {
-        Some((index, itertools::EitherOrBoth::Both(_, _))) => {
+        Some((index, itertools::EitherOrBoth::Both(_, _))) |
+        // rhs is a superset, so we can add it to lhs's stacks
+        Some((index, itertools::EitherOrBoth::Right(_))) => {
             if index == 0 {
                 // Not a good merge candidate, find another
             } else {
@@ -229,13 +231,6 @@ fn merge_stack(lhs_nodes: &mut Stack, rhs_nodes: &mut Vec<Node>) {
                 merge_stacks(&mut lhs_nodes[index - 1], fake_rhs_node);
                 rhs_nodes.clear();
             }
-        }
-        Some((index, itertools::EitherOrBoth::Right(_))) => {
-            // rhs is a superset, so we can add it to lhs's stacks
-            let remaining = rhs_nodes.split_off(index);
-            let remaining = Stack::try_from_vec(remaining).unwrap();
-            lhs_nodes.last_mut().stacks.push(remaining);
-            rhs_nodes.clear();
         }
         Some((_, itertools::EitherOrBoth::Left(_))) | None => {
             // lhs is a superset, so consider us done.
