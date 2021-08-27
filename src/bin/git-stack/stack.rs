@@ -357,14 +357,26 @@ fn push(state: &mut State) -> eyre::Result<()> {
 }
 
 fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
-    let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
-    for stack in state.stacks.iter() {
-        let stack_graphed_branches = stack.graphed_branches();
-        graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
+    let mut roots = state
+        .stacks
+        .iter()
+        .map(|stack| -> eyre::Result<git_stack::graph::Node> {
+            let mut graphed_branches = stack.graphed_branches();
+            let mut root =
+                git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
+            root = root.extend_branches(&state.repo, graphed_branches)?;
+            git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
+            eyre::Result::Ok(root)
+        });
+    let mut root = roots.next().unwrap_or_else(|| {
+        let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
+        let root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
+        Ok(root)
+    })?;
+    for other in roots {
+        let applied = root.extend(other?);
+        assert!(applied);
     }
-    let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
-    root = root.extend_branches(&state.repo, graphed_branches)?;
-    git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
 
     git_stack::graph::pushable(&mut root)?;
     if state.show_stacked {

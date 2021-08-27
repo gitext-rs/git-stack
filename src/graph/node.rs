@@ -64,7 +64,7 @@ impl Node {
 
         if merge_base_id != self_id {
             let mut prefix = Node::populate(repo, merge_base_id, self_id, possible_branches)?;
-            let pushed = prefix.push(self);
+            let pushed = prefix.extend(self);
             assert!(pushed);
             self = prefix;
             self_id = merge_base_id;
@@ -90,6 +90,17 @@ impl Node {
         }
 
         Ok(self)
+    }
+
+    #[must_use]
+    pub fn extend(&mut self, other: Self) -> bool {
+        let base = self.find_commit_mut(other.local_commit.id);
+        if let Some(base) = base {
+            base.merge(other);
+            true
+        } else {
+            false
+        }
     }
 
     fn populate(
@@ -150,17 +161,6 @@ impl Node {
         }
 
         None
-    }
-
-    #[must_use]
-    fn push(&mut self, other: Self) -> bool {
-        let base = self.find_commit_mut(other.local_commit.id);
-        if let Some(base) = base {
-            base.merge(other);
-            true
-        } else {
-            false
-        }
     }
 
     fn merge(&mut self, mut other: Self) {
