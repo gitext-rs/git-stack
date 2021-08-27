@@ -9,7 +9,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 #### Fixes
 
-- Ensure default format shows all branches
+- Rebase
+  - Don't backup during dry-run
+- Stack View:
+  - Ensure default format shows all branches
+  - Don't use warning-color on protected commits
+  - Use distinct color for commits and protected branches
+  - Reduce nesting in stack view in some degenerate cases
+  - Show on rebase+dry-run, show tree as-if rebase succeeded
 
 ## [0.2.1] - 2021-08-25
 
