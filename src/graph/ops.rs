@@ -7,6 +7,9 @@ pub fn protect_branches(
 ) -> Result<(), git2::Error> {
     // Assuming the root is the base.  The base is not guaranteed to be a protected branch but
     // might be an ancestor of one.
+    //
+    // We can't use `descendant_protected` because a protect branch might not be in the
+    // descendants, depending on what Graph the user selected.
     for protected_oid in protected_branches.oids() {
         if let Some(merge_base_oid) = repo.merge_base(root.local_commit.id, protected_oid) {
             if merge_base_oid == root.local_commit.id {
@@ -17,13 +20,13 @@ pub fn protect_branches(
     }
 
     for stack in root.stacks.iter_mut() {
-        protect_branches_internal(stack, repo, protected_branches)?;
+        protect_branches_stack(stack, repo, protected_branches)?;
     }
 
     Ok(())
 }
 
-fn protect_branches_internal(
+fn protect_branches_stack(
     nodes: &mut Vec<Node>,
     repo: &dyn crate::git::Repo,
     protected_branches: &crate::git::Branches,
@@ -32,7 +35,7 @@ fn protect_branches_internal(
     for node in nodes.iter_mut().rev() {
         let mut stacks_protected = false;
         for stack in node.stacks.iter_mut() {
-            let stack_protected = protect_branches_internal(stack, repo, protected_branches)?;
+            let stack_protected = protect_branches_stack(stack, repo, protected_branches)?;
             stacks_protected |= stack_protected;
         }
         let self_protected = protected_branches.contains_oid(node.local_commit.id);
@@ -118,9 +121,12 @@ fn pushable_stack(nodes: &mut [Node]) -> Result<(), git2::Error> {
                 log::debug!("{} is pushable", branch.name);
                 node.pushable = true;
             }
+            // Bail out, only the first branch of a stack is up for consideration
             return Ok(());
-        } else if !node.stacks.is_empty() {
-            cause = Some("ambiguous which branch owns some commits");
+        } else {
+            for stack in node.stacks.iter_mut() {
+                pushable_stack(stack)?;
+            }
         }
     }
 
@@ -133,7 +139,7 @@ pub fn delinearize(node: &mut Node) {
     }
 }
 
-fn delinearize_stack(nodes: &mut Vec<Node>) {
+pub(crate) fn delinearize_stack(nodes: &mut Vec<Node>) {
     for node in nodes.iter_mut() {
         for stack in node.stacks.iter_mut() {
             delinearize_stack(stack);

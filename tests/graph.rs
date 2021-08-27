@@ -26,7 +26,6 @@ mod test_rebase {
         let mut root = Node::from_branches(&repo, graph_branches).unwrap();
         git_stack::graph::protect_branches(&mut root, &repo, &protected_branches).unwrap();
         git_stack::graph::rebase_branches(&mut root, master_commit.id).unwrap();
-        git_stack::graph::delinearize(&mut root);
         let script = git_stack::graph::to_script(&root);
 
         let mut executor = git_stack::git::Executor::new(&repo, false);
@@ -68,7 +67,6 @@ mod test_rebase {
         let mut root = Node::from_branches(&repo, graph_branches).unwrap();
         git_stack::graph::protect_branches(&mut root, &repo, &protected_branches).unwrap();
         git_stack::graph::rebase_branches(&mut root, master_commit.id).unwrap();
-        git_stack::graph::delinearize(&mut root);
         let script = git_stack::graph::to_script(&root);
 
         let mut executor = git_stack::git::Executor::new(&repo, false);

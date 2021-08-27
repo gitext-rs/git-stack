@@ -62,7 +62,8 @@ impl Node {
 
         if merge_base_id != self_id {
             let mut prefix = Node::populate(repo, merge_base_id, self_id, possible_branches)?;
-            prefix.push(self);
+            let pushed = prefix.push(&self);
+            assert!(pushed);
             self = prefix;
             self_id = merge_base_id;
         }
@@ -125,6 +126,7 @@ impl Node {
             .map(|commit| Node::new(commit, branches))
             .collect();
         stack.reverse();
+        crate::graph::ops::delinearize_stack(&mut stack);
         if !stack.is_empty() {
             root.stacks.push(stack);
         }
@@ -132,24 +134,20 @@ impl Node {
         Ok(root)
     }
 
-    fn push(&mut self, other: Self) {
-        let other_oid = other.local_commit.id;
-        if self.local_commit.id == other_oid {
-            self.merge(other);
-        } else if self.stacks.len() == 1 {
-            let stack = &mut self.stacks[0];
-            for node in stack.iter_mut() {
-                if node.local_commit.id == other_oid {
-                    node.merge(other);
-                    if let Some(ext) = stack.last_mut().unwrap().stacks.pop() {
-                        stack.extend(ext);
+    #[must_use]
+    fn push(&mut self, other: &Self) -> bool {
+        if self.local_commit.id == other.local_commit.id {
+            self.merge(other.clone());
+            true
+        } else {
+            for stack in self.stacks.iter_mut() {
+                for node in stack.iter_mut() {
+                    if node.push(other) {
+                        return true;
                     }
-                    return;
                 }
             }
-            unimplemented!("This case isn't needed yet");
-        } else {
-            unimplemented!("This case isn't needed yet");
+            false
         }
     }
 
@@ -227,9 +225,9 @@ fn merge_stack(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
             }
         }
         Some((index, itertools::EitherOrBoth::Right(_))) => {
-            // rhs is a superset, so we can append it to lhs
+            // rhs is a superset, so we can add it to lhs's stacks
             let remaining = rhs_nodes.split_off(index);
-            lhs_nodes.extend(remaining);
+            lhs_nodes.last_mut().unwrap().stacks.push(remaining);
             rhs_nodes.clear();
         }
         Some((_, itertools::EitherOrBoth::Left(_))) | None => {
