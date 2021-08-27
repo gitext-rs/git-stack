@@ -62,6 +62,10 @@ impl Branches {
             .map(|(oid, branch)| (*oid, branch.as_slice()))
     }
 
+    pub fn into_iter(self) -> impl Iterator<Item = (git2::Oid, Vec<crate::git::Branch>)> {
+        self.branches.into_iter()
+    }
+
     pub fn is_empty(&self) -> bool {
         self.branches.is_empty()
     }

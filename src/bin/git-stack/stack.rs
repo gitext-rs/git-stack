@@ -193,6 +193,17 @@ impl StackState {
         self.branches.update(repo);
         Ok(())
     }
+
+    fn graphed_branches(&self) -> git_stack::git::Branches {
+        let mut graphed_branches = self.branches.clone();
+        if !graphed_branches.contains_oid(self.base.id) {
+            graphed_branches.insert(self.base.clone());
+        }
+        if !graphed_branches.contains_oid(self.onto.id) {
+            graphed_branches.insert(self.onto.clone());
+        }
+        graphed_branches
+    }
 }
 
 pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitResult {
@@ -316,13 +327,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
 }
 
 fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
-    let mut graphed_branches = stack.branches.clone();
-    if !graphed_branches.contains_oid(stack.base.id) {
-        graphed_branches.insert(stack.base.clone());
-    }
-    if !graphed_branches.contains_oid(stack.onto.id) {
-        graphed_branches.insert(stack.onto.clone());
-    }
+    let mut graphed_branches = stack.graphed_branches();
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
     root = root.extend(&state.repo, graphed_branches)?;
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
@@ -337,15 +342,8 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
 fn push(state: &mut State) -> eyre::Result<()> {
     let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
     for stack in state.stacks.iter() {
-        graphed_branches.extend(stack.branches.iter().flat_map(|(_, b)| b.to_owned()));
-    }
-    for stack in state.stacks.iter() {
-        if !graphed_branches.contains_oid(stack.base.id) {
-            graphed_branches.insert(stack.base.clone());
-        }
-        if !graphed_branches.contains_oid(stack.onto.id) {
-            graphed_branches.insert(stack.onto.clone());
-        }
+        let stack_graphed_branches = stack.graphed_branches();
+        graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
     }
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
     root = root.extend(&state.repo, graphed_branches)?;
@@ -361,15 +359,8 @@ fn push(state: &mut State) -> eyre::Result<()> {
 fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
     let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
     for stack in state.stacks.iter() {
-        graphed_branches.extend(stack.branches.iter().flat_map(|(_, b)| b.to_owned()));
-    }
-    for stack in state.stacks.iter() {
-        if !graphed_branches.contains_oid(stack.base.id) {
-            graphed_branches.insert(stack.base.clone());
-        }
-        if !graphed_branches.contains_oid(stack.onto.id) {
-            graphed_branches.insert(stack.onto.clone());
-        }
+        let stack_graphed_branches = stack.graphed_branches();
+        graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
     }
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
     root = root.extend(&state.repo, graphed_branches)?;
