@@ -14,13 +14,14 @@ pub struct RepoConfig {
 }
 
 static PROTECTED_STACK_FIELD: &str = "stack.protected-branch";
-static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
 static STACK_FIELD: &str = "stack.stack";
 static PUSH_REMOTE_FIELD: &str = "stack.push-remote";
 static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
 static FORMAT_FIELD: &str = "stack.show-format";
 static STACKED_FIELD: &str = "stack.show-stacked";
 static BACKUP_CAPACITY_FIELD: &str = "branch-backup.capacity";
+
+static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
 const DEFAULT_CAPACITY: usize = 30;
 
 impl RepoConfig {
@@ -290,6 +291,58 @@ impl RepoConfig {
     pub fn capacity(&self) -> Option<usize> {
         let capacity = self.capacity.unwrap_or(DEFAULT_CAPACITY);
         (capacity != 0).then(|| capacity)
+    }
+}
+
+impl std::fmt::Display for RepoConfig {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "[{}]", STACK_FIELD.split_once(".").unwrap().0)?;
+        for branch in self.protected_branches() {
+            writeln!(
+                f,
+                "\t{}={}",
+                PROTECTED_STACK_FIELD.split_once(".").unwrap().1,
+                branch
+            )?;
+        }
+        writeln!(
+            f,
+            "\t{}={}",
+            STACK_FIELD.split_once(".").unwrap().1,
+            self.stack()
+        )?;
+        writeln!(
+            f,
+            "\t{}={}",
+            PUSH_REMOTE_FIELD.split_once(".").unwrap().1,
+            self.push_remote()
+        )?;
+        writeln!(
+            f,
+            "\t{}={}",
+            PULL_REMOTE_FIELD.split_once(".").unwrap().1,
+            self.pull_remote()
+        )?;
+        writeln!(
+            f,
+            "\t{}={}",
+            FORMAT_FIELD.split_once(".").unwrap().1,
+            self.show_format()
+        )?;
+        writeln!(
+            f,
+            "\t{}={}",
+            STACKED_FIELD.split_once(".").unwrap().1,
+            self.show_stacked()
+        )?;
+        writeln!(f, "[{}]", BACKUP_CAPACITY_FIELD.split_once(".").unwrap().0)?;
+        writeln!(
+            f,
+            "\t{}={}",
+            BACKUP_CAPACITY_FIELD.split_once(".").unwrap().1,
+            self.capacity().unwrap_or(0)
+        )?;
+        Ok(())
     }
 }
 
