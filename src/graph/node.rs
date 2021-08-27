@@ -64,7 +64,7 @@ impl Node {
 
         if merge_base_id != self_id {
             let mut prefix = Node::populate(repo, merge_base_id, self_id, possible_branches)?;
-            let pushed = prefix.push(&self);
+            let pushed = prefix.push(self);
             assert!(pushed);
             self = prefix;
             self_id = merge_base_id;
@@ -136,24 +136,35 @@ impl Node {
         Ok(root)
     }
 
-    #[must_use]
-    fn push(&mut self, other: &Self) -> bool {
-        if self.local_commit.id == other.local_commit.id {
-            self.merge(other.clone());
-            true
-        } else {
-            for stack in self.stacks.iter_mut() {
-                for node in stack.iter_mut() {
-                    if node.push(other) {
-                        return true;
-                    }
+    pub(crate) fn find_commit_mut(&mut self, id: git2::Oid) -> Option<&mut Node> {
+        if self.local_commit.id == id {
+            return Some(self);
+        }
+
+        for stack in self.stacks.iter_mut() {
+            for node in stack.iter_mut() {
+                if let Some(found) = node.find_commit_mut(id) {
+                    return Some(found);
                 }
             }
+        }
+
+        None
+    }
+
+    #[must_use]
+    fn push(&mut self, other: Self) -> bool {
+        let base = self.find_commit_mut(other.local_commit.id);
+        if let Some(base) = base {
+            base.merge(other);
+            true
+        } else {
             false
         }
     }
 
     fn merge(&mut self, mut other: Self) {
+        assert_eq!(self.local_commit.id, other.local_commit.id);
         let mut branches = Vec::new();
         std::mem::swap(&mut other.branches, &mut branches);
         self.branches.extend(branches);

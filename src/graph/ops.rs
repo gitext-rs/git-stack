@@ -59,7 +59,7 @@ pub fn rebase_branches(node: &mut Node, new_base_id: git2::Oid) -> Result<(), gi
     let mut rebaseable = Vec::new();
     pop_rebaseable_stacks(node, &mut rebaseable);
 
-    let new_base = find_commit_mut(node, new_base_id).unwrap();
+    let new_base = node.find_commit_mut(new_base_id).unwrap();
     new_base.stacks.extend(rebaseable);
 
     Ok(())
@@ -98,22 +98,6 @@ fn pop_rebaseable_stacks(node: &mut Node, rebaseable: &mut Vec<Stack>) {
             rebaseable.push(remaining);
         }
     }
-}
-
-fn find_commit_mut(node: &mut Node, id: git2::Oid) -> Option<&mut Node> {
-    if node.local_commit.id == id {
-        return Some(node);
-    }
-
-    for stack in node.stacks.iter_mut() {
-        for node in stack.iter_mut() {
-            if let Some(found) = find_commit_mut(node, id) {
-                return Some(found);
-            }
-        }
-    }
-
-    None
 }
 
 pub fn pushable(node: &mut Node) -> Result<(), git2::Error> {
