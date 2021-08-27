@@ -366,6 +366,12 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
                 git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
             root = root.extend_branches(&state.repo, graphed_branches)?;
             git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
+
+            if state.dry_run {
+                // Show as-if we performed all mutations
+                git_stack::graph::rebase_branches(&mut root, stack.onto.id)?;
+            }
+
             eyre::Result::Ok(root)
         });
     let mut root = roots.next().unwrap_or_else(|| {
