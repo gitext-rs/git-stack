@@ -49,47 +49,75 @@ fn protect_branches_stack(
     Ok(descendant_protected)
 }
 
-pub fn rebase_branches(node: &mut Node, new_base: git2::Oid) -> Result<(), git2::Error> {
-    rebase_branches_internal(node, new_base)?;
+/// Pre-requisites:
+/// - Running protect_branches
+///
+/// # Panics
+///
+/// If `new_base_id` doesn't exist
+pub fn rebase_branches(node: &mut Node, new_base_id: git2::Oid) -> Result<(), git2::Error> {
+    let mut rebaseable = Vec::new();
+    pop_rebaseable_stacks(node, &mut rebaseable);
+
+    let new_base = find_commit_mut(node, new_base_id).unwrap();
+    new_base.stacks.extend(rebaseable);
 
     Ok(())
 }
 
-/// Mark a new base commit for the last protected commit on each branch.
-fn rebase_branches_internal(node: &mut Node, new_base: git2::Oid) -> Result<bool, git2::Error> {
-    if !node.stacks.is_empty() {
-        let mut all_stacks_rebased = true;
-        for stack in node.stacks.iter_mut() {
-            let mut stack_rebased = false;
-            for node in stack.iter_mut().rev() {
-                let node_rebase = rebase_branches_internal(node, new_base)?;
-                if node_rebase {
-                    stack_rebased = true;
-                    break;
-                }
-            }
-            if !stack_rebased {
-                all_stacks_rebased = false;
-            }
-        }
-
-        if all_stacks_rebased {
-            return Ok(true);
-        }
+fn pop_rebaseable_stacks(node: &mut Node, rebaseable: &mut Vec<Stack>) {
+    if !node.action.is_protected() {
+        // The parent should pop this node
+        return;
     }
 
-    if node.local_commit.id == new_base {
-        Ok(true)
-    } else if node.action == crate::graph::Action::Protected {
-        node.action = crate::graph::Action::Rebase(new_base);
-        Ok(true)
-    } else {
-        Ok(false)
+    // Rebase the full stack
+    let mut full_stack = Vec::new();
+    for (index, stack) in node.stacks.iter().enumerate() {
+        if !stack.first().action.is_protected() {
+            full_stack.push(index);
+        }
+    }
+    full_stack.reverse();
+    for index in full_stack {
+        rebaseable.push(node.stacks.remove(index));
+    }
+
+    for stack in node.stacks.iter_mut() {
+        let mut base_index = None;
+        for (index, node) in stack.iter_mut().enumerate() {
+            if node.action.is_protected() {
+                pop_rebaseable_stacks(node, rebaseable);
+            } else {
+                base_index = Some(index);
+                break;
+            }
+        }
+        if let Some(index) = base_index {
+            let remaining = stack.split_off(index).unwrap();
+            rebaseable.push(remaining);
+        }
     }
 }
 
+fn find_commit_mut(node: &mut Node, id: git2::Oid) -> Option<&mut Node> {
+    if node.local_commit.id == id {
+        return Some(node);
+    }
+
+    for stack in node.stacks.iter_mut() {
+        for node in stack.iter_mut() {
+            if let Some(found) = find_commit_mut(node, id) {
+                return Some(found);
+            }
+        }
+    }
+
+    None
+}
+
 pub fn pushable(node: &mut Node) -> Result<(), git2::Error> {
-    if node.action.is_protected() || node.action.is_rebase() || node.branches.is_empty() {
+    if node.action.is_protected() || node.branches.is_empty() {
         for stack in node.stacks.iter_mut() {
             pushable_stack(stack)?;
         }
@@ -100,7 +128,7 @@ pub fn pushable(node: &mut Node) -> Result<(), git2::Error> {
 fn pushable_stack(nodes: &mut Stack) -> Result<(), git2::Error> {
     let mut cause = None;
     for node in nodes.iter_mut() {
-        if node.action.is_protected() || node.action.is_rebase() {
+        if node.action.is_protected() {
             assert_eq!(cause, None);
             for stack in node.stacks.iter_mut() {
                 pushable_stack(stack)?;
@@ -199,8 +227,8 @@ pub fn to_script(node: &Node) -> crate::git::Script {
     let mut script = crate::git::Script::new();
 
     match node.action {
-        crate::graph::Action::Pick => {
-            // The base should be immutable, so nothing to cherry-pick
+        // The base should be immutable, so nothing to cherry-pick
+        crate::graph::Action::Pick | crate::graph::Action::Protected => {
             let stack_mark = node.local_commit.id;
             script
                 .commands
@@ -211,34 +239,7 @@ pub fn to_script(node: &Node) -> crate::git::Script {
             for stack in node.stacks.iter() {
                 script
                     .dependents
-                    .extend(to_script_internal(stack, node.local_commit.id));
-            }
-        }
-        crate::graph::Action::Protected => {
-            let stack_mark = node.local_commit.id;
-            script
-                .commands
-                .push(crate::git::Command::SwitchCommit(stack_mark));
-            script
-                .commands
-                .push(crate::git::Command::RegisterMark(stack_mark));
-            for stack in node.stacks.iter() {
-                script
-                    .dependents
-                    .extend(to_script_internal(stack, node.local_commit.id));
-            }
-        }
-        crate::graph::Action::Rebase(new_base) => {
-            script
-                .commands
-                .push(crate::git::Command::SwitchCommit(new_base));
-            script
-                .commands
-                .push(crate::git::Command::RegisterMark(new_base));
-            for stack in node.stacks.iter() {
-                script
-                    .dependents
-                    .extend(to_script_internal(stack, new_base));
+                    .extend(to_script_internal(stack, stack_mark));
             }
         }
         crate::graph::Action::Delete => {
@@ -282,25 +283,16 @@ fn to_script_internal(nodes: &[Node], base_mark: git2::Oid) -> Option<crate::git
             }
             crate::graph::Action::Protected => {
                 for stack in node.stacks.iter() {
+                    let stack_mark = node.local_commit.id;
                     script
                         .commands
-                        .push(crate::git::Command::RegisterMark(node.local_commit.id));
+                        .push(crate::git::Command::SwitchCommit(stack_mark));
+                    script
+                        .commands
+                        .push(crate::git::Command::RegisterMark(stack_mark));
                     script
                         .dependents
-                        .extend(to_script_internal(stack, node.local_commit.id));
-                }
-            }
-            crate::graph::Action::Rebase(new_base) => {
-                script
-                    .commands
-                    .push(crate::git::Command::SwitchCommit(new_base));
-                script
-                    .commands
-                    .push(crate::git::Command::RegisterMark(new_base));
-                for stack in node.stacks.iter() {
-                    script
-                        .dependents
-                        .extend(to_script_internal(stack, new_base));
+                        .extend(to_script_internal(stack, stack_mark));
                 }
             }
             crate::graph::Action::Delete => {

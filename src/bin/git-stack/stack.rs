@@ -325,7 +325,6 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
     }
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
     root = root.extend(&state.repo, graphed_branches)?;
-
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
 
     git_stack::graph::rebase_branches(&mut root, stack.onto.id)?;
@@ -374,8 +373,8 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
     }
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
     root = root.extend(&state.repo, graphed_branches)?;
-
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
+
     git_stack::graph::pushable(&mut root)?;
     if state.show_stacked {
         git_stack::graph::linearize_by_size(&mut root);
@@ -712,7 +711,7 @@ fn git_push_internal(
                     }
                 }
             }
-        } else if node.action.is_protected() || node.action.is_rebase() {
+        } else if node.action.is_protected() {
             log::debug!("Skipping push of `{}`, protected", branch.name);
         } else {
             log::debug!("Skipping push of `{}`", branch.name);
@@ -798,7 +797,7 @@ fn to_tree<'r, 'n, 'p>(
                 git_stack::config::Format::Silent => true,
                 git_stack::config::Format::Commits => false,
                 git_stack::config::Format::BranchCommits => {
-                    let protected = node.action.is_protected() || node.action.is_rebase();
+                    let protected = node.action.is_protected();
                     let boring_commit = node.branches.is_empty() && node.stacks.is_empty();
                     protected && boring_commit
                 }
@@ -846,7 +845,7 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                     .unwrap();
                 let style = if node.stacks.is_empty() {
                     self.palette.hint
-                } else if node.action.is_protected() || node.action.is_rebase() {
+                } else if node.action.is_protected() {
                     self.palette.hint
                 } else {
                     // Branches should be off of other branches
@@ -877,7 +876,7 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
             )?;
 
             let summary = String::from_utf8_lossy(&node.local_commit.summary);
-            if node.action.is_protected() || node.action.is_rebase() {
+            if node.action.is_protected() {
                 write!(f, "{}", self.palette.hint.paint(summary))?;
             } else if node.local_commit.fixup_summary().is_some() {
                 // Needs to be squashed
@@ -900,7 +899,7 @@ fn format_branch_name<'d>(
     node: &'d git_stack::graph::Node,
     palette: &'d Palette,
 ) -> impl std::fmt::Display + 'd {
-    if node.action.is_protected() || node.action.is_rebase() {
+    if node.action.is_protected() {
         palette.info.paint(branch.name.as_str())
     } else {
         palette.good.paint(branch.name.as_str())
@@ -914,7 +913,7 @@ fn format_branch_status<'d>(
     palette: &'d Palette,
 ) -> String {
     // See format_commit_status
-    if node.action.is_protected() || node.action.is_rebase() {
+    if node.action.is_protected() {
         match commit_relation(repo, branch.id, branch.pull_id) {
             Some((0, 0)) => format!(""),
             Some((local, 0)) => {
@@ -985,7 +984,7 @@ fn format_commit_status<'d>(
     palette: &'d Palette,
 ) -> String {
     // See format_commit_status
-    if node.action.is_protected() || node.action.is_rebase() {
+    if node.action.is_protected() {
         format!("")
     } else if node.action.is_delete() {
         format!("{} ", palette.warn.paint("(drop)"))
