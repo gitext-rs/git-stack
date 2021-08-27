@@ -1,10 +1,12 @@
 use itertools::Itertools;
 
+pub type Stack = vec1::Vec1<Node>;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Node {
     pub local_commit: std::rc::Rc<crate::git::Commit>,
     pub branches: Vec<crate::git::Branch>,
-    pub stacks: Vec<Vec<Node>>,
+    pub stacks: Vec<Stack>,
     pub action: crate::graph::Action,
     pub pushable: bool,
 }
@@ -126,8 +128,8 @@ impl Node {
             .map(|commit| Node::new(commit, branches))
             .collect();
         stack.reverse();
-        crate::graph::ops::delinearize_stack(&mut stack);
-        if !stack.is_empty() {
+        if let Ok(mut stack) = Stack::try_from_vec(stack) {
+            crate::graph::ops::delinearize_stack(&mut stack);
             root.stacks.push(stack);
         }
 
@@ -164,31 +166,24 @@ fn merge_stacks(lhs_node: &mut Node, rhs_node: Node) {
     assert_eq!(lhs_node.local_commit.id, rhs_node.local_commit.id);
 
     let rhs_node_stacks = rhs_node.stacks;
-    for mut rhs_node_stack in rhs_node_stacks {
-        assert!(!rhs_node_stack.is_empty());
+    for rhs_node_stack in rhs_node_stacks {
+        // Allow emptu-state to know if merge happened
+        let mut rhs_node_stack = rhs_node_stack.into_vec();
         for mut lhs_node_stack in lhs_node.stacks.iter_mut() {
             merge_stack(&mut lhs_node_stack, &mut rhs_node_stack);
             if rhs_node_stack.is_empty() {
                 break;
             }
         }
-        if !rhs_node_stack.is_empty() {
+        if let Ok(rhs_node_stack) = Stack::try_from_vec(rhs_node_stack) {
+            // No merge, add to stacks
             lhs_node.stacks.push(rhs_node_stack);
         }
     }
 }
 
 /// If a merge occurs, `rhs_nodes` will be empty
-fn merge_stack(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
-    assert!(
-        !lhs_nodes.is_empty(),
-        "to exist, there has to be at least one node"
-    );
-    assert!(
-        !rhs_nodes.is_empty(),
-        "to exist, there has to be at least one node"
-    );
-
+fn merge_stack(lhs_nodes: &mut Stack, rhs_nodes: &mut Vec<Node>) {
     for (lhs, rhs) in lhs_nodes.iter_mut().zip(rhs_nodes.iter_mut()) {
         if lhs.local_commit.id != rhs.local_commit.id {
             break;
@@ -217,8 +212,8 @@ fn merge_stack(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
                 // Not a good merge candidate, find another
             } else {
                 let remaining = rhs_nodes.split_off(index);
+                let remaining = Stack::try_from_vec(remaining).unwrap();
                 let mut fake_rhs_node = rhs_nodes.pop().expect("if should catch this");
-                assert!(fake_rhs_node.stacks.is_empty(), "assuming rhs is linear");
                 fake_rhs_node.stacks.push(remaining);
                 merge_stacks(&mut lhs_nodes[index - 1], fake_rhs_node);
                 rhs_nodes.clear();
@@ -227,7 +222,8 @@ fn merge_stack(lhs_nodes: &mut Vec<Node>, rhs_nodes: &mut Vec<Node>) {
         Some((index, itertools::EitherOrBoth::Right(_))) => {
             // rhs is a superset, so we can add it to lhs's stacks
             let remaining = rhs_nodes.split_off(index);
-            lhs_nodes.last_mut().unwrap().stacks.push(remaining);
+            let remaining = Stack::try_from_vec(remaining).unwrap();
+            lhs_nodes.last_mut().stacks.push(remaining);
             rhs_nodes.clear();
         }
         Some((_, itertools::EitherOrBoth::Left(_))) | None => {

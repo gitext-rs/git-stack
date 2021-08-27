@@ -782,7 +782,7 @@ impl<'r, 'n> std::fmt::Display for DisplayTree<'r, 'n> {
 
 fn to_tree<'r, 'n, 'p>(
     repo: &'r git_stack::git::GitRepo,
-    nodes: &'n [Vec<git_stack::graph::Node>],
+    nodes: &'n [git_stack::graph::Stack],
     tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
     palette: &'p Palette,
     show: git_stack::config::Format,

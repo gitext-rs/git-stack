@@ -1,4 +1,5 @@
 pub use crate::graph::Node;
+pub use crate::graph::Stack;
 
 pub fn protect_branches(
     root: &mut Node,
@@ -27,7 +28,7 @@ pub fn protect_branches(
 }
 
 fn protect_branches_stack(
-    nodes: &mut Vec<Node>,
+    nodes: &mut Stack,
     repo: &dyn crate::git::Repo,
     protected_branches: &crate::git::Branches,
 ) -> Result<bool, git2::Error> {
@@ -96,7 +97,7 @@ pub fn pushable(node: &mut Node) -> Result<(), git2::Error> {
     Ok(())
 }
 
-fn pushable_stack(nodes: &mut [Node]) -> Result<(), git2::Error> {
+fn pushable_stack(nodes: &mut Stack) -> Result<(), git2::Error> {
     let mut cause = None;
     for node in nodes.iter_mut() {
         if node.action.is_protected() || node.action.is_rebase() {
@@ -139,7 +140,7 @@ pub fn delinearize(node: &mut Node) {
     }
 }
 
-pub(crate) fn delinearize_stack(nodes: &mut Vec<Node>) {
+pub(crate) fn delinearize_stack(nodes: &mut Stack) {
     for node in nodes.iter_mut() {
         for stack in node.stacks.iter_mut() {
             delinearize_stack(stack);
@@ -157,9 +158,8 @@ pub(crate) fn delinearize_stack(nodes: &mut Vec<Node>) {
         if split == nodes.len() {
             continue;
         }
-        let stack = nodes.split_off(split);
-        assert!(!stack.is_empty());
-        nodes.last_mut().unwrap().stacks.push(stack);
+        let stack = nodes.split_off(split).unwrap();
+        nodes.last_mut().stacks.push(stack);
     }
 }
 
@@ -170,11 +170,9 @@ pub fn linearize_by_size(node: &mut Node) {
     node.stacks.sort_by_key(|s| s.len());
 }
 
-fn linearize_stack(nodes: &mut Vec<Node>) {
+fn linearize_stack(nodes: &mut Stack) {
     let append = {
-        let last = nodes
-            .last_mut()
-            .expect("stacks always have at least one node");
+        let last = nodes.last_mut();
         match last.stacks.len() {
             0 => {
                 return;
