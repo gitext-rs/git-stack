@@ -384,8 +384,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
         Ok(root)
     })?;
     for other in roots {
-        let applied = root.extend(other?);
-        assert!(applied);
+        root = root.extend(&state.repo, other?)?;
     }
 
     git_stack::graph::pushable(&mut root)?;

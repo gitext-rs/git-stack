@@ -56,20 +56,22 @@ impl Node {
         local_commit: std::rc::Rc<crate::git::Commit>,
         possible_branches: &mut crate::git::Branches,
     ) -> eyre::Result<Self> {
-        let mut self_id = self.local_commit.id;
-        let other_id = local_commit.id;
         let merge_base_id = repo
-            .merge_base(self_id, other_id)
+            .merge_base(self.local_commit.id, local_commit.id)
             .ok_or_else(|| eyre::eyre!("Could not find merge base"))?;
 
-        if merge_base_id != self_id {
-            let mut prefix = Node::populate(repo, merge_base_id, self_id, possible_branches)?;
-            let pushed = prefix.extend(self);
-            assert!(pushed);
-            self = prefix;
-            self_id = merge_base_id;
+        if merge_base_id != self.local_commit.id {
+            let prefix =
+                Node::populate(repo, merge_base_id, self.local_commit.id, possible_branches)?;
+            self = prefix.extend(repo, self)?;
         }
-        let other = Node::populate(repo, self_id, other_id, possible_branches)?;
+
+        let other = Node::populate(
+            repo,
+            self.local_commit.id,
+            local_commit.id,
+            possible_branches,
+        )?;
         self.merge(other);
 
         Ok(self)
@@ -92,15 +94,36 @@ impl Node {
         Ok(self)
     }
 
-    #[must_use]
-    pub fn extend(&mut self, other: Self) -> bool {
-        let base = self.find_commit_mut(other.local_commit.id);
-        if let Some(base) = base {
-            base.merge(other);
-            true
+    pub fn extend(mut self, repo: &dyn crate::git::Repo, mut other: Self) -> eyre::Result<Self> {
+        if let Some(node) = self.find_commit_mut(other.local_commit.id) {
+            node.merge(other)
         } else {
-            false
+            let merge_base_id = repo
+                .merge_base(self.local_commit.id, other.local_commit.id)
+                .ok_or_else(|| eyre::eyre!("Could not find merge base"))?;
+            let mut possible_branches = crate::git::Branches::default();
+            if merge_base_id != self.local_commit.id {
+                let prefix = Node::populate(
+                    repo,
+                    merge_base_id,
+                    self.local_commit.id,
+                    &mut possible_branches,
+                )?;
+                self = prefix.extend(repo, self)?;
+            }
+            if merge_base_id != other.local_commit.id {
+                let prefix = Node::populate(
+                    repo,
+                    merge_base_id,
+                    other.local_commit.id,
+                    &mut possible_branches,
+                )?;
+                other = prefix.extend(repo, other)?;
+            }
+            self.merge(other);
         }
+
+        Ok(self)
     }
 
     fn populate(
