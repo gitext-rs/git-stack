@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.2.3] - 2021-08-30
+
 #### Fixes
 
 - Don't crash with multiple protected branches
@@ -59,7 +61,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.2.2...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.2.3...HEAD
+[0.2.3]: https://github.com/epage/git-stack/compare/v0.2.2...v0.2.3
 [0.2.2]: https://github.com/epage/git-stack/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/epage/git-stack/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/epage/git-stack/compare/v0.1.0...v0.2.0
