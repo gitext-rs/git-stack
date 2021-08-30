@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Don't crash with multiple protected branches
+- `--dump-config` now dumps in `gitconfig` format
+- Stack View: don't duplicate commits
+
 ## [0.2.2] - 2021-08-27
 
 #### Fixes
