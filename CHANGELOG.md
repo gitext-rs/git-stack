@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Features
+
+- Stack View
+  - List HEAD branch after all dev branches to make it easier to spot
+  - Highlight HEAD branch
+
 ## [0.2.4] - 2021-08-31
 
 #### Fixes

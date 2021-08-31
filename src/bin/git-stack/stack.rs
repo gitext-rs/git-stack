@@ -778,7 +778,8 @@ impl<'r> DisplayTree<'r> {
 
 impl<'r> std::fmt::Display for DisplayTree<'r> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        let mut tree = to_tree(self.repo, self.root, &self.palette);
+        let head_branch = self.repo.head_branch().unwrap();
+        let mut tree = to_tree(self.repo, &head_branch, self.root, &self.palette);
         if self.stacked {
             tree.linearize();
         } else {
@@ -813,18 +814,21 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
 
 fn to_tree<'r>(
     repo: &'r git_stack::git::GitRepo,
+    head_branch: &'r git_stack::git::Branch,
     node: &'r git_stack::graph::Node,
     palette: &'r Palette,
 ) -> Tree<'r> {
     let mut weight = if node.action.is_protected() {
         Weight::Protected(0)
+    } else if node.local_commit.id == head_branch.id {
+        Weight::Head(0)
     } else {
         Weight::Commit(0)
     };
 
     let mut stacks = Vec::new();
     for child in node.children.values() {
-        let child_tree = to_tree(repo, child, palette);
+        let child_tree = to_tree(repo, head_branch, child, palette);
         weight = weight.max(child_tree.weight);
         stacks.push(vec![child_tree]);
     }
@@ -832,6 +836,7 @@ fn to_tree<'r>(
     let tree = Tree {
         root: RenderNode {
             repo,
+            head_branch,
             node: Some(node),
             palette,
         },
@@ -920,6 +925,7 @@ impl<'r> Tree<'r> {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 enum Weight {
     Commit(usize),
+    Head(usize),
     Protected(usize),
 }
 
@@ -929,6 +935,9 @@ impl Weight {
             (Self::Protected(s), Self::Protected(o)) => Self::Protected(s.max(o)),
             (Self::Protected(s), _) => Self::Protected(s),
             (_, Self::Protected(o)) => Self::Protected(o),
+            (Self::Head(s), Self::Head(o)) => Self::Head(s.max(o)),
+            (Self::Head(s), _) => Self::Head(s),
+            (_, Self::Head(s)) => Self::Head(s),
             (Self::Commit(s), Self::Commit(o)) => Self::Commit(s.max(o)),
         }
     }
@@ -937,6 +946,7 @@ impl Weight {
 #[derive(Copy, Clone)]
 struct RenderNode<'r> {
     repo: &'r git_stack::git::GitRepo,
+    head_branch: &'r git_stack::git::Branch,
     node: Option<&'r git_stack::graph::Node>,
     palette: &'r Palette,
 }
@@ -945,6 +955,7 @@ impl<'r> RenderNode<'r> {
     fn joint(&self) -> Self {
         Self {
             repo: self.repo,
+            head_branch: self.head_branch,
             node: None,
             palette: self.palette,
         }
@@ -983,7 +994,7 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                         .map(|b| {
                             format!(
                                 "{}{}",
-                                format_branch_name(b, node, self.palette),
+                                format_branch_name(b, node, self.head_branch, self.palette),
                                 format_branch_status(b, self.repo, node, self.palette),
                             )
                         })
@@ -1019,12 +1030,15 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
 fn format_branch_name<'d>(
     branch: &'d git_stack::git::Branch,
     node: &'d git_stack::graph::Node,
+    head_branch: &'d git_stack::git::Branch,
     palette: &'d Palette,
 ) -> impl std::fmt::Display + 'd {
-    if node.action.is_protected() {
-        palette.info.paint(branch.name.as_str())
-    } else {
+    if head_branch.id == branch.id && head_branch.name == branch.name {
         palette.good.paint(branch.name.as_str())
+    } else if node.action.is_protected() {
+        palette.hint.paint(branch.name.as_str())
+    } else {
+        palette.info.paint(branch.name.as_str())
     }
 }
 
