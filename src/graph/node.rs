@@ -6,9 +6,9 @@ pub type Stack = vec1::Vec1<Node>;
 pub struct Node {
     pub local_commit: std::rc::Rc<crate::git::Commit>,
     pub branches: Vec<crate::git::Branch>,
-    pub stacks: Vec<Stack>,
     pub action: crate::graph::Action,
     pub pushable: bool,
+    pub stacks: Vec<Stack>,
 }
 
 impl Node {
@@ -23,9 +23,9 @@ impl Node {
         Self {
             local_commit,
             branches,
-            stacks,
             action: crate::graph::Action::Pick,
             pushable: false,
+            stacks,
         }
     }
 

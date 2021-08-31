@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Stack View
+  - Improved legibility of debug view by grouping non-nesting fields
+
 ## [0.2.3] - 2021-08-30
 
 #### Fixes
