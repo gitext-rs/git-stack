@@ -133,14 +133,19 @@ pub fn to_script(node: &Node) -> crate::git::Script {
     match node.action {
         // The base should be immutable, so nothing to cherry-pick
         crate::graph::Action::Pick | crate::graph::Action::Protected => {
-            let stack_mark = node.local_commit.id;
-            for child in node.children.values() {
-                script.dependents.extend(node_to_script(child));
-            }
-            if !script.dependents.is_empty() {
+            let node_dependents: Vec<_> = node
+                .children
+                .values()
+                .filter_map(|child| node_to_script(child))
+                .collect();
+            if !node_dependents.is_empty() {
+                let stack_mark = node.local_commit.id;
                 script
                     .commands
                     .push(crate::git::Command::SwitchCommit(stack_mark));
+
+                let transaction = false;
+                extend_dependents(node, &mut script, node_dependents, transaction);
             }
         }
         crate::graph::Action::Delete => unreachable!("base should be immutable"),
