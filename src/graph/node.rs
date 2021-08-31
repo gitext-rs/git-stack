@@ -1,6 +1,4 @@
-use itertools::Itertools;
-
-pub type Stack = vec1::Vec1<Node>;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Node {
@@ -8,7 +6,7 @@ pub struct Node {
     pub branches: Vec<crate::git::Branch>,
     pub action: crate::graph::Action,
     pub pushable: bool,
-    pub stacks: Vec<Stack>,
+    pub children: HashMap<git2::Oid, Node>,
 }
 
 impl Node {
@@ -19,13 +17,13 @@ impl Node {
         let branches = possible_branches
             .remove(local_commit.id)
             .unwrap_or_else(Vec::new);
-        let stacks = Vec::new();
+        let children = HashMap::new();
         Self {
             local_commit,
             branches,
             action: crate::graph::Action::Pick,
             pushable: false,
-            stacks,
+            children,
         }
     }
 
@@ -152,19 +150,22 @@ impl Node {
                 "HEAD must be a descendant of base",
             ));
         }
-        let base_commit = repo.find_commit(base_oid).unwrap();
 
-        let mut root = Node::new(base_commit, branches);
+        let head_commit = repo.find_commit(head_oid).unwrap();
+        let mut root = Node::new(head_commit, branches);
 
-        let mut stack: Vec<_> = repo
-            .commits_from(head_oid)
-            .take_while(|commit| commit.id != base_oid)
-            .map(|commit| Node::new(commit, branches))
-            .collect();
-        stack.reverse();
-        if let Ok(mut stack) = Stack::try_from_vec(stack) {
-            crate::graph::ops::delinearize_stack(&mut stack);
-            root.stacks.push(stack);
+        let mut commits = repo.commits_from(head_oid);
+        // Already added head_oid
+        let first = commits.next().expect("always at lead HEAD");
+        assert_eq!(first.id, head_oid);
+
+        for commit in commits {
+            let child = root;
+            root = Node::new(commit, branches);
+            root.children.insert(child.local_commit.id, child);
+            if root.local_commit.id == base_oid {
+                break;
+            }
         }
 
         Ok(root)
@@ -175,11 +176,9 @@ impl Node {
             return Some(self);
         }
 
-        for stack in self.stacks.iter_mut() {
-            for node in stack.iter_mut() {
-                if let Some(found) = node.find_commit_mut(id) {
-                    return Some(found);
-                }
+        for child in self.children.values_mut() {
+            if let Some(found) = child.find_commit_mut(id) {
+                return Some(found);
             }
         }
 
@@ -188,76 +187,17 @@ impl Node {
 
     fn merge(&mut self, mut other: Self) {
         assert_eq!(self.local_commit.id, other.local_commit.id);
+
         let mut branches = Vec::new();
         std::mem::swap(&mut other.branches, &mut branches);
         self.branches.extend(branches);
 
-        merge_stacks(self, other);
-    }
-}
-
-fn merge_stacks(lhs_node: &mut Node, rhs_node: Node) {
-    assert_eq!(lhs_node.local_commit.id, rhs_node.local_commit.id);
-
-    let rhs_node_stacks = rhs_node.stacks;
-    for rhs_node_stack in rhs_node_stacks {
-        // Allow emptu-state to know if merge happened
-        let mut rhs_node_stack = rhs_node_stack.into_vec();
-        for mut lhs_node_stack in lhs_node.stacks.iter_mut() {
-            merge_stack(&mut lhs_node_stack, &mut rhs_node_stack);
-            if rhs_node_stack.is_empty() {
-                break;
-            }
-        }
-        if let Ok(rhs_node_stack) = Stack::try_from_vec(rhs_node_stack) {
-            // No merge, add to stacks
-            lhs_node.stacks.push(rhs_node_stack);
-        }
-    }
-}
-
-/// If a merge occurs, `rhs_nodes` will be empty
-fn merge_stack(lhs_nodes: &mut Stack, rhs_nodes: &mut Vec<Node>) {
-    for (lhs, rhs) in lhs_nodes.iter_mut().zip(rhs_nodes.iter_mut()) {
-        if lhs.local_commit.id != rhs.local_commit.id {
-            break;
-        }
-        let mut branches = Vec::new();
-        std::mem::swap(&mut rhs.branches, &mut branches);
-        lhs.branches.extend(branches);
-    }
-
-    let index = lhs_nodes
-        .iter()
-        .zip_longest(rhs_nodes.iter())
-        .enumerate()
-        .find(|(_, zipped)| match zipped {
-            itertools::EitherOrBoth::Both(lhs, rhs) => lhs.local_commit.id != rhs.local_commit.id,
-            _ => true,
-        })
-        .map(|(index, zipped)| {
-            let zipped = zipped.map_any(|_| (), |_| ());
-            (index, zipped)
-        });
-
-    match index {
-        Some((index, itertools::EitherOrBoth::Both(_, _))) |
-        // rhs is a superset, so we can add it to lhs's stacks
-        Some((index, itertools::EitherOrBoth::Right(_))) => {
-            if index == 0 {
-                // Not a good merge candidate, find another
+        for (child_id, other_child) in other.children.into_iter() {
+            if let Some(self_child) = self.children.get_mut(&child_id) {
+                self_child.merge(other_child);
             } else {
-                let remaining = rhs_nodes.split_off(index);
-                let remaining = Stack::try_from_vec(remaining).unwrap();
-                let mut fake_rhs_node = rhs_nodes.pop().expect("if should catch this");
-                fake_rhs_node.stacks.push(remaining);
-                merge_stacks(&mut lhs_nodes[index - 1], fake_rhs_node);
-                rhs_nodes.clear();
+                self.children.insert(child_id, other_child);
             }
-        }
-        Some((_, itertools::EitherOrBoth::Left(_))) | None => {
-            // lhs is a superset, so consider us done.
-            rhs_nodes.clear();
         }
     }
 }

@@ -9,7 +9,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 #### Fixes
 
+- Resolved some more stack construction corner cases
 - Stack View
+  - Removed some degenerate cases by prioritizing protected branches over development branches
+  - We elide "o" joints, where possible
   - Improved legibility of debug view by grouping non-nesting fields
 
 ## [0.2.3] - 2021-08-30

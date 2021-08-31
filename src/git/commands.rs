@@ -9,6 +9,10 @@ impl Script {
         Default::default()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.commands.is_empty() && self.dependents.is_empty()
+    }
+
     pub fn branch(&self) -> Option<&str> {
         for command in self.commands.iter().rev() {
             if let Command::CreateBranch(name) = command {
