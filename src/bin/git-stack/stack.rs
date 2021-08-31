@@ -334,9 +334,9 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
     let mut graphed_branches = stack.graphed_branches();
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
     root = root.extend_branches(&state.repo, graphed_branches)?;
-    git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
+    git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
 
-    git_stack::graph::rebase_branches(&mut root, stack.onto.id)?;
+    git_stack::graph::rebase_branches(&mut root, stack.onto.id);
 
     let script = git_stack::graph::to_script(&root);
 
@@ -352,8 +352,8 @@ fn push(state: &mut State) -> eyre::Result<()> {
     let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
     root = root.extend_branches(&state.repo, graphed_branches)?;
 
-    git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
-    git_stack::graph::pushable(&mut root)?;
+    git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
+    git_stack::graph::pushable(&mut root);
 
     git_push(&mut state.repo, &root, state.dry_run)?;
 
@@ -369,11 +369,11 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
             let mut root =
                 git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
             root = root.extend_branches(&state.repo, graphed_branches)?;
-            git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches)?;
+            git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
 
             if state.dry_run {
                 // Show as-if we performed all mutations
-                git_stack::graph::rebase_branches(&mut root, stack.onto.id)?;
+                git_stack::graph::rebase_branches(&mut root, stack.onto.id);
             }
 
             eyre::Result::Ok(root)
@@ -387,10 +387,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
         root = root.extend(&state.repo, other?)?;
     }
 
-    git_stack::graph::pushable(&mut root)?;
-    if state.show_stacked {
-        git_stack::graph::linearize_by_size(&mut root);
-    }
+    git_stack::graph::pushable(&mut root);
 
     match state.show_format {
         git_stack::config::Format::Silent => (),
@@ -403,6 +400,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
                 DisplayTree::new(&state.repo, &root)
                     .colored(colored_stdout)
                     .show(state.show_format)
+                    .stacked(state.show_stacked)
             )?;
         }
         git_stack::config::Format::Debug => {
@@ -731,30 +729,30 @@ fn git_push_internal(
     }
 
     if failed.is_empty() {
-        for stack in node.stacks.iter() {
-            for stack_node in stack.iter() {
-                failed.extend(git_push_internal(repo, stack_node, dry_run));
-            }
+        for child in node.children.values() {
+            failed.extend(git_push_internal(repo, child, dry_run));
         }
     }
 
     failed
 }
 
-struct DisplayTree<'r, 'n> {
+struct DisplayTree<'r> {
     repo: &'r git_stack::git::GitRepo,
-    root: &'n git_stack::graph::Node,
+    root: &'r git_stack::graph::Node,
     palette: Palette,
     show: git_stack::config::Format,
+    stacked: bool,
 }
 
-impl<'r, 'n> DisplayTree<'r, 'n> {
-    pub fn new(repo: &'r git_stack::git::GitRepo, root: &'n git_stack::graph::Node) -> Self {
+impl<'r> DisplayTree<'r> {
+    pub fn new(repo: &'r git_stack::git::GitRepo, root: &'r git_stack::graph::Node) -> Self {
         Self {
             repo,
             root,
             palette: Palette::plain(),
             show: Default::default(),
+            stacked: Default::default(),
         }
     }
 
@@ -771,80 +769,192 @@ impl<'r, 'n> DisplayTree<'r, 'n> {
         self.show = show;
         self
     }
+
+    pub fn stacked(mut self, stacked: bool) -> Self {
+        self.stacked = stacked;
+        self
+    }
 }
 
-impl<'r, 'n> std::fmt::Display for DisplayTree<'r, 'n> {
+impl<'r> std::fmt::Display for DisplayTree<'r> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        let mut tree = treeline::Tree::root(RenderNode {
-            repo: self.repo,
-            node: Some(self.root),
-            palette: &self.palette,
-        });
-        to_tree(
-            self.repo,
-            self.root.stacks.as_slice(),
-            &mut tree,
-            &self.palette,
-            self.show,
-        );
+        let mut tree = to_tree(self.repo, self.root, &self.palette);
+        if self.stacked {
+            tree.linearize();
+        } else {
+            tree.sort();
+        }
+        match self.show {
+            git_stack::config::Format::Silent => tree.skip(|_| true),
+            git_stack::config::Format::Commits => tree.skip(|_| false),
+            git_stack::config::Format::BranchCommits => tree.skip(|tree| {
+                if let Some(node) = tree.root.node {
+                    let protected = node.action.is_protected();
+                    let boring_commit = node.branches.is_empty() && tree.stacks.is_empty();
+                    protected && boring_commit
+                } else {
+                    false
+                }
+            }),
+            git_stack::config::Format::Branches => tree.skip(|tree| {
+                if let Some(node) = tree.root.node {
+                    let boring_commit = node.branches.is_empty() && tree.stacks.is_empty();
+                    boring_commit
+                } else {
+                    false
+                }
+            }),
+            git_stack::config::Format::Debug => tree.skip(|_| false),
+        }
+        let tree = tree.into_display();
         tree.fmt(f)
     }
 }
 
-fn to_tree<'r, 'n, 'p>(
+fn to_tree<'r>(
     repo: &'r git_stack::git::GitRepo,
-    nodes: &'n [git_stack::graph::Stack],
-    tree: &mut treeline::Tree<RenderNode<'r, 'n, 'p>>,
-    palette: &'p Palette,
-    show: git_stack::config::Format,
-) {
-    for branch in nodes {
-        let mut branch_root = treeline::Tree::root(RenderNode {
+    node: &'r git_stack::graph::Node,
+    palette: &'r Palette,
+) -> Tree<'r> {
+    let mut weight = if node.action.is_protected() {
+        Weight::Protected(0)
+    } else {
+        Weight::Commit(0)
+    };
+
+    let mut stacks = Vec::new();
+    for child in node.children.values() {
+        let child_tree = to_tree(repo, child, palette);
+        weight = weight.max(child_tree.weight);
+        stacks.push(vec![child_tree]);
+    }
+
+    let tree = Tree {
+        root: RenderNode {
             repo,
-            node: None,
+            node: Some(node),
             palette,
-        });
-        for node in branch {
-            let skip = match show {
-                git_stack::config::Format::Silent => true,
-                git_stack::config::Format::Commits => false,
-                git_stack::config::Format::BranchCommits => {
-                    let protected = node.action.is_protected();
-                    let boring_commit = node.branches.is_empty() && node.stacks.is_empty();
-                    protected && boring_commit
+        },
+        weight,
+        stacks,
+    };
+
+    tree
+}
+
+struct Tree<'r> {
+    root: RenderNode<'r>,
+    stacks: Vec<Vec<Self>>,
+    weight: Weight,
+}
+
+impl<'r> Tree<'r> {
+    fn skip<F>(&mut self, is_skipped: F)
+    where
+        F: Fn(&Self) -> bool + Copy,
+    {
+        for stack in self.stacks.iter_mut() {
+            let mut skipped = Vec::new();
+            for (index, child) in stack.iter_mut().enumerate() {
+                if is_skipped(child) {
+                    skipped.push(index)
+                } else {
+                    child.skip(is_skipped);
                 }
-                git_stack::config::Format::Branches => {
-                    let boring_commit = node.branches.is_empty() && node.stacks.is_empty();
-                    boring_commit
-                }
-                git_stack::config::Format::Debug => false,
-            };
-            if skip {
-                log::trace!("Skipping commit {}", node.local_commit.id);
-                continue;
             }
-            let mut child_tree = treeline::Tree::root(RenderNode {
-                repo,
-                node: Some(node),
-                palette,
-            });
-            to_tree(repo, node.stacks.as_slice(), &mut child_tree, palette, show);
-            branch_root.push(child_tree);
+            skipped.reverse();
+            for index in skipped {
+                stack.remove(index);
+            }
         }
-        tree.push(branch_root);
+    }
+
+    fn sort(&mut self) {
+        self.stacks.sort_by_key(|s| s[0].weight);
+        for stack in self.stacks.iter_mut() {
+            for child in stack.iter_mut() {
+                child.sort();
+            }
+        }
+    }
+
+    fn linearize(&mut self) {
+        self.stacks.sort_by_key(|s| s[0].weight);
+        for stack in self.stacks.iter_mut() {
+            for child in stack.iter_mut() {
+                child.linearize();
+            }
+            let append = {
+                let last = stack.last_mut().expect("stack always has at least 1");
+                if last.stacks.is_empty() {
+                    None
+                } else {
+                    last.stacks.pop()
+                }
+            };
+            stack.extend(append.into_iter().flatten());
+        }
+    }
+
+    fn into_display(self) -> treeline::Tree<RenderNode<'r>> {
+        let mut tree = treeline::Tree::root(self.root);
+        if self.stacks.len() == 1 {
+            for stack in self.stacks.into_iter() {
+                for child in stack.into_iter() {
+                    tree.push(child.into_display());
+                }
+            }
+        } else {
+            for stack in self.stacks.into_iter() {
+                let mut stack_tree = treeline::Tree::root(self.root.joint());
+                for child in stack.into_iter() {
+                    stack_tree.push(child.into_display());
+                }
+                tree.push(stack_tree);
+            }
+        }
+        tree
     }
 }
 
-struct RenderNode<'r, 'n, 'p> {
+#[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Weight {
+    Commit(usize),
+    Protected(usize),
+}
+
+impl Weight {
+    fn max(self, other: Self) -> Self {
+        match (self, other) {
+            (Self::Protected(s), Self::Protected(o)) => Self::Protected(s.max(o)),
+            (Self::Protected(s), _) => Self::Protected(s),
+            (_, Self::Protected(o)) => Self::Protected(o),
+            (Self::Commit(s), Self::Commit(o)) => Self::Commit(s.max(o)),
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+struct RenderNode<'r> {
     repo: &'r git_stack::git::GitRepo,
-    node: Option<&'n git_stack::graph::Node>,
-    palette: &'p Palette,
+    node: Option<&'r git_stack::graph::Node>,
+    palette: &'r Palette,
+}
+
+impl<'r> RenderNode<'r> {
+    fn joint(&self) -> Self {
+        Self {
+            repo: self.repo,
+            node: None,
+            palette: self.palette,
+        }
+    }
 }
 
 // Shared implementation doesn't mean shared requirements, we want to track according to
 // requirements
 #[allow(clippy::if_same_then_else)]
-impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
+impl<'r> std::fmt::Display for RenderNode<'r> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
@@ -855,7 +965,7 @@ impl<'r, 'n, 'p> std::fmt::Display for RenderNode<'r, 'n, 'p> {
                     .unwrap()
                     .short_id()
                     .unwrap();
-                let style = if node.stacks.is_empty() {
+                let style = if node.children.len() <= 1 {
                     self.palette.hint
                 } else if node.action.is_protected() {
                     self.palette.hint
