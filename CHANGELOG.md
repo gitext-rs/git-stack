@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Stack View:
+  - Ensure protected commits are hidden when showing multiple protected branches
+
 ## [0.2.6] - 2021-09-01
 
 #### Fixes
