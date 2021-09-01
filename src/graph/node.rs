@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Node {
@@ -6,7 +6,7 @@ pub struct Node {
     pub branches: Vec<crate::git::Branch>,
     pub action: crate::graph::Action,
     pub pushable: bool,
-    pub children: HashMap<git2::Oid, Node>,
+    pub children: BTreeMap<git2::Oid, Node>,
 }
 
 impl Node {
@@ -17,7 +17,7 @@ impl Node {
         let branches = possible_branches
             .remove(local_commit.id)
             .unwrap_or_else(Vec::new);
-        let children = HashMap::new();
+        let children = BTreeMap::new();
         Self {
             local_commit,
             branches,
@@ -59,8 +59,13 @@ impl Node {
             .ok_or_else(|| eyre::eyre!("Could not find merge base"))?;
 
         if merge_base_id != self.local_commit.id {
-            let prefix =
-                Node::populate(repo, merge_base_id, self.local_commit.id, possible_branches)?;
+            let prefix = Node::populate(
+                repo,
+                merge_base_id,
+                self.local_commit.id,
+                possible_branches,
+                self.action,
+            )?;
             self = prefix.extend(repo, self)?;
         }
 
@@ -69,6 +74,7 @@ impl Node {
             self.local_commit.id,
             local_commit.id,
             possible_branches,
+            crate::graph::Action::Pick,
         )?;
         self.merge(other);
 
@@ -106,6 +112,7 @@ impl Node {
                     merge_base_id,
                     self.local_commit.id,
                     &mut possible_branches,
+                    self.action,
                 )?;
                 self = prefix.extend(repo, self)?;
             }
@@ -115,6 +122,7 @@ impl Node {
                     merge_base_id,
                     other.local_commit.id,
                     &mut possible_branches,
+                    other.action,
                 )?;
                 other = prefix.extend(repo, other)?;
             }
@@ -129,6 +137,7 @@ impl Node {
         base_oid: git2::Oid,
         head_oid: git2::Oid,
         branches: &mut crate::git::Branches,
+        default_action: crate::graph::Action,
     ) -> Result<Self, git2::Error> {
         if let Some(head_branches) = branches.get(head_oid) {
             let head_name = head_branches.first().unwrap().name.as_str();
@@ -153,6 +162,7 @@ impl Node {
 
         let head_commit = repo.find_commit(head_oid).unwrap();
         let mut root = Node::new(head_commit, branches);
+        root.action = default_action;
 
         let mut commits = repo.commits_from(head_oid);
         // Already added head_oid
@@ -163,6 +173,7 @@ impl Node {
             for commit in commits {
                 let child = root;
                 root = Node::new(commit, branches);
+                root.action = default_action;
                 root.children.insert(child.local_commit.id, child);
                 if root.local_commit.id == base_oid {
                     break;
