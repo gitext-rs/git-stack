@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.2.6] - 2021-09-01
+
 #### Fixes
 
 - Crash on merge of parent branch into child branch
@@ -87,7 +89,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.2.5...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.2.6...HEAD
+[0.2.6]: https://github.com/epage/git-stack/compare/v0.2.5...v0.2.6
 [0.2.5]: https://github.com/epage/git-stack/compare/v0.2.4...v0.2.5
 [0.2.4]: https://github.com/epage/git-stack/compare/v0.2.3...v0.2.4
 [0.2.3]: https://github.com/epage/git-stack/compare/v0.2.2...v0.2.3
