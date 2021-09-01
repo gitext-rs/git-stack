@@ -159,12 +159,14 @@ impl Node {
         let first = commits.next().expect("always at lead HEAD");
         assert_eq!(first.id, head_oid);
 
-        for commit in commits {
-            let child = root;
-            root = Node::new(commit, branches);
-            root.children.insert(child.local_commit.id, child);
-            if root.local_commit.id == base_oid {
-                break;
+        if head_oid != base_oid {
+            for commit in commits {
+                let child = root;
+                root = Node::new(commit, branches);
+                root.children.insert(child.local_commit.id, child);
+                if root.local_commit.id == base_oid {
+                    break;
+                }
             }
         }
 
