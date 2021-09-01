@@ -178,6 +178,29 @@ fn cherry_pick_conflict() {
 }
 
 #[test]
+fn squash_clean() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+    plan.run(temp.path()).unwrap();
+
+    let repo = git2::Repository::discover(temp.path()).unwrap();
+    let mut repo = GitRepo::new(repo);
+
+    {
+        assert!(!repo.is_dirty());
+
+        let base = repo.find_local_branch("master").unwrap();
+        let source = repo.find_local_branch("feature2").unwrap();
+        let dest_id = repo.squash(source.id, base.id).unwrap();
+
+        repo.branch("squashed", dest_id).unwrap();
+        assert!(!repo.is_dirty());
+    }
+
+    temp.close().unwrap();
+}
+
+#[test]
 fn branch() {
     let temp = assert_fs::TempDir::new().unwrap();
     let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
