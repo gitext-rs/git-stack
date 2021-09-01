@@ -85,7 +85,7 @@ impl State {
                 }]
             }
             (None, None, git_stack::config::Stack::All) => {
-                let mut stack_branches = std::collections::HashMap::new();
+                let mut stack_branches = std::collections::BTreeMap::new();
                 for (branch_id, branch) in branches.iter() {
                     let base_branch =
                         resolve_implicit_base(&repo, branch_id, &branches, &protected_branches)

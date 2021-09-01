@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Node {
@@ -6,7 +6,7 @@ pub struct Node {
     pub branches: Vec<crate::git::Branch>,
     pub action: crate::graph::Action,
     pub pushable: bool,
-    pub children: HashMap<git2::Oid, Node>,
+    pub children: BTreeMap<git2::Oid, Node>,
 }
 
 impl Node {
@@ -17,7 +17,7 @@ impl Node {
         let branches = possible_branches
             .remove(local_commit.id)
             .unwrap_or_else(Vec::new);
-        let children = HashMap::new();
+        let children = BTreeMap::new();
         Self {
             local_commit,
             branches,
