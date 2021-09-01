@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Crash on merge of parent branch into child branch
+
 ## [0.2.5] - 2021-08-31
 
 #### Fixes
