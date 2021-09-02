@@ -1034,11 +1034,11 @@ fn format_branch_name<'d>(
     palette: &'d Palette,
 ) -> impl std::fmt::Display + 'd {
     if head_branch.id == branch.id && head_branch.name == branch.name {
-        palette.good.paint(branch.name.as_str())
+        palette.highlight.paint(branch.name.as_str())
     } else if node.action.is_protected() {
-        palette.hint.paint(branch.name.as_str())
-    } else {
         palette.info.paint(branch.name.as_str())
+    } else {
+        palette.good.paint(branch.name.as_str())
     }
 }
 
@@ -1160,6 +1160,7 @@ struct Palette {
     warn: yansi::Style,
     info: yansi::Style,
     good: yansi::Style,
+    highlight: yansi::Style,
     hint: yansi::Style,
 }
 
@@ -1169,8 +1170,9 @@ impl Palette {
             error: yansi::Style::new(yansi::Color::Red),
             warn: yansi::Style::new(yansi::Color::Yellow),
             info: yansi::Style::new(yansi::Color::Blue),
-            good: yansi::Style::new(yansi::Color::Green),
-            hint: yansi::Style::new(yansi::Color::Blue).dimmed(),
+            good: yansi::Style::new(yansi::Color::Cyan),
+            highlight: yansi::Style::new(yansi::Color::Green),
+            hint: yansi::Style::new(yansi::Color::Unset).dimmed(),
         }
     }
 
@@ -1180,6 +1182,7 @@ impl Palette {
             warn: yansi::Style::default(),
             info: yansi::Style::default(),
             good: yansi::Style::default(),
+            highlight: yansi::Style::default(),
             hint: yansi::Style::default(),
         }
     }
