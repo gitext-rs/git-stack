@@ -1,0 +1,81 @@
+init: true
+events:
+- tree:
+    tracked:
+      "file_a.txt": "1"
+    message: "1"
+    branch: initial
+- tree:
+    tracked:
+      "file_a.txt": "2"
+    message: "2"
+- tree:
+    tracked:
+      "file_a.txt": "3"
+    message: "3"
+    branch: base
+- children:
+  - - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "1"
+        message: "4"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "2"
+        message: "5"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "3"
+        message: "6"
+        branch: old_master
+    # AzDO has the "semi-linear merge" type which rebases the branch before merging
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "3"
+          "file_c.txt": "1"
+        message: "7"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "3"
+          "file_c.txt": "2"
+        message: "8"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "3"
+          "file_c.txt": "3"
+        message: "9"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "3"
+          "file_c.txt": "4"
+        message: "10"
+        branch: master
+  - - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_c.txt": "1"
+        message: "7"
+        branch: feature1
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_c.txt": "2"
+        message: "8"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_c.txt": "3"
+        message: "9"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_c.txt": "4"
+        message: "10"
+        branch: feature2

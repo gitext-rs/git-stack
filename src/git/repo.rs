@@ -13,6 +13,11 @@ pub trait Repo {
         &self,
         head_id: git2::Oid,
     ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_>;
+    fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error>;
     fn cherry_pick(
         &mut self,
         head_id: git2::Oid,
@@ -211,6 +216,62 @@ impl GitRepo {
         revwalk
             .filter_map(Result::ok)
             .filter_map(move |oid| self.find_commit(oid))
+    }
+
+    pub fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
+        let needle_commit = self.repo.find_commit(needle_id)?;
+        let needle_ann_commit = self.repo.find_annotated_commit(needle_id)?;
+        let haystack_ann_commit = self.repo.find_annotated_commit(haystack_id)?;
+
+        let parent_ann_commit = if 0 < needle_commit.parent_count() {
+            let parent_commit = needle_commit.parent(0)?;
+            Some(self.repo.find_annotated_commit(parent_commit.id())?)
+        } else {
+            None
+        };
+
+        let mut rebase = self.repo.rebase(
+            Some(&needle_ann_commit),
+            parent_ann_commit.as_ref(),
+            Some(&haystack_ann_commit),
+            Some(git2::RebaseOptions::new().inmemory(true)),
+        )?;
+
+        if let Some(op) = rebase.next() {
+            op.map_err(|e| {
+                let _ = rebase.abort();
+                e
+            })?;
+            let inmemory_index = rebase.inmemory_index().unwrap();
+            if inmemory_index.has_conflicts() {
+                return Ok(false);
+            }
+
+            let sig = self.repo.signature().unwrap();
+            match rebase.commit(None, &sig, None).map_err(|e| {
+                let _ = rebase.abort();
+                e
+            }) {
+                // Created commit, must be unique
+                Ok(_) => Ok(false),
+                Err(err) => {
+                    if err.class() == git2::ErrorClass::Rebase
+                        && err.code() == git2::ErrorCode::Applied
+                    {
+                        return Ok(true);
+                    }
+                    Err(err)
+                }
+            }
+        } else {
+            // No commit created, must exist somehow
+            rebase.finish(None)?;
+            Ok(true)
+        }
     }
 
     fn cherry_pick(
@@ -491,6 +552,14 @@ impl Repo for GitRepo {
         Box::new(self.commits_from(head_id))
     }
 
+    fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
+        self.contains_commit(haystack_id, needle_id)
+    }
+
     fn cherry_pick(
         &mut self,
         head_id: git2::Oid,
@@ -622,6 +691,22 @@ impl InMemoryRepo {
             commits: &self.commits,
             next,
         }
+    }
+
+    pub fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
+        // Because we don't have the information for likeness matches, just checking for Oid
+        let mut next = Some(haystack_id);
+        while let Some(current) = next {
+            if current == needle_id {
+                return Ok(true);
+            }
+            next = self.commits.get(&current).and_then(|c| c.0);
+        }
+        Ok(false)
     }
 
     pub fn cherry_pick(
@@ -774,6 +859,14 @@ impl Repo for InMemoryRepo {
         head_id: git2::Oid,
     ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_> {
         Box::new(self.commits_from(head_id))
+    }
+
+    fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
+        self.contains_commit(haystack_id, needle_id)
     }
 
     fn cherry_pick(

@@ -1,0 +1,36 @@
+init: true
+events:
+- tree:
+    tracked:
+      "file_a.txt": "1"
+    message: "1"
+    branch: initial
+- tree:
+    tracked:
+      "file_a.txt": "2"
+    message: "2"
+- tree:
+    tracked:
+      "file_a.txt": "3"
+    message: "3"
+    branch: master
+- children:
+  - - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "1"
+        message: "7"
+    - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "1"
+          "file_c.txt": "1"
+        message: "8"
+        branch: feature2
+  # `git rebase master` caused the history to split
+  - - tree:
+        tracked:
+          "file_a.txt": "3"
+          "file_b.txt": "1"
+        message: "7"
+        branch: feature1
