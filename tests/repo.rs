@@ -37,7 +37,7 @@ fn shared_fixture() {
     {
         {
             let one = repo.find_local_branch("feature1").unwrap();
-            let two = repo.find_local_branch("feature1").unwrap();
+            let two = repo.find_local_branch("feature2").unwrap();
 
             let actual = repo.merge_base(one.id, two.id).unwrap();
             assert_eq!(actual, one.id);
