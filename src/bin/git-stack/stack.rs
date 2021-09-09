@@ -1142,9 +1142,7 @@ fn format_branch_status<'d>(
                                 .paint(format!("({} ahead, {} behind)", local, remote)),
                         )
                     }
-                    None => {
-                        format!(" {}", palette.info.paint("(no remote)"))
-                    }
+                    None => format!(""),
                 }
             }
         }
