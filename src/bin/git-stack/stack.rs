@@ -1004,11 +1004,17 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                 };
                 write!(f, "{}", style.paint(abbrev_id.as_str().unwrap()))?;
             } else {
+                let mut branches: Vec<_> = node.branches.iter().collect();
+                branches.sort_by_key(|b| {
+                    let is_head = self.head_branch.id == b.id && self.head_branch.name == b.name;
+                    let head_first = !is_head;
+                    (head_first, &b.name)
+                });
                 write!(
                     f,
                     "{}",
-                    node.branches
-                        .iter()
+                    branches
+                        .into_iter()
                         .map(|b| {
                             format!(
                                 "{}{}",
