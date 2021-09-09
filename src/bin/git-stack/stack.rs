@@ -401,6 +401,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
                     .colored(colored_stdout)
                     .show(state.show_format)
                     .stacked(state.show_stacked)
+                    .protected_branches(&state.protected_branches)
             )?;
         }
         git_stack::config::Format::Debug => {
@@ -740,6 +741,7 @@ fn git_push_internal(
 struct DisplayTree<'r> {
     repo: &'r git_stack::git::GitRepo,
     root: &'r git_stack::graph::Node,
+    protected_branches: git_stack::git::Branches,
     palette: Palette,
     show: git_stack::config::Format,
     stacked: bool,
@@ -750,6 +752,7 @@ impl<'r> DisplayTree<'r> {
         Self {
             repo,
             root,
+            protected_branches: Default::default(),
             palette: Palette::plain(),
             show: Default::default(),
             stacked: Default::default(),
@@ -774,12 +777,23 @@ impl<'r> DisplayTree<'r> {
         self.stacked = stacked;
         self
     }
+
+    pub fn protected_branches(mut self, protected_branches: &git_stack::git::Branches) -> Self {
+        self.protected_branches = protected_branches.clone();
+        self
+    }
 }
 
 impl<'r> std::fmt::Display for DisplayTree<'r> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let head_branch = self.repo.head_branch().unwrap();
-        let mut tree = to_tree(self.repo, &head_branch, self.root, &self.palette);
+        let mut tree = to_tree(
+            self.repo,
+            &head_branch,
+            &self.protected_branches,
+            self.root,
+            &self.palette,
+        );
         if self.stacked {
             tree.linearize();
         } else {
@@ -815,6 +829,7 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
 fn to_tree<'r>(
     repo: &'r git_stack::git::GitRepo,
     head_branch: &'r git_stack::git::Branch,
+    protected_branches: &'r git_stack::git::Branches,
     node: &'r git_stack::graph::Node,
     palette: &'r Palette,
 ) -> Tree<'r> {
@@ -828,7 +843,7 @@ fn to_tree<'r>(
 
     let mut stacks = Vec::new();
     for child in node.children.values() {
-        let child_tree = to_tree(repo, head_branch, child, palette);
+        let child_tree = to_tree(repo, head_branch, protected_branches, child, palette);
         weight = weight.max(child_tree.weight);
         stacks.push(vec![child_tree]);
     }
@@ -837,6 +852,7 @@ fn to_tree<'r>(
         root: RenderNode {
             repo,
             head_branch,
+            protected_branches,
             node: Some(node),
             palette,
         },
@@ -947,6 +963,7 @@ impl Weight {
 struct RenderNode<'r> {
     repo: &'r git_stack::git::GitRepo,
     head_branch: &'r git_stack::git::Branch,
+    protected_branches: &'r git_stack::git::Branches,
     node: Option<&'r git_stack::graph::Node>,
     palette: &'r Palette,
 }
@@ -956,6 +973,7 @@ impl<'r> RenderNode<'r> {
         Self {
             repo: self.repo,
             head_branch: self.head_branch,
+            protected_branches: self.protected_branches,
             node: None,
             palette: self.palette,
         }
@@ -994,7 +1012,13 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                         .map(|b| {
                             format!(
                                 "{}{}",
-                                format_branch_name(b, node, self.head_branch, self.palette),
+                                format_branch_name(
+                                    b,
+                                    node,
+                                    self.head_branch,
+                                    self.protected_branches,
+                                    self.palette
+                                ),
                                 format_branch_status(b, self.repo, node, self.palette),
                             )
                         })
@@ -1031,14 +1055,21 @@ fn format_branch_name<'d>(
     branch: &'d git_stack::git::Branch,
     node: &'d git_stack::graph::Node,
     head_branch: &'d git_stack::git::Branch,
+    protected_branches: &'d git_stack::git::Branches,
     palette: &'d Palette,
 ) -> impl std::fmt::Display + 'd {
     if head_branch.id == branch.id && head_branch.name == branch.name {
         palette.highlight.paint(branch.name.as_str())
-    } else if node.action.is_protected() {
-        palette.info.paint(branch.name.as_str())
     } else {
-        palette.good.paint(branch.name.as_str())
+        let protected = protected_branches.get(branch.id);
+        if protected.into_iter().flatten().contains(&branch) {
+            palette.info.paint(branch.name.as_str())
+        } else if node.action.is_protected() {
+            // Either haven't started dev or it got merged
+            palette.warn.paint(branch.name.as_str())
+        } else {
+            palette.good.paint(branch.name.as_str())
+        }
     }
 }
 
