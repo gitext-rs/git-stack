@@ -976,13 +976,13 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                     .unwrap()
                     .short_id()
                     .unwrap();
-                let style = if node.children.len() <= 1 {
-                    self.palette.hint
-                } else if node.action.is_protected() {
-                    self.palette.hint
-                } else {
+                let style = if node.action.is_protected() {
+                    self.palette.info
+                } else if 1 < node.children.len() {
                     // Branches should be off of other branches
                     self.palette.warn
+                } else {
+                    self.palette.hint
                 };
                 write!(f, "{}", style.paint(abbrev_id.as_str().unwrap()))?;
             } else {
