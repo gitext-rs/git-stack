@@ -1115,7 +1115,7 @@ fn format_branch_status<'d>(
             format!("")
         } else {
             if node.pushable {
-                format!(" {}", palette.info.paint("(ready) "))
+                format!(" {}", palette.info.paint("(ready)"))
             } else {
                 let branch = &node.branches[0];
                 match commit_relation(repo, branch.id, branch.push_id) {
