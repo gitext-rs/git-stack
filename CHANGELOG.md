@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Stack View:
+  - Make highlights stand out more by using less color
+  - Highlight dev branches pointing to protected commits
+  - Make HEAD more obvious by listing it first
+  - Removed a superfluous remote status
+
 ## [0.2.7] - 2021-09-01
 
 #### Fixes
