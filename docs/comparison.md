@@ -78,3 +78,7 @@ Cons:
 - `git reparent-branch` to rebase a tree of branches onto another branch
 - `git nav-downstream` / `git nav-upstream` to move between parent / child branches in a stack
   - `git nav-downstream` prompts on ambiguity
+
+## git-series
+
+[Website](https://github.com/git-series/git-series)
