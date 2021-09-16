@@ -44,6 +44,7 @@ pub struct Branch {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Commit {
     pub id: git2::Oid,
+    pub tree_id: git2::Oid,
     pub summary: bstr::BString,
 }
 
@@ -152,6 +153,7 @@ impl GitRepo {
             let summary: bstr::BString = commit.summary_bytes().unwrap().into();
             let commit = std::rc::Rc::new(Commit {
                 id: commit.id(),
+                tree_id: commit.tree_id(),
                 summary,
             });
             commits.insert(id, std::rc::Rc::clone(&commit));
