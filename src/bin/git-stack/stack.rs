@@ -994,7 +994,9 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                     .unwrap()
                     .short_id()
                     .unwrap();
-                let style = if node.action.is_protected() {
+                let style = if self.head_branch.id == node.local_commit.id {
+                    self.palette.highlight
+                } else if node.action.is_protected() {
                     self.palette.info
                 } else if 1 < node.children.len() {
                     // Branches should be off of other branches
