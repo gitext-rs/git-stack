@@ -687,7 +687,7 @@ fn drop_branches(
             if branch.name == potential_head {
                 continue;
             } else if head_branch_name == Some(branch.name.as_str()) {
-                // Dom't leave HEAD detached but instead switch to the branch we pulled
+                // Don't leave HEAD detached but instead switch to the branch we pulled
                 log::trace!("git switch {}", potential_head);
                 if !dry_run {
                     repo.switch(potential_head)?;
