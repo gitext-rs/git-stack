@@ -197,11 +197,21 @@ fn node_to_script(node: &Node) -> Option<crate::git::Script> {
             }
         }
         crate::graph::Action::Delete => {
-            assert!(node.children.is_empty());
             for branch in node.branches.iter() {
                 script
                     .commands
                     .push(crate::git::Command::DeleteBranch(branch.name.clone()));
+            }
+
+            let node_dependents: Vec<_> = node
+                .children
+                .values()
+                .filter_map(|child| node_to_script(child))
+                .collect();
+            if !node_dependents.is_empty() {
+                // End the transaction on branch boundaries
+                let transaction = !node.branches.is_empty();
+                extend_dependents(node, &mut script, node_dependents, transaction);
             }
         }
     }
