@@ -1050,7 +1050,7 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                 // Not for pushing implicitly
                 write!(f, "{}", self.palette.error.paint(summary))?;
             } else {
-                write!(f, "{}", self.palette.hint.paint(summary))?;
+                write!(f, "{}", summary)?;
             }
         } else {
             write!(f, "o")?;
@@ -1204,11 +1204,11 @@ struct Palette {
 impl Palette {
     pub fn colored() -> Self {
         Self {
-            error: yansi::Style::new(yansi::Color::Red),
-            warn: yansi::Style::new(yansi::Color::Yellow),
-            info: yansi::Style::new(yansi::Color::Blue),
-            good: yansi::Style::new(yansi::Color::Cyan),
-            highlight: yansi::Style::new(yansi::Color::Green),
+            error: yansi::Style::new(yansi::Color::Red).bold(),
+            warn: yansi::Style::new(yansi::Color::Yellow).bold(),
+            info: yansi::Style::new(yansi::Color::Blue).bold(),
+            good: yansi::Style::new(yansi::Color::Cyan).bold(),
+            highlight: yansi::Style::new(yansi::Color::Green).bold(),
             hint: yansi::Style::new(yansi::Color::Unset).dimmed(),
         }
     }
