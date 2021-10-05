@@ -1122,29 +1122,31 @@ fn format_branch_status<'d>(
         if node.branches.is_empty() {
             format!("")
         } else {
-            if node.pushable {
-                format!(" {}", palette.info.paint("(ready)"))
-            } else {
-                let branch = &node.branches[0];
-                match commit_relation(repo, branch.id, branch.push_id) {
-                    Some((0, 0)) => {
-                        format!(" {}", palette.good.paint("(pushed)"))
+            let branch = &node.branches[0];
+            match commit_relation(repo, branch.id, branch.push_id) {
+                Some((0, 0)) => {
+                    format!(" {}", palette.good.paint("(pushed)"))
+                }
+                Some((local, 0)) => {
+                    format!(" {}", palette.info.paint(format!("({} ahead)", local)))
+                }
+                Some((0, remote)) => {
+                    format!(" {}", palette.warn.paint(format!("({} behind)", remote)))
+                }
+                Some((local, remote)) => {
+                    format!(
+                        " {}",
+                        palette
+                            .warn
+                            .paint(format!("({} ahead, {} behind)", local, remote)),
+                    )
+                }
+                None => {
+                    if node.pushable {
+                        format!(" {}", palette.info.paint("(ready)"))
+                    } else {
+                        format!("")
                     }
-                    Some((local, 0)) => {
-                        format!(" {}", palette.info.paint(format!("({} ahead)", local)))
-                    }
-                    Some((0, remote)) => {
-                        format!(" {}", palette.warn.paint(format!("({} behind)", remote)))
-                    }
-                    Some((local, remote)) => {
-                        format!(
-                            " {}",
-                            palette
-                                .warn
-                                .paint(format!("({} ahead, {} behind)", local, remote)),
-                        )
-                    }
-                    None => format!(""),
                 }
             }
         }
@@ -1179,6 +1181,10 @@ fn commit_relation(
     remote: Option<git2::Oid>,
 ) -> Option<(usize, usize)> {
     let remote = remote?;
+    if local == remote {
+        return Some((0, 0));
+    }
+
     let base = repo.merge_base(local, remote)?;
     let local_count = repo
         .commits_from(local)
