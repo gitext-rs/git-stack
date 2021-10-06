@@ -2,7 +2,8 @@
 #[structopt(
         setting = structopt::clap::AppSettings::UnifiedHelpMessage,
         setting = structopt::clap::AppSettings::DeriveDisplayOrder,
-        setting = structopt::clap::AppSettings::DontCollapseArgsInUsage
+        setting = structopt::clap::AppSettings::DontCollapseArgsInUsage,
+        setting = concolor_clap::color_choice(),
     )]
 pub struct Args {
     #[structopt(subcommand)]
@@ -12,7 +13,7 @@ pub struct Args {
     pub push: PushArgs,
 
     #[structopt(flatten)]
-    pub color: git_stack::color::ColorArgs,
+    pub(crate) color: concolor_clap::Color,
 
     #[structopt(flatten)]
     pub verbose: clap_verbosity_flag::Verbosity,
