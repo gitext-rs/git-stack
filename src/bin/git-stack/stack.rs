@@ -218,6 +218,14 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
             return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
         }
 
+        // Update status of remote unprotected branches
+        match git_fetch(&mut state.repo) {
+            Ok(_) => (),
+            Err(err) => {
+                log::warn!("Skipping fetch of `{}`, {}", state.repo.push_remote(), err);
+            }
+        }
+
         let mut pulled_ids = HashSet::new();
         for stack in state.stacks.iter() {
             let mut stack_pulled_ids = HashSet::new();
@@ -444,6 +452,23 @@ fn resolve_implicit_base(
             .unwrap_or_else(|| "target".to_owned())
     );
     Ok(branch.clone())
+}
+
+fn git_fetch(repo: &mut git_stack::git::GitRepo) -> eyre::Result<()> {
+    let remote = repo.push_remote();
+    log::debug!("git fetch {}", remote);
+    // A little uncertain about some of the weirder authentication needs, just deferring to `git`
+    // instead of using `libgit2`
+    let status = std::process::Command::new("git")
+        .arg("fetch")
+        .arg(remote)
+        .status()
+        .wrap_err("Could not run `git fetch`")?;
+    if !status.success() {
+        eyre::bail!("`git fetch {}` failed", remote);
+    }
+
+    Ok(())
 }
 
 fn git_pull(
