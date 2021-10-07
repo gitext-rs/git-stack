@@ -368,7 +368,7 @@ dependencies = [
  "serde",
  "serde_json",
  "structopt",
- "treeline",
+ "termtree",
  "yansi",
 ]
 
@@ -1038,6 +1038,12 @@ checksum = "2dfed899f0eb03f32ee8c6a0aabdb8a7949659e3466561fc0adf54e26d88c5f4"
 dependencies = [
  "winapi-util",
 ]
+
+[[package]]
+name = "termtree"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "78fbf2dd23e79c28ccfa2472d3e6b3b189866ffef1aeb91f17c2d968b6586378"
 
 [[package]]
 name = "textwrap"
