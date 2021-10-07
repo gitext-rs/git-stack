@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Features
+
+- `git stack --pull` will also fetch the push-remote, ensuring we show the latest status relative to it.
+
+#### Fixes
+
+- Highlight detached HEAD
+- Changed branch status precedence
+- Tweaked colors
+- Smarter color control
+
 ## [0.2.8] - 2021-09-10
 
 #### Fixes
