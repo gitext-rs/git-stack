@@ -942,8 +942,8 @@ impl<'r> Tree<'r> {
         }
     }
 
-    fn into_display(self) -> treeline::Tree<RenderNode<'r>> {
-        let mut tree = treeline::Tree::root(self.root);
+    fn into_display(self) -> termtree::Tree<RenderNode<'r>> {
+        let mut tree = termtree::Tree::root(self.root);
         if self.stacks.len() == 1 {
             for stack in self.stacks.into_iter() {
                 for child in stack.into_iter() {
@@ -952,7 +952,7 @@ impl<'r> Tree<'r> {
             }
         } else {
             for stack in self.stacks.into_iter() {
-                let mut stack_tree = treeline::Tree::root(self.root.joint());
+                let mut stack_tree = termtree::Tree::root(self.root.joint());
                 for child in stack.into_iter() {
                     stack_tree.push(child.into_display());
                 }
