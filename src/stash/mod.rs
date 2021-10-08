@@ -1,6 +1,6 @@
 #[allow(clippy::module_inception)]
-mod backup;
+mod snapshot;
 mod stack;
 
-pub use backup::*;
+pub use snapshot::*;
 pub use stack::*;
