@@ -349,6 +349,7 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
 
     git_stack::graph::rebase_branches(&mut root, stack.onto.id);
+    git_stack::graph::drop_by_tree_id(&mut root);
 
     let script = git_stack::graph::to_script(&root);
 
@@ -389,6 +390,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
             if state.dry_run {
                 // Show as-if we performed all mutations
                 git_stack::graph::rebase_branches(&mut root, stack.onto.id);
+                git_stack::graph::drop_by_tree_id(&mut root);
             }
 
             eyre::Result::Ok(root)

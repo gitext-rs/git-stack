@@ -77,6 +77,13 @@ impl Commit {
                 .next()
         }
     }
+
+    pub fn revert_summary(&self) -> Option<&bstr::BStr> {
+        self.summary
+            .strip_prefix(b"Revert ")
+            .and_then(|s| s.strip_suffix(b"\""))
+            .map(ByteSlice::as_bstr)
+    }
 }
 
 pub struct GitRepo {

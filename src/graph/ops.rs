@@ -127,6 +127,93 @@ fn pushable_node(node: &mut Node, mut cause: Option<&str>) {
     }
 }
 
+/// Quick pass for what is droppable
+///
+/// We get into this state when a branch is squashed.  The id would be different due to metadata
+/// but the tree_id, associated with the repo, is the same if your branch is up-to-date.
+///
+/// The big risk is if a commit was reverted.  To protect against this, we only look at the final
+/// state of the branch and then check if it looks like a revert.
+///
+/// To avoid walking too much of the tree, we are going to assume only the first branch in a stack
+/// could have been squash-merged.
+///
+/// This assumes that the Node was rebased onto all of the new potentially squash-merged Nodes and
+/// we extract the potential tree_id's from those protected commits.
+pub fn drop_by_tree_id(node: &mut Node) {
+    if node.action.is_protected() {
+        track_protected_tree_id(node, std::collections::HashSet::new());
+    }
+}
+
+fn track_protected_tree_id(
+    node: &mut Node,
+    mut protected_tree_ids: std::collections::HashSet<git2::Oid>,
+) {
+    assert!(node.action.is_protected());
+    protected_tree_ids.insert(node.local_commit.tree_id);
+
+    match node.children.len() {
+        0 => (),
+        1 => {
+            let child = node.children.values_mut().next().unwrap();
+            if child.action.is_protected() {
+                track_protected_tree_id(child, protected_tree_ids);
+            } else {
+                drop_first_branch_by_tree_id(child, protected_tree_ids);
+            }
+        }
+        _ => {
+            for child in node.children.values_mut() {
+                if child.action.is_protected() {
+                    track_protected_tree_id(child, protected_tree_ids.clone());
+                } else {
+                    drop_first_branch_by_tree_id(child, protected_tree_ids.clone());
+                }
+            }
+        }
+    }
+}
+
+fn drop_first_branch_by_tree_id(
+    node: &mut Node,
+    protected_tree_ids: std::collections::HashSet<git2::Oid>,
+) -> bool {
+    assert!(!node.action.is_protected());
+    if node.branches.is_empty() {
+        match node.children.len() {
+            0 => false,
+            1 => {
+                let child = node.children.values_mut().next().unwrap();
+                let all_dropped = drop_first_branch_by_tree_id(child, protected_tree_ids);
+                if all_dropped {
+                    node.action = crate::graph::Action::Delete;
+                }
+                all_dropped
+            }
+            _ => {
+                let mut all_dropped = true;
+                for child in node.children.values_mut() {
+                    all_dropped &= drop_first_branch_by_tree_id(child, protected_tree_ids.clone());
+                }
+                if all_dropped {
+                    node.action = crate::graph::Action::Delete;
+                }
+                all_dropped
+            }
+        }
+    } else if !protected_tree_ids.contains(&node.local_commit.tree_id) {
+        false
+    } else if node.local_commit.revert_summary().is_some() {
+        // Might not *actually* be a revert or something more complicated might be going on.  Let's
+        // just be cautious.
+        false
+    } else {
+        node.action = crate::graph::Action::Delete;
+        true
+    }
+}
+
 pub fn to_script(node: &Node) -> crate::git::Script {
     let mut script = crate::git::Script::new();
 
