@@ -367,12 +367,7 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
 
     git_stack::graph::rebase_branches(&mut root, stack.onto.id);
     git_stack::graph::drop_by_tree_id(&mut root);
-    match state.fixup {
-        git_stack::config::Fixup::Ignore => (),
-        git_stack::config::Fixup::Move => {
-            git_stack::graph::fixup(&mut root);
-        }
-    }
+    git_stack::graph::fixup(&mut root, state.fixup);
 
     let script = git_stack::graph::to_script(&root);
 
@@ -414,12 +409,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
                 // Show as-if we performed all mutations
                 git_stack::graph::rebase_branches(&mut root, stack.onto.id);
                 git_stack::graph::drop_by_tree_id(&mut root);
-                match state.fixup {
-                    git_stack::config::Fixup::Ignore => (),
-                    git_stack::config::Fixup::Move => {
-                        git_stack::graph::fixup(&mut root);
-                    }
-                }
+                git_stack::graph::fixup(&mut root, state.fixup);
             }
 
             eyre::Result::Ok(root)

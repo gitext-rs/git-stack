@@ -216,9 +216,13 @@ fn drop_first_branch_by_tree_id(
     }
 }
 
-pub fn fixup(node: &mut Node) {
+pub fn fixup(node: &mut Node, effect: crate::config::Fixup) {
+    if effect == crate::config::Fixup::Ignore {
+        return;
+    }
+
     let mut outstanding = std::collections::BTreeMap::new();
-    fixup_nodes(node, &mut outstanding);
+    fixup_nodes(node, effect, &mut outstanding);
     if !outstanding.is_empty() {
         assert!(!node.action.is_protected());
         for nodes in outstanding.into_values() {
@@ -232,11 +236,12 @@ pub fn fixup(node: &mut Node) {
 
 fn fixup_nodes(
     node: &mut Node,
+    effect: crate::config::Fixup,
     outstanding: &mut std::collections::BTreeMap<bstr::BString, Vec<Node>>,
 ) {
     let mut fixups = Vec::new();
     for (id, child) in node.children.iter_mut() {
-        fixup_nodes(child, outstanding);
+        fixup_nodes(child, effect, outstanding);
 
         if child.action.is_protected() || child.action.is_delete() {
             continue;
