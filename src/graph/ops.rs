@@ -268,7 +268,13 @@ fn fixup_nodes(
             .push(child);
     }
 
-    if let Some(fixups) = outstanding.remove(&node.local_commit.summary) {
+    if let Some(mut fixups) = outstanding.remove(&node.local_commit.summary) {
+        if effect == crate::config::Fixup::Squash {
+            for fixup in fixups.iter_mut() {
+                assert!(fixup.action == crate::graph::Action::Pick);
+                fixup.action = crate::graph::Action::Squash;
+            }
+        }
         splice_after(node, fixups);
     } else if (node.action.is_protected() || node.action.is_delete()) && !outstanding.is_empty() {
         let mut local = Default::default();
@@ -326,6 +332,7 @@ pub fn to_script(node: &Node) -> crate::git::Script {
                 extend_dependents(node, &mut script, node_dependents, transaction);
             }
         }
+        crate::graph::Action::Squash => unreachable!("base should be immutable"),
         crate::graph::Action::Delete => unreachable!("base should be immutable"),
     }
 
@@ -340,6 +347,29 @@ fn node_to_script(node: &Node) -> Option<crate::git::Script> {
             script
                 .commands
                 .push(crate::git::Command::CherryPick(node.local_commit.id));
+            for branch in node.branches.iter() {
+                script
+                    .commands
+                    .push(crate::git::Command::CreateBranch(branch.name.clone()));
+            }
+
+            let node_dependents: Vec<_> = node
+                .children
+                .values()
+                .filter_map(|child| node_to_script(child))
+                .collect();
+            if !node_dependents.is_empty() {
+                // End the transaction on branch boundaries
+                let transaction = !node.branches.is_empty();
+                extend_dependents(node, &mut script, node_dependents, transaction);
+            }
+        }
+        crate::graph::Action::Squash => {
+            script
+                .commands
+                .push(crate::git::Command::Squash(node.local_commit.id));
+            // We can't re-target the branches of the commit we are squashing into, so the ops that
+            // creates a `Squash` option has to handle that.
             for branch in node.branches.iter() {
                 script
                     .commands

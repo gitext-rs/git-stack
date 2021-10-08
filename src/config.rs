@@ -418,6 +418,7 @@ arg_enum! {
     pub enum Fixup {
         Ignore,
         Move,
+        Squash,
     }
 }
 
