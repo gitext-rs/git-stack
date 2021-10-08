@@ -340,11 +340,16 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
 
 fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
     let mut graphed_branches = stack.graphed_branches();
-    let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
+    let base_commit = state
+        .repo
+        .find_commit(stack.base.id)
+        .expect("base branch is valid");
+    let mut root = git_stack::graph::Node::new(base_commit, &mut graphed_branches);
     root = root.extend_branches(&state.repo, graphed_branches)?;
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
 
     git_stack::graph::rebase_branches(&mut root, stack.onto.id);
+    git_stack::graph::drop_by_tree_id(&mut root);
 
     let script = git_stack::graph::to_script(&root);
 
@@ -374,14 +379,18 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
         .iter()
         .map(|stack| -> eyre::Result<git_stack::graph::Node> {
             let mut graphed_branches = stack.graphed_branches();
-            let mut root =
-                git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
+            let base_commit = state
+                .repo
+                .find_commit(stack.base.id)
+                .expect("base branch is valid");
+            let mut root = git_stack::graph::Node::new(base_commit, &mut graphed_branches);
             root = root.extend_branches(&state.repo, graphed_branches)?;
             git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
 
             if state.dry_run {
                 // Show as-if we performed all mutations
                 git_stack::graph::rebase_branches(&mut root, stack.onto.id);
+                git_stack::graph::drop_by_tree_id(&mut root);
             }
 
             eyre::Result::Ok(root)
@@ -680,7 +689,7 @@ fn drop_branches(
             if branch.name == potential_head {
                 continue;
             } else if head_branch_name == Some(branch.name.as_str()) {
-                // Dom't leave HEAD detached but instead switch to the branch we pulled
+                // Don't leave HEAD detached but instead switch to the branch we pulled
                 log::trace!("git switch {}", potential_head);
                 if !dry_run {
                     repo.switch(potential_head)?;
@@ -1187,7 +1196,7 @@ fn format_commit_status<'d>(
     if node.action.is_protected() {
         format!("")
     } else if node.action.is_delete() {
-        format!("{} ", palette.warn.paint("(drop)"))
+        format!("{} ", palette.error.paint("(drop)"))
     } else if 1 < repo
         .raw()
         .find_commit(node.local_commit.id)

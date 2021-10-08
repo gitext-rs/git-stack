@@ -11,6 +11,8 @@ edition = "2018"
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
+humantime = "2"
+humantime-serde = "1"
 bstr = { version = "0.2", features = ["serde1"] }
 derive_more = "0.99.0"
 eyre = "0.6"

@@ -13,11 +13,17 @@ pub trait Repo {
         &self,
         head_id: git2::Oid,
     ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_>;
+    fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error>;
     fn cherry_pick(
         &mut self,
         head_id: git2::Oid,
         cherry_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error>;
+    fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid, git2::Error>;
 
     fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error>;
     fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error>;
@@ -38,6 +44,7 @@ pub struct Branch {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Commit {
     pub id: git2::Oid,
+    pub tree_id: git2::Oid,
     pub summary: bstr::BString,
 }
 
@@ -69,6 +76,13 @@ impl Commit {
                 })
                 .next()
         }
+    }
+
+    pub fn revert_summary(&self) -> Option<&bstr::BStr> {
+        self.summary
+            .strip_prefix(b"Revert ")
+            .and_then(|s| s.strip_suffix(b"\""))
+            .map(ByteSlice::as_bstr)
     }
 }
 
@@ -146,6 +160,7 @@ impl GitRepo {
             let summary: bstr::BString = commit.summary_bytes().unwrap().into();
             let commit = std::rc::Rc::new(Commit {
                 id: commit.id(),
+                tree_id: commit.tree_id(),
                 summary,
             });
             commits.insert(id, std::rc::Rc::clone(&commit));
@@ -210,6 +225,62 @@ impl GitRepo {
         revwalk
             .filter_map(Result::ok)
             .filter_map(move |oid| self.find_commit(oid))
+    }
+
+    pub fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
+        let needle_commit = self.repo.find_commit(needle_id)?;
+        let needle_ann_commit = self.repo.find_annotated_commit(needle_id)?;
+        let haystack_ann_commit = self.repo.find_annotated_commit(haystack_id)?;
+
+        let parent_ann_commit = if 0 < needle_commit.parent_count() {
+            let parent_commit = needle_commit.parent(0)?;
+            Some(self.repo.find_annotated_commit(parent_commit.id())?)
+        } else {
+            None
+        };
+
+        let mut rebase = self.repo.rebase(
+            Some(&needle_ann_commit),
+            parent_ann_commit.as_ref(),
+            Some(&haystack_ann_commit),
+            Some(git2::RebaseOptions::new().inmemory(true)),
+        )?;
+
+        if let Some(op) = rebase.next() {
+            op.map_err(|e| {
+                let _ = rebase.abort();
+                e
+            })?;
+            let inmemory_index = rebase.inmemory_index().unwrap();
+            if inmemory_index.has_conflicts() {
+                return Ok(false);
+            }
+
+            let sig = self.repo.signature().unwrap();
+            match rebase.commit(None, &sig, None).map_err(|e| {
+                let _ = rebase.abort();
+                e
+            }) {
+                // Created commit, must be unique
+                Ok(_) => Ok(false),
+                Err(err) => {
+                    if err.class() == git2::ErrorClass::Rebase
+                        && err.code() == git2::ErrorCode::Applied
+                    {
+                        return Ok(true);
+                    }
+                    Err(err)
+                }
+            }
+        } else {
+            // No commit created, must exist somehow
+            rebase.finish(None)?;
+            Ok(true)
+        }
     }
 
     fn cherry_pick(
@@ -284,6 +355,68 @@ impl GitRepo {
         }
         rebase.finish(None)?;
         Ok(tip_id)
+    }
+
+    pub fn squash(
+        &mut self,
+        head_id: git2::Oid,
+        into_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
+        // Based on https://www.pygit2.org/recipes/git-cherry-pick.html
+        let base_id = self.repo.merge_base(head_id, into_id)?;
+        let base_commit = self.repo.find_commit(base_id)?;
+        let base_tree = self.repo.find_tree(base_commit.tree_id())?;
+
+        let head_commit = self.repo.find_commit(head_id)?;
+        let head_tree = self.repo.find_tree(head_commit.tree_id())?;
+
+        let into_commit = self.repo.find_commit(into_id)?;
+        let into_tree = self.repo.find_tree(into_commit.tree_id())?;
+
+        let onto_commit;
+        let onto_commits;
+        let onto_commits: &[&git2::Commit] = if 0 < into_commit.parent_count() {
+            onto_commit = into_commit.parent(0)?;
+            onto_commits = [&onto_commit];
+            &onto_commits
+        } else {
+            &[]
+        };
+
+        let mut result_index = self
+            .repo
+            .merge_trees(&base_tree, &into_tree, &head_tree, None)?;
+        if result_index.has_conflicts() {
+            let conflicts = result_index
+                .conflicts()?
+                .map(|conflict| {
+                    let conflict = conflict.unwrap();
+                    let our_path = conflict
+                        .our
+                        .as_ref()
+                        .map(|c| bytes2path(&c.path))
+                        .or_else(|| conflict.their.as_ref().map(|c| bytes2path(&c.path)))
+                        .unwrap();
+                    format!("{}", our_path.display())
+                })
+                .join("\n  ");
+            return Err(git2::Error::new(
+                git2::ErrorCode::Unmerged,
+                git2::ErrorClass::Index,
+                format!("cherry-pick conflicts:\n  {}\n", conflicts),
+            ));
+        }
+        let result_id = result_index.write_tree_to(&self.repo)?;
+        let result_tree = self.repo.find_tree(result_id)?;
+        let new_id = self.repo.commit(
+            None,
+            &into_commit.author(),
+            &into_commit.committer(),
+            into_commit.message().unwrap(),
+            &result_tree,
+            onto_commits,
+        )?;
+        Ok(new_id)
     }
 
     pub fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
@@ -428,12 +561,24 @@ impl Repo for GitRepo {
         Box::new(self.commits_from(head_id))
     }
 
+    fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
+        self.contains_commit(haystack_id, needle_id)
+    }
+
     fn cherry_pick(
         &mut self,
         head_id: git2::Oid,
         cherry_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error> {
         self.cherry_pick(head_id, cherry_id)
+    }
+
+    fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid, git2::Error> {
+        self.squash(head_id, into_id)
     }
 
     fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
@@ -557,6 +702,22 @@ impl InMemoryRepo {
         }
     }
 
+    pub fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
+        // Because we don't have the information for likeness matches, just checking for Oid
+        let mut next = Some(haystack_id);
+        while let Some(current) = next {
+            if current == needle_id {
+                return Ok(true);
+            }
+            next = self.commits.get(&current).and_then(|c| c.0);
+        }
+        Ok(false)
+    }
+
     pub fn cherry_pick(
         &mut self,
         head_id: git2::Oid,
@@ -574,6 +735,37 @@ impl InMemoryRepo {
         cherry_commit.id = new_id;
         self.commits
             .insert(new_id, (Some(head_id), std::rc::Rc::new(cherry_commit)));
+        Ok(new_id)
+    }
+
+    pub fn squash(
+        &mut self,
+        head_id: git2::Oid,
+        into_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
+        self.commits.get(&head_id).cloned().ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                format!("could not find commit {:?}", head_id),
+            )
+        })?;
+        let (intos_parent, into_commit) = self.commits.get(&into_id).cloned().ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                format!("could not find commit {:?}", into_id),
+            )
+        })?;
+        let intos_parent = intos_parent.unwrap();
+
+        let mut squashed_commit = Commit::clone(&into_commit);
+        let new_id = self.gen_id();
+        squashed_commit.id = new_id;
+        self.commits.insert(
+            new_id,
+            (Some(intos_parent), std::rc::Rc::new(squashed_commit)),
+        );
         Ok(new_id)
     }
 
@@ -678,12 +870,24 @@ impl Repo for InMemoryRepo {
         Box::new(self.commits_from(head_id))
     }
 
+    fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
+        self.contains_commit(haystack_id, needle_id)
+    }
+
     fn cherry_pick(
         &mut self,
         head_id: git2::Oid,
         cherry_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error> {
         self.cherry_pick(head_id, cherry_id)
+    }
+
+    fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid, git2::Error> {
+        self.squash(head_id, into_id)
     }
 
     fn head_branch(&self) -> Option<Branch> {

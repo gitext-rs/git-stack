@@ -33,6 +33,7 @@ fn populate_event(
                 let summary = message.lines().next().unwrap().to_owned();
                 let commit = git_stack::git::Commit {
                     id: commit_id,
+                    tree_id: commit_id,
                     summary: bstr::BString::from(summary),
                 };
                 repo.push_commit(parent_id, commit);

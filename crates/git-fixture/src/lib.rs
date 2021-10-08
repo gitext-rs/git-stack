@@ -44,24 +44,26 @@ impl Dag {
         }
 
         let mut marks: std::collections::HashMap<String, String> = Default::default();
-        Self::run_events(self.events, cwd, &self.import_root, &mut marks)?;
+        self.run_events(&self.events, cwd, &self.import_root, &mut marks)?;
 
         Ok(())
     }
 
     // Note: shelling out to git to minimize programming bugs
     fn run_events(
-        events: Vec<Event>,
+        &self,
+        events: &[Event],
         cwd: &std::path::Path,
         import_root: &std::path::Path,
         marks: &mut std::collections::HashMap<String, String>,
     ) -> eyre::Result<()> {
-        for event in events.into_iter() {
+        for event in events.iter() {
             match event {
                 Event::Import(path) => {
                     let path = import_root.join(path);
                     let mut child_dag = Dag::load(&path)?;
                     child_dag.init = false;
+                    child_dag.sleep = child_dag.sleep.or(self.sleep);
                     child_dag.run(cwd).wrap_err_with(|| {
                         format!("Failed when running imported fixcture {}", path.display())
                     })?;
@@ -113,6 +115,9 @@ impl Dag {
                             p.arg("--author").arg(author);
                         }
                         p.ok()?;
+                        if let Some(sleep) = self.sleep {
+                            std::thread::sleep(sleep);
+                        }
 
                         if let Some(branch) = tree.branch.as_ref() {
                             let _ = std::process::Command::new("git")
@@ -135,15 +140,11 @@ impl Dag {
                         }
                     }
                 }
-                Event::Children(mut events) => {
+                Event::Children(events) => {
                     let start_commit = current_oid(cwd)?;
-                    let last_run = events.pop();
                     for run in events {
-                        Self::run_events(run, cwd, import_root, marks)?;
                         checkout(cwd, &start_commit)?;
-                    }
-                    if let Some(last_run) = last_run {
-                        Self::run_events(last_run, cwd, import_root, marks)?;
+                        self.run_events(run, cwd, import_root, marks)?;
                     }
                 }
                 Event::Head(reference) => {

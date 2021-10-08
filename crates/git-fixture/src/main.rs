@@ -10,6 +10,9 @@ struct Args {
     input: Option<std::path::PathBuf>,
     #[structopt(short, long)]
     output: Option<std::path::PathBuf>,
+    /// Sleep between commits
+    #[structopt(long, parse(try_from_str))]
+    sleep: Option<humantime::Duration>,
 
     #[structopt(short, long, group = "mode")]
     schema: Option<std::path::PathBuf>,
@@ -24,11 +27,13 @@ fn run() -> proc_exit::ExitResult {
     let args = Args::from_args();
     let output = args
         .output
+        .clone()
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
     if let Some(input) = args.input.as_deref() {
         std::fs::create_dir_all(&output)?;
-        let dag = git_fixture::Dag::load(input).with_code(proc_exit::Code::CONFIG_ERR)?;
+        let mut dag = git_fixture::Dag::load(input).with_code(proc_exit::Code::CONFIG_ERR)?;
+        dag.sleep = dag.sleep.or_else(|| args.sleep.map(|s| s.into()));
         dag.run(&output).with_code(proc_exit::Code::FAILURE)?;
     } else if let Some(schema_path) = args.schema.as_deref() {
         let schema = schemars::schema_for!(git_fixture::Dag);

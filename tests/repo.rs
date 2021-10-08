@@ -3,7 +3,7 @@ use assert_fs::prelude::*;
 use git_stack::git::*;
 
 #[test]
-fn shared_fixture() {
+fn shared_branches_fixture() {
     let temp = assert_fs::TempDir::new().unwrap();
     let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
     plan.run(temp.path()).unwrap();
@@ -37,7 +37,7 @@ fn shared_fixture() {
     {
         {
             let one = repo.find_local_branch("feature1").unwrap();
-            let two = repo.find_local_branch("feature1").unwrap();
+            let two = repo.find_local_branch("feature2").unwrap();
 
             let actual = repo.merge_base(one.id, two.id).unwrap();
             assert_eq!(actual, one.id);
@@ -125,6 +125,131 @@ fn shared_fixture() {
 }
 
 #[test]
+fn contains_commit_not_with_independent_branches() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+    plan.run(temp.path()).unwrap();
+
+    let repo = git2::Repository::discover(temp.path()).unwrap();
+    let repo = GitRepo::new(repo);
+
+    let feature = repo.find_local_branch("feature2").unwrap();
+    let master = repo.find_local_branch("master").unwrap();
+
+    let feature_in_master = repo.contains_commit(master.id, feature.id).unwrap();
+    assert!(!feature_in_master);
+
+    temp.close().unwrap();
+}
+
+#[test]
+fn contains_commit_rebased_branches_with_disjoint_commit() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let plan =
+        git_fixture::Dag::load(std::path::Path::new("tests/fixtures/git_rebase_new.yml")).unwrap();
+    plan.run(temp.path()).unwrap();
+
+    let repo = git2::Repository::discover(temp.path()).unwrap();
+    let repo = GitRepo::new(repo);
+
+    let feature1 = repo.find_local_branch("feature1").unwrap();
+    let feature2 = repo.find_local_branch("feature2").unwrap();
+
+    let feature1_in_feature2 = repo.contains_commit(feature2.id, feature1.id).unwrap();
+    assert!(feature1_in_feature2);
+
+    let feature2_in_feature1 = repo.contains_commit(feature1.id, feature2.id).unwrap();
+    assert!(!feature2_in_feature1);
+
+    temp.close().unwrap();
+}
+
+#[test]
+#[ignore] // Not correctly detecting the commit already exists earlier in history
+fn contains_commit_rebased_branches_with_overlapping_commit() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let plan = git_fixture::Dag::load(std::path::Path::new(
+        "tests/fixtures/git_rebase_existing.yml",
+    ))
+    .unwrap();
+    plan.run(temp.path()).unwrap();
+
+    let repo = git2::Repository::discover(temp.path()).unwrap();
+    let repo = GitRepo::new(repo);
+
+    let feature1 = repo.find_local_branch("feature1").unwrap();
+    let feature2 = repo.find_local_branch("feature2").unwrap();
+
+    let feature1_in_feature2 = repo.contains_commit(feature2.id, feature1.id).unwrap();
+    assert!(feature1_in_feature2);
+
+    let feature2_in_feature1 = repo.contains_commit(feature1.id, feature2.id).unwrap();
+    assert!(!feature2_in_feature1);
+
+    temp.close().unwrap();
+}
+
+#[test]
+#[ignore] // Not correctly detecting the commit already exists earlier in history
+fn contains_commit_semi_linear_merge() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let plan = git_fixture::Dag::load(std::path::Path::new(
+        "tests/fixtures/pr-semi-linear-merge.yml",
+    ))
+    .unwrap();
+    plan.run(temp.path()).unwrap();
+
+    let repo = git2::Repository::discover(temp.path()).unwrap();
+    let repo = GitRepo::new(repo);
+
+    let old_master = repo.find_local_branch("old_master").unwrap();
+    let master = repo.find_local_branch("master").unwrap();
+    let feature1 = repo.find_local_branch("feature1").unwrap();
+    let feature2 = repo.find_local_branch("feature2").unwrap();
+
+    let feature1_in_master = repo.contains_commit(master.id, feature1.id).unwrap();
+    assert!(feature1_in_master);
+    let feature2_in_master = repo.contains_commit(master.id, feature2.id).unwrap();
+    assert!(feature2_in_master);
+
+    let feature1_in_old_master = repo.contains_commit(old_master.id, feature1.id).unwrap();
+    assert!(feature1_in_old_master);
+    let feature2_in_old_master = repo.contains_commit(old_master.id, feature2.id).unwrap();
+    assert!(feature2_in_old_master);
+
+    temp.close().unwrap();
+}
+
+#[test]
+#[ignore] // Not correctly detecting the commit already exists earlier in history
+fn contains_commit_pr_squashed() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let plan =
+        git_fixture::Dag::load(std::path::Path::new("tests/fixtures/pr-squash.yml")).unwrap();
+    plan.run(temp.path()).unwrap();
+
+    let repo = git2::Repository::discover(temp.path()).unwrap();
+    let repo = GitRepo::new(repo);
+
+    let old_master = repo.find_local_branch("old_master").unwrap();
+    let master = repo.find_local_branch("master").unwrap();
+    let feature1 = repo.find_local_branch("feature1").unwrap();
+    let feature2 = repo.find_local_branch("feature2").unwrap();
+
+    let feature1_in_master = repo.contains_commit(master.id, feature1.id).unwrap();
+    assert!(feature1_in_master);
+    let feature2_in_master = repo.contains_commit(master.id, feature2.id).unwrap();
+    assert!(feature2_in_master);
+
+    let feature1_in_old_master = repo.contains_commit(old_master.id, feature1.id).unwrap();
+    assert!(feature1_in_old_master);
+    let feature2_in_old_master = repo.contains_commit(old_master.id, feature2.id).unwrap();
+    assert!(feature2_in_old_master);
+
+    temp.close().unwrap();
+}
+
+#[test]
 fn cherry_pick_clean() {
     let temp = assert_fs::TempDir::new().unwrap();
     let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
@@ -171,6 +296,29 @@ fn cherry_pick_conflict() {
         let dest_id = repo.cherry_pick(base.id, source.id);
         println!("{:#?}", dest_id);
         assert!(dest_id.is_err());
+        assert!(!repo.is_dirty());
+    }
+
+    temp.close().unwrap();
+}
+
+#[test]
+fn squash_clean() {
+    let temp = assert_fs::TempDir::new().unwrap();
+    let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+    plan.run(temp.path()).unwrap();
+
+    let repo = git2::Repository::discover(temp.path()).unwrap();
+    let mut repo = GitRepo::new(repo);
+
+    {
+        assert!(!repo.is_dirty());
+
+        let base = repo.find_local_branch("master").unwrap();
+        let source = repo.find_local_branch("feature2").unwrap();
+        let dest_id = repo.squash(source.id, base.id).unwrap();
+
+        repo.branch("squashed", dest_id).unwrap();
         assert!(!repo.is_dirty());
     }
 

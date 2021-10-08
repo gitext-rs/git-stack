@@ -5,6 +5,10 @@ pub struct Dag {
     #[serde(default = "init_default")]
     pub init: bool,
     #[serde(default)]
+    #[serde(serialize_with = "humantime_serde::serialize")]
+    #[serde(deserialize_with = "humantime_serde::deserialize")]
+    pub sleep: Option<std::time::Duration>,
+    #[serde(default)]
     pub events: Vec<Event>,
     #[serde(skip)]
     pub import_root: std::path::PathBuf,
