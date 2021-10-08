@@ -179,6 +179,8 @@ fn drop_first_branch_by_tree_id(
     node: &mut Node,
     protected_tree_ids: std::collections::HashSet<git2::Oid>,
 ) -> bool {
+    #![allow(clippy::if_same_then_else)]
+
     assert!(!node.action.is_protected());
     if node.branches.is_empty() {
         match node.children.len() {

@@ -57,7 +57,7 @@ impl Dag {
         import_root: &std::path::Path,
         marks: &mut std::collections::HashMap<String, String>,
     ) -> eyre::Result<()> {
-        for event in events.into_iter() {
+        for event in events.iter() {
             match event {
                 Event::Import(path) => {
                     let path = import_root.join(path);
@@ -144,7 +144,7 @@ impl Dag {
                     let start_commit = current_oid(cwd)?;
                     for run in events {
                         checkout(cwd, &start_commit)?;
-                        self.run_events(&run, cwd, import_root, marks)?;
+                        self.run_events(run, cwd, import_root, marks)?;
                     }
                 }
                 Event::Head(reference) => {
