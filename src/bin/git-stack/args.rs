@@ -36,6 +36,14 @@ pub struct Args {
     #[structopt(long)]
     pub onto: Option<String>,
 
+    /// Action to perform with fixup-commits
+    #[structopt(
+        long,
+        possible_values(&git_stack::config::Fixup::variants()),
+        case_insensitive(true),
+    )]
+    pub fixup: Option<git_stack::config::Fixup>,
+
     #[structopt(short = "n", long)]
     pub dry_run: bool,
 
@@ -74,6 +82,7 @@ impl Args {
             pull_remote: None,
             show_format: self.format,
             show_stacked: None,
+            fixup: self.fixup,
 
             capacity: None,
         }

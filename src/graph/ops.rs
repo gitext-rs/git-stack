@@ -216,6 +216,90 @@ fn drop_first_branch_by_tree_id(
     }
 }
 
+pub fn fixup(node: &mut Node) {
+    let mut outstanding = std::collections::BTreeMap::new();
+    fixup_nodes(node, &mut outstanding);
+    if !outstanding.is_empty() {
+        assert!(!node.action.is_protected());
+        for nodes in outstanding.into_values() {
+            for mut other in nodes.into_iter() {
+                std::mem::swap(node, &mut other);
+                node.children.insert(other.local_commit.id, other);
+            }
+        }
+    }
+}
+
+fn fixup_nodes(
+    node: &mut Node,
+    outstanding: &mut std::collections::BTreeMap<bstr::BString, Vec<Node>>,
+) {
+    let mut fixups = Vec::new();
+    for (id, child) in node.children.iter_mut() {
+        fixup_nodes(child, outstanding);
+
+        if child.action.is_protected() || child.action.is_delete() {
+            continue;
+        }
+        if let Some(summary) = node.local_commit.fixup_summary() {
+            fixups.push((*id, summary.to_owned()));
+        }
+    }
+
+    for (id, summary) in fixups {
+        let mut child = node.children.remove(&id).unwrap();
+
+        let mut new_children = Default::default();
+        std::mem::swap(&mut child.children, &mut new_children);
+        node.children.extend(new_children);
+
+        let mut new_branches = Default::default();
+        std::mem::swap(&mut child.branches, &mut new_branches);
+        node.branches.extend(new_branches);
+
+        outstanding
+            .entry(summary)
+            .or_insert_with(Default::default)
+            .push(child);
+    }
+
+    if let Some(fixups) = outstanding.remove(&node.local_commit.summary) {
+        splice_after(node, fixups);
+    } else if (node.action.is_protected() || node.action.is_delete()) && !outstanding.is_empty() {
+        let mut local = Default::default();
+        std::mem::swap(&mut local, outstanding);
+
+        let mut outstanding = local.into_values();
+        let mut fixups = outstanding.next().unwrap();
+        fixups.extend(outstanding.flatten());
+        splice_after(node, fixups);
+    }
+}
+
+fn splice_after(node: &mut Node, fixups: Vec<Node>) -> &mut Node {
+    let mut new_children = Default::default();
+    std::mem::swap(&mut node.children, &mut new_children);
+
+    let mut new_branches = Default::default();
+    std::mem::swap(&mut node.branches, &mut new_branches);
+
+    let mut current = node;
+    for fixup in fixups.into_iter().rev() {
+        current = current
+            .children
+            .entry(fixup.local_commit.id)
+            .or_insert(fixup);
+    }
+
+    std::mem::swap(&mut current.children, &mut new_children);
+    assert!(new_children.is_empty());
+
+    std::mem::swap(&mut current.branches, &mut new_branches);
+    assert!(new_branches.is_empty());
+
+    current
+}
+
 pub fn to_script(node: &Node) -> crate::git::Script {
     let mut script = crate::git::Script::new();
 
