@@ -16,6 +16,7 @@ struct State {
     rebase: bool,
     pull: bool,
     push: bool,
+    fixup: git_stack::config::Fixup,
     dry_run: bool,
     snapshot_capacity: Option<usize>,
 
@@ -38,6 +39,21 @@ impl State {
             log::trace!("`--pull` implies `--rebase`");
             rebase = true;
         }
+        let rebase = rebase;
+
+        let fixup = if args.fixup.is_some() || rebase {
+            repo_config.fixup()
+        } else {
+            // Assume the user is only wanting to show the tree and not modify it.
+            let no_op = git_stack::config::Fixup::Ignore;
+            if no_op != repo_config.fixup() {
+                log::trace!(
+                    "Ignoring `fixup={}` without an explicit `--rebase` or `--fixup`",
+                    repo_config.fixup()
+                );
+            }
+            no_op
+        };
         let push = args.push;
         let protected = git_stack::git::ProtectedBranches::new(
             repo_config.protected_branches().iter().map(|s| s.as_str()),
@@ -155,6 +171,7 @@ impl State {
             rebase,
             pull,
             push,
+            fixup,
             dry_run,
             snapshot_capacity,
 
@@ -350,6 +367,7 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
 
     git_stack::graph::rebase_branches(&mut root, stack.onto.id);
     git_stack::graph::drop_by_tree_id(&mut root);
+    git_stack::graph::fixup(&mut root, state.fixup);
 
     let script = git_stack::graph::to_script(&root);
 
@@ -391,6 +409,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
                 // Show as-if we performed all mutations
                 git_stack::graph::rebase_branches(&mut root, stack.onto.id);
                 git_stack::graph::drop_by_tree_id(&mut root);
+                git_stack::graph::fixup(&mut root, state.fixup);
             }
 
             eyre::Result::Ok(root)

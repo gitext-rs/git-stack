@@ -9,6 +9,7 @@ pub struct RepoConfig {
     pub pull_remote: Option<String>,
     pub show_format: Option<Format>,
     pub show_stacked: Option<bool>,
+    pub fixup: Option<Fixup>,
 
     pub capacity: Option<usize>,
 }
@@ -19,6 +20,7 @@ static PUSH_REMOTE_FIELD: &str = "stack.push-remote";
 static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
 static FORMAT_FIELD: &str = "stack.show-format";
 static STACKED_FIELD: &str = "stack.show-stacked";
+static FIXUP_FIELD: &str = "stack.fixup";
 static BACKUP_CAPACITY_FIELD: &str = "branch-stash.capacity";
 
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
@@ -127,6 +129,10 @@ impl RepoConfig {
                 }
             } else if key == STACKED_FIELD {
                 config.show_stacked = Some(value.as_ref().map(|v| v == "true").unwrap_or(true));
+            } else if key == FIXUP_FIELD {
+                if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
+                    config.fixup = Some(value);
+                }
             } else if key == BACKUP_CAPACITY_FIELD {
                 config.capacity = value.as_deref().and_then(|s| s.parse::<usize>().ok());
             } else {
@@ -208,6 +214,12 @@ impl RepoConfig {
             .and_then(|s| FromStr::from_str(s).ok());
 
         let show_stacked = config.get_bool(STACKED_FIELD).ok();
+
+        let fixup = config
+            .get_str(FIXUP_FIELD)
+            .ok()
+            .and_then(|s| FromStr::from_str(s).ok());
+
         let capacity = config
             .get_i64(BACKUP_CAPACITY_FIELD)
             .map(|i| i as usize)
@@ -220,6 +232,7 @@ impl RepoConfig {
             stack,
             show_format,
             show_stacked,
+            fixup,
 
             capacity,
         }
@@ -288,6 +301,10 @@ impl RepoConfig {
         self.show_stacked.unwrap_or(true)
     }
 
+    pub fn fixup(&self) -> Fixup {
+        self.fixup.unwrap_or_else(Default::default)
+    }
+
     pub fn capacity(&self) -> Option<usize> {
         let capacity = self.capacity.unwrap_or(DEFAULT_CAPACITY);
         (capacity != 0).then(|| capacity)
@@ -334,6 +351,12 @@ impl std::fmt::Display for RepoConfig {
             "\t{}={}",
             STACKED_FIELD.split_once(".").unwrap().1,
             self.show_stacked()
+        )?;
+        writeln!(
+            f,
+            "\t{}={}",
+            FIXUP_FIELD.split_once(".").unwrap().1,
+            self.fixup()
         )?;
         writeln!(f, "[{}]", BACKUP_CAPACITY_FIELD.split_once(".").unwrap().0)?;
         writeln!(
@@ -386,5 +409,21 @@ arg_enum! {
 impl Default for Stack {
     fn default() -> Self {
         Stack::All
+    }
+}
+
+arg_enum! {
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+    #[serde(rename_all = "kebab-case")]
+    pub enum Fixup {
+        Ignore,
+        Move,
+        Squash,
+    }
+}
+
+impl Default for Fixup {
+    fn default() -> Self {
+        Fixup::Move
     }
 }
