@@ -21,65 +21,65 @@ pub struct Args {
 
 #[derive(structopt::StructOpt)]
 pub enum Subcommand {
-    /// Backup all branches
+    /// Stash all branches
     Push(PushArgs),
-    /// List all backups
+    /// List all stashed snapshots
     List(ListArgs),
-    /// Clear all backups
+    /// Clear all snapshots
     Clear(ClearArgs),
-    /// Delete the last backup
+    /// Delete the last snapshot
     Drop(DropArgs),
-    /// Apply the last backup, deleting it
+    /// Apply the last snapshot, deleting it
     Pop(PopArgs),
-    /// Apply the last backup
+    /// Apply the last snapshot
     Apply(ApplyArgs),
-    /// List all backup stacks
+    /// List all snapshot stacks
     Stacks(StacksArgs),
 }
 
 #[derive(structopt::StructOpt)]
 pub struct PushArgs {
-    /// Specify which backup stack to use
-    #[structopt(default_value = git_stack::backup::Stack::DEFAULT_STACK)]
+    /// Specify which stash stack to use
+    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 
-    /// Annotate the backup with the given message
+    /// Annotate the snapshot with the given message
     #[structopt(short, long)]
     pub message: Option<String>,
 }
 
 #[derive(structopt::StructOpt)]
 pub struct ListArgs {
-    /// Specify which backup stack to use
-    #[structopt(default_value = git_stack::backup::Stack::DEFAULT_STACK)]
+    /// Specify which stash stack to use
+    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 }
 
 #[derive(structopt::StructOpt)]
 pub struct ClearArgs {
-    /// Specify which backup stack to use
-    #[structopt(default_value = git_stack::backup::Stack::DEFAULT_STACK)]
+    /// Specify which stash stack to use
+    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 }
 
 #[derive(structopt::StructOpt)]
 pub struct DropArgs {
-    /// Specify which backup stack to use
-    #[structopt(default_value = git_stack::backup::Stack::DEFAULT_STACK)]
+    /// Specify which stash stack to use
+    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 }
 
 #[derive(structopt::StructOpt)]
 pub struct PopArgs {
-    /// Specify which backup stack to use
-    #[structopt(default_value = git_stack::backup::Stack::DEFAULT_STACK)]
+    /// Specify which stash stack to use
+    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 }
 
 #[derive(structopt::StructOpt)]
 pub struct ApplyArgs {
-    /// Specify which backup stack to use
-    #[structopt(default_value = git_stack::backup::Stack::DEFAULT_STACK)]
+    /// Specify which stash stack to use
+    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 }
 

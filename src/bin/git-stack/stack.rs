@@ -17,7 +17,7 @@ struct State {
     pull: bool,
     push: bool,
     dry_run: bool,
-    backup_capacity: Option<usize>,
+    snapshot_capacity: Option<usize>,
 
     show_format: git_stack::config::Format,
     show_stacked: bool,
@@ -44,7 +44,7 @@ impl State {
         )
         .with_code(proc_exit::Code::CONFIG_ERR)?;
         let dry_run = args.dry_run;
-        let backup_capacity = repo_config.capacity();
+        let snapshot_capacity = repo_config.capacity();
 
         let show_format = repo_config.show_format();
         let show_stacked = repo_config.show_stacked();
@@ -156,7 +156,7 @@ impl State {
             pull,
             push,
             dry_run,
-            backup_capacity,
+            snapshot_capacity,
 
             show_format,
             show_stacked,
@@ -272,7 +272,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
         }
     }
 
-    const BACKUP_NAME: &str = "git-stack";
+    const STASH_STACK_NAME: &str = "git-stack";
     let mut success = true;
     let mut backed_up = false;
     if state.rebase {
@@ -280,13 +280,13 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
             return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
         }
 
-        let mut backups = git_stack::backup::Stack::new(BACKUP_NAME, &state.repo);
-        backups.capacity(state.backup_capacity);
-        let mut backup = git_stack::backup::Backup::from_repo(&state.repo)
+        let mut snapshots = git_stack::stash::Stack::new(STASH_STACK_NAME, &state.repo);
+        snapshots.capacity(state.snapshot_capacity);
+        let mut snapshot = git_stack::stash::Snapshot::from_repo(&state.repo)
             .with_code(proc_exit::Code::FAILURE)?;
-        backup.insert_parent(&state.repo, &state.branches, &state.protected_branches);
+        snapshot.insert_parent(&state.repo, &state.branches, &state.protected_branches);
         if !state.dry_run {
-            backups.push(backup)?;
+            snapshots.push(snapshot)?;
             backed_up = true;
         }
 
@@ -328,7 +328,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
     show(&state, colored_stdout).with_code(proc_exit::Code::FAILURE)?;
 
     if backed_up {
-        log::info!("To undo, run `git branch-backup pop {}`", BACKUP_NAME);
+        log::info!("To undo, run `git branch-stash pop {}`", STASH_STACK_NAME);
     }
 
     if !success {

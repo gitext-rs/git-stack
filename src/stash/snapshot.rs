@@ -1,12 +1,12 @@
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Backup {
+pub struct Snapshot {
     pub branches: Vec<Branch>,
     #[serde(default)]
     #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
     pub metadata: std::collections::BTreeMap<String, serde_json::Value>,
 }
 
-impl Backup {
+impl Snapshot {
     pub fn load(path: &std::path::Path) -> Result<Self, std::io::Error> {
         let file = std::fs::File::open(path)?;
         let reader = std::io::BufReader::new(file);

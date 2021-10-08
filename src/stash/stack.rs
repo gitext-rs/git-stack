@@ -1,4 +1,4 @@
-pub use super::Backup;
+pub use super::Snapshot;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Stack {
@@ -66,7 +66,7 @@ impl Stack {
         elements.into_iter().map(|(_, p)| p)
     }
 
-    pub fn push(&mut self, backup: Backup) -> Result<std::path::PathBuf, std::io::Error> {
+    pub fn push(&mut self, snapshot: Snapshot) -> Result<std::path::PathBuf, std::io::Error> {
         let elems: Vec<_> = self.iter().collect();
         let last_path = elems.iter().last();
         let next_index = match last_path {
@@ -82,28 +82,28 @@ impl Stack {
             }
             None => 0,
         };
-        let last = last_path.as_deref().and_then(|p| Backup::load(p).ok());
-        if last.as_ref() == Some(&backup) {
+        let last = last_path.as_deref().and_then(|p| Snapshot::load(p).ok());
+        if last.as_ref() == Some(&snapshot) {
             let last_path = last_path.unwrap().to_owned();
-            log::trace!("Reusing backup {}", last_path.display());
+            log::trace!("Reusing snapshot {}", last_path.display());
             return Ok(last_path);
         }
 
         std::fs::create_dir_all(&self.root)?;
         let new_path = self.root.join(format!("{}.{}", next_index, Self::EXT));
-        backup.save(&new_path)?;
+        snapshot.save(&new_path)?;
         log::trace!("Backed up as {}", new_path.display());
 
         if let Some(capacity) = self.capacity {
             let len = elems.len();
             if capacity < len {
                 let remove = len - capacity;
-                log::warn!("Too many backups, clearing {} oldest", remove);
-                for backup_path in &elems[0..remove] {
-                    if let Err(err) = std::fs::remove_file(&backup_path) {
-                        log::trace!("Failed to remove {}: {}", backup_path.display(), err);
+                log::warn!("Too many snapshots, clearing {} oldest", remove);
+                for snapshot_path in &elems[0..remove] {
+                    if let Err(err) = std::fs::remove_file(&snapshot_path) {
+                        log::trace!("Failed to remove {}: {}", snapshot_path.display(), err);
                     } else {
-                        log::trace!("Removed {}", backup_path.display());
+                        log::trace!("Removed {}", snapshot_path.display());
                     }
                 }
             }
@@ -129,9 +129,9 @@ impl Stack {
 }
 
 fn stacks_root(repo: &std::path::Path) -> std::path::PathBuf {
-    repo.join("branch-backup")
+    repo.join("branch-stash")
 }
 
 fn stack_root(repo: &std::path::Path, stack: &str) -> std::path::PathBuf {
-    repo.join("branch-backup").join(stack)
+    repo.join("branch-stash").join(stack)
 }

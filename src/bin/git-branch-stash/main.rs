@@ -49,7 +49,7 @@ fn push(args: args::PushArgs) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git_stack::git::GitRepo::new(repo);
-    let mut stack = git_stack::backup::Stack::new(&args.stack, &repo);
+    let mut stack = git_stack::stash::Stack::new(&args.stack, &repo);
 
     let repo_config = git_stack::config::RepoConfig::from_all(repo.raw())
         .with_code(proc_exit::Code::CONFIG_ERR)?;
@@ -66,13 +66,13 @@ fn push(args: args::PushArgs) -> proc_exit::ExitResult {
         log::warn!("Working tree is dirty, only capturing committed changes");
     }
 
-    let mut backup =
-        git_stack::backup::Backup::from_repo(&repo).with_code(proc_exit::Code::FAILURE)?;
+    let mut snapshot =
+        git_stack::stash::Snapshot::from_repo(&repo).with_code(proc_exit::Code::FAILURE)?;
     if let Some(message) = args.message.as_deref() {
-        backup.insert_message(message);
+        snapshot.insert_message(message);
     }
-    backup.insert_parent(&repo, &branches, &protected_branches);
-    stack.push(backup)?;
+    snapshot.insert_parent(&repo, &branches, &protected_branches);
+    stack.push(snapshot)?;
 
     Ok(())
 }
@@ -87,23 +87,27 @@ fn list(args: args::ListArgs, colored: bool) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git_stack::git::GitRepo::new(repo);
-    let stack = git_stack::backup::Stack::new(&args.stack, &repo);
+    let stack = git_stack::stash::Stack::new(&args.stack, &repo);
 
-    let backups: Vec<_> = stack.iter().collect();
-    for (i, backup_path) in backups.iter().enumerate() {
-        let style = if i < backups.len() - 1 {
+    let snapshots: Vec<_> = stack.iter().collect();
+    for (i, snapshot_path) in snapshots.iter().enumerate() {
+        let style = if i < snapshots.len() - 1 {
             palette.info
         } else {
             palette.good
         };
-        let backup = match git_stack::backup::Backup::load(backup_path) {
-            Ok(backup) => backup,
+        let snapshot = match git_stack::stash::Snapshot::load(snapshot_path) {
+            Ok(snapshot) => snapshot,
             Err(err) => {
-                log::error!("Failed to load backup {}: {}", backup_path.display(), err);
+                log::error!(
+                    "Failed to load snapshot {}: {}",
+                    snapshot_path.display(),
+                    err
+                );
                 continue;
             }
         };
-        match backup.metadata.get("message") {
+        match snapshot.metadata.get("message") {
             Some(message) => {
                 writeln!(
                     std::io::stdout(),
@@ -115,11 +119,11 @@ fn list(args: args::ListArgs, colored: bool) -> proc_exit::ExitResult {
                 writeln!(
                     std::io::stdout(),
                     "{}",
-                    style.paint(format_args!("Path: {}", backup_path.display()))
+                    style.paint(format_args!("Path: {}", snapshot_path.display()))
                 )?;
             }
         }
-        for branch in backup.branches.iter() {
+        for branch in snapshot.branches.iter() {
             let summary = if let Some(summary) = branch.metadata.get("summary") {
                 summary.to_string()
             } else {
@@ -177,7 +181,7 @@ fn clear(args: args::ClearArgs) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git_stack::git::GitRepo::new(repo);
-    let mut stack = git_stack::backup::Stack::new(&args.stack, &repo);
+    let mut stack = git_stack::stash::Stack::new(&args.stack, &repo);
 
     stack.clear();
 
@@ -188,7 +192,7 @@ fn drop(args: args::DropArgs) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git_stack::git::GitRepo::new(repo);
-    let mut stack = git_stack::backup::Stack::new(&args.stack, &repo);
+    let mut stack = git_stack::stash::Stack::new(&args.stack, &repo);
 
     stack.pop();
 
@@ -199,7 +203,7 @@ fn pop(args: args::PopArgs) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let mut repo = git_stack::git::GitRepo::new(repo);
-    let mut stack = git_stack::backup::Stack::new(&args.stack, &repo);
+    let mut stack = git_stack::stash::Stack::new(&args.stack, &repo);
 
     if repo.is_dirty() {
         return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
@@ -207,9 +211,9 @@ fn pop(args: args::PopArgs) -> proc_exit::ExitResult {
 
     match stack.peek() {
         Some(last) => {
-            let backup =
-                git_stack::backup::Backup::load(&last).with_code(proc_exit::Code::FAILURE)?;
-            backup
+            let snapshot =
+                git_stack::stash::Snapshot::load(&last).with_code(proc_exit::Code::FAILURE)?;
+            snapshot
                 .apply(&mut repo)
                 .with_code(proc_exit::Code::FAILURE)?;
             let _ = std::fs::remove_file(&last);
@@ -226,7 +230,7 @@ fn apply(args: args::ApplyArgs) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let mut repo = git_stack::git::GitRepo::new(repo);
-    let mut stack = git_stack::backup::Stack::new(&args.stack, &repo);
+    let mut stack = git_stack::stash::Stack::new(&args.stack, &repo);
 
     if repo.is_dirty() {
         return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
@@ -234,9 +238,9 @@ fn apply(args: args::ApplyArgs) -> proc_exit::ExitResult {
 
     match stack.peek() {
         Some(last) => {
-            let backup =
-                git_stack::backup::Backup::load(&last).with_code(proc_exit::Code::FAILURE)?;
-            backup
+            let snapshot =
+                git_stack::stash::Snapshot::load(&last).with_code(proc_exit::Code::FAILURE)?;
+            snapshot
                 .apply(&mut repo)
                 .with_code(proc_exit::Code::FAILURE)?;
         }
@@ -253,7 +257,7 @@ fn stacks(_args: args::StacksArgs) -> proc_exit::ExitResult {
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git_stack::git::GitRepo::new(repo);
 
-    for stack in git_stack::backup::Stack::all(&repo) {
+    for stack in git_stack::stash::Stack::all(&repo) {
         writeln!(std::io::stdout(), "{}", stack.name)?;
     }
 
