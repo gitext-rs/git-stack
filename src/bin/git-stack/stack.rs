@@ -1211,7 +1211,7 @@ fn format_commit_status<'d>(
     node: &'d git_stack::graph::Node,
     palette: &'d Palette,
 ) -> String {
-    // See format_commit_status
+    // See format_branch_status
     if node.action.is_protected() {
         format!("")
     } else if node.action.is_delete() {
