@@ -1211,18 +1211,18 @@ fn format_commit_status<'d>(
     node: &'d git_stack::graph::Node,
     palette: &'d Palette,
 ) -> String {
-    // See format_commit_status
+    // See format_branch_status
     if node.action.is_protected() {
         format!("")
     } else if node.action.is_delete() {
-        format!("{} ", palette.error.paint("(drop)"))
+        format!(" {}", palette.error.paint("(drop)"))
     } else if 1 < repo
         .raw()
         .find_commit(node.local_commit.id)
         .unwrap()
         .parent_count()
     {
-        format!("{} ", palette.error.paint("(merge commit)"))
+        format!(" {}", palette.error.paint("(merge commit)"))
     } else {
         format!("")
     }
