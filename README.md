@@ -153,7 +153,7 @@ git-stack --push
 
 ### Why don't you just ...?
 
-Have an idea, we'd love to [hear it](https://github.com/epage/git-stack/discussions/categories)!
+Have an idea, we'd love to [hear it](https://github.com/epage/git-stack/discussions)!
 There are probably `git` operations or workflows we haven't heard of and would
 welcome the opportunity to learn more.
 
