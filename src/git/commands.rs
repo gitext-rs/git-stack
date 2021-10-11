@@ -189,7 +189,7 @@ impl Executor {
     }
 
     pub fn commit(&mut self, repo: &mut dyn crate::git::Repo) -> Result<(), git2::Error> {
-        if !self.branches.is_empty() {
+        if !self.branches.is_empty() || !self.delete_branches.is_empty() {
             // In case we are changing the branch HEAD is attached to
             if !self.dry_run {
                 repo.detach()?;
