@@ -46,9 +46,9 @@ Cons:
 - I've looked over the docs multiple times and haven't quite "gotten it" for
   how to use this in a PR workflow.
 
-## `git-branchless`
+## `git-branchstack`
 
-[Website](https://git.sr.ht/~krobelus/git-branchless)
+[Website](https://git.sr.ht/~krobelus/git-branchstack)
 
 Cons:
 - Requires each commit start with an identifier, grouping by identifier into a PR
