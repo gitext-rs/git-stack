@@ -31,6 +31,24 @@ impl Script {
         }
         branches
     }
+
+    pub fn is_branch_deleted(&self, branch: &str) -> bool {
+        for command in &self.commands {
+            if let Command::DeleteBranch(ref current) = command {
+                if branch == current {
+                    return true;
+                }
+            }
+        }
+
+        for dependent in &self.dependents {
+            if dependent.is_branch_deleted(branch) {
+                return true;
+            }
+        }
+
+        false
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]

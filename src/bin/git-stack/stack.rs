@@ -307,16 +307,23 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
             backed_up = true;
         }
 
-        let head_branch = state
+        let mut head_branch = state
             .repo
             .head_branch()
             .ok_or_else(|| eyre::eyre!("Must not be in a detached HEAD state."))
-            .with_code(proc_exit::Code::USAGE_ERR)?;
+            .with_code(proc_exit::Code::USAGE_ERR)?
+            .name;
 
         let scripts: Result<Vec<_>, proc_exit::Exit> = state
             .stacks
             .iter()
-            .map(|stack| plan_rebase(&state, stack).with_code(proc_exit::Code::FAILURE))
+            .map(|stack| {
+                let script = plan_rebase(&state, stack).with_code(proc_exit::Code::FAILURE)?;
+                if script.is_branch_deleted(&head_branch) {
+                    head_branch = stack.onto.name.clone();
+                }
+                Ok(script)
+            })
             .collect();
         let scripts = scripts?;
 
@@ -332,7 +339,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
             }
         }
         executor
-            .close(&mut state.repo, &head_branch.name)
+            .close(&mut state.repo, &head_branch)
             .with_code(proc_exit::Code::FAILURE)?;
         state.update().with_code(proc_exit::Code::FAILURE)?;
     }
