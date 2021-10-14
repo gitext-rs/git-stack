@@ -22,15 +22,6 @@ Dual-licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE)
 - [Contribute](CONTRIBUTING.md)
 - [CHANGELOG](CHANGELOG.md)
 
-## Status
-
-**This software is pre-release / prototype.**  We only recommend this for people who are
-willing to go the extra mile when [filing bug reports](CONTRIBUTING.md).  Extra
-effort is needed to create bug reports that are actionable as we need to
-iterate on how best to help people in creating good Issues.  While we still
-need to spend more time hardening, we do not expect any data loss with default
-features.
-
 ## About
 
 Like Stacked-Diffs? `git-stack` is [another approach](docs/comparison.md) to bringing the
@@ -40,11 +31,29 @@ of work and review in `git-stack`.  As you create branches on top of each
 other (i.e. "stacked" branches), `git-stack` will takes care of all of the
 micromanagement for you.
 
-Unfamiliar with Stacked-Diffs? `git-stack` helps keep all of your local
-branches up-to-date, especially when you have a branches off of branches (i.e.
-stacked)
+Unfamiliar with Stacked-Diffs? `git-stack` helps automate a lot of common
+workflows when dealing with PRs, especially when you start to create PRs on top
+of PRs.
 
-For example, from your development branch, run:
+Features:
+- Upstream parent branch auto-detection
+- Maintain branches relative to each other through rebase
+- Defers all permanent changes until the end (e.g. HEAD, re-targeting
+  branches), always leaving you in a good state
+  (similar to [`git revise`](https://github.com/mystor/git-revise/))
+- Separates out pull/push remotes for working from a fork
+- On `--push`, detects which branches are "ready" (e.g. root of stack, no WIP)
+- Undo support: backs up branch state prior to rewriting history
+
+Non-features
+- Conflict resolution: `git-stack` will give up and you'll have to use
+  `git rebase` yourself to resolve the conflict.
+
+To see how `git-stack` compares to other stacked git tools, see the [Comparison](docs/comparison.md).
+
+## Example
+
+From your development branch, run:
 ```bash
 jira-3423423 $ git-stack --pull
 ```
@@ -68,25 +77,9 @@ jira-3423 $ git rebase HEAD~ --onto jurao-3259
 jira-3423 $ git log --graph --all --oneline --decorate main..HEAD
 ```
 
-Parent branch auto-detection works by separating  the concept of
+*Parent branch auto-detection works by separating  the concept of
 upstream-controlled branches (called "protected branches") and your development
-branches.
-
-Features:
-- Upstream parent branch auto-detection
-- Maintain branches relative to each other through rebase
-- Defers all permanent changes until the end (e.g. HEAD, re-targeting
-  branches), always leaving you in a good state
-  (similar to [`git revise`](https://github.com/mystor/git-revise/))
-- Separates out pull/push remotes for working from a fork
-- On `--push`, detects which branches are "ready" (e.g. root of stack, no WIP)
-- Undo support: backs up branch state prior to rewriting history
-
-Non-features
-- Conflict resolution: `git-stack` will give up and you'll have to use
-  `git rebase` yourself to resolve the conflict.
-
-To see how `git-stack` compares to other stacked git tools, see the [Comparison](docs/comparison.md).
+branches.*
 
 ## Install
 

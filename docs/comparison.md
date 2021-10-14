@@ -1,5 +1,65 @@
 # Related Stacking Tools
 
+## Raw git
+
+- `git stack`, why not `git log --graph --all --oneline --decorate main..HEAD`?
+  - Doesn't show status as you progress through review
+  - Fairly verbose
+  - Have to manually select your base to limit to relevant commits
+- `git stack --pull`, why not `git pull --rebase upstream main`?
+  - Have to manually select your remote/branch
+  - Only updates current branch
+  - Even looping over all branches, the relationship between branches gets
+    lost, requiring rebasing branches back on top of each other, making sure
+    you do it in a way to avoid conflicts.
+  - Have to manually delete merged branches
+  - Only fetches from `upstream`, leaving your deleted `origin` branches lingering locally
+- `git stack --rebase`, why not `git rebase -i --autosquash master`?
+  - Have to manually select the base
+  - By default, it will squash the commits and you won't know of
+    merge-conflicts you are ready to squash (e.g. leaving in fixups to help
+    reviewers until PR is ready to merge).
+- `git stack --push`, why not `git push -u origin <branch>`?
+  - Have to remember `-u` on first push
+  - Have remember and type out `--force-with-lease` when you've changed history (or cheat with `--force`)
+  - Might forget to clean up your branch (e.g. WIP, fixup)
+
+## `arcanist` (`arc`)
+
+[Website](https://secure.phabricator.com/book/phabricator/article/arcanist/)
+
+Pros:
+- Rebases each branch when merging
+- Show review status of each Diff (Phab's equivalent of PR)
+- Nicer status view than `git log`
+
+Cons:
+- Coupled to Phabricator which is EOL
+- Auto-rebasing doesn't preserve branch relationships (stacks)
+- No auto-rebase outside of "landing" a Diff (merging a PR)
+
+## depo-tools
+
+[Website](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html)
+
+- `git rebase-update` to pull, rebase, and cleanup merged changes
+- `git map` and `git map-branches` for showing branch and commit relationships
+- `git reparent-branch` to rebase a tree of branches onto another branch
+- `git nav-downstream` / `git nav-upstream` to move between parent / child branches in a stack
+  - `git nav-downstream` prompts on ambiguity
+
+## `git-branchless`
+
+[Website](https://github.com/arxanas/git-branchless)
+
+Pros:
+- `git undo` seems to provide a nice experience!
+- `git smartlog`
+  - Identifies orphaned commits
+  - Nice use of glyphs in visualization
+- `git restack`
+  - Fixes when a commit is rewritten but dependents weren't updated
+
 ## `ghstack`
 
 [Website](https://github.com/ezyang/ghstack)
@@ -54,30 +114,6 @@ Cons:
 - Requires each commit start with an identifier, grouping by identifier into a PR
   - In contrast, `git-stack` relies on branches (multi-commit PRs) and
      ["fixup" commits (auto-squashing)](https://thoughtbot.com/blog/autosquashing-git-commits)
-
-## `arcanist` (`arc`)
-
-[Website](https://secure.phabricator.com/book/phabricator/article/arcanist/)
-
-Pros:
-- Rebases each branch when merging
-- Show review status of each Diff (Phab's equivalent of PR)
-- Nicer status view than `git log`
-
-Cons:
-- Coupled to Phabricator which is EOL
-- Auto-rebasing doesn't preserve branch relationships (stacks)
-- No auto-rebase outside of "landing" a Diff (merging a PR)
-
-## depo-tools
-
-[Website](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html)
-
-- `git rebase-update` to pull, rebase, and cleanup merged changes
-- `git map` and `git map-branches` for showing branch and commit relationships
-- `git reparent-branch` to rebase a tree of branches onto another branch
-- `git nav-downstream` / `git nav-upstream` to move between parent / child branches in a stack
-  - `git nav-downstream` prompts on ambiguity
 
 ## git-series
 
