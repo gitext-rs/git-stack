@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Node {
-    pub local_commit: std::rc::Rc<crate::git::Commit>,
+    pub commit: std::rc::Rc<crate::git::Commit>,
     pub branches: Vec<crate::git::Branch>,
     pub action: crate::graph::Action,
     pub pushable: bool,
@@ -11,15 +11,13 @@ pub struct Node {
 
 impl Node {
     pub fn new(
-        local_commit: std::rc::Rc<crate::git::Commit>,
+        commit: std::rc::Rc<crate::git::Commit>,
         possible_branches: &mut crate::git::Branches,
     ) -> Self {
-        let branches = possible_branches
-            .remove(local_commit.id)
-            .unwrap_or_else(Vec::new);
+        let branches = possible_branches.remove(commit.id).unwrap_or_else(Vec::new);
         let children = BTreeMap::new();
         Self {
-            local_commit,
+            commit,
             branches,
             action: crate::graph::Action::Pick,
             pushable: false,
@@ -51,18 +49,18 @@ impl Node {
     pub fn insert_commit(
         mut self,
         repo: &dyn crate::git::Repo,
-        local_commit: std::rc::Rc<crate::git::Commit>,
+        commit: std::rc::Rc<crate::git::Commit>,
         possible_branches: &mut crate::git::Branches,
     ) -> eyre::Result<Self> {
         let merge_base_id = repo
-            .merge_base(self.local_commit.id, local_commit.id)
+            .merge_base(self.commit.id, commit.id)
             .ok_or_else(|| eyre::eyre!("Could not find merge base"))?;
 
-        if merge_base_id != self.local_commit.id {
+        if merge_base_id != self.commit.id {
             let prefix = Node::populate(
                 repo,
                 merge_base_id,
-                self.local_commit.id,
+                self.commit.id,
                 possible_branches,
                 self.action,
             )?;
@@ -71,8 +69,8 @@ impl Node {
 
         let other = Node::populate(
             repo,
-            self.local_commit.id,
-            local_commit.id,
+            self.commit.id,
+            commit.id,
             possible_branches,
             crate::graph::Action::Pick,
         )?;
@@ -99,28 +97,28 @@ impl Node {
     }
 
     pub fn extend(mut self, repo: &dyn crate::git::Repo, mut other: Self) -> eyre::Result<Self> {
-        if let Some(node) = self.find_commit_mut(other.local_commit.id) {
+        if let Some(node) = self.find_commit_mut(other.commit.id) {
             node.merge(other)
         } else {
             let merge_base_id = repo
-                .merge_base(self.local_commit.id, other.local_commit.id)
+                .merge_base(self.commit.id, other.commit.id)
                 .ok_or_else(|| eyre::eyre!("Could not find merge base"))?;
             let mut possible_branches = crate::git::Branches::default();
-            if merge_base_id != self.local_commit.id {
+            if merge_base_id != self.commit.id {
                 let prefix = Node::populate(
                     repo,
                     merge_base_id,
-                    self.local_commit.id,
+                    self.commit.id,
                     &mut possible_branches,
                     self.action,
                 )?;
                 self = prefix.extend(repo, self)?;
             }
-            if merge_base_id != other.local_commit.id {
+            if merge_base_id != other.commit.id {
                 let prefix = Node::populate(
                     repo,
                     merge_base_id,
-                    other.local_commit.id,
+                    other.commit.id,
                     &mut possible_branches,
                     other.action,
                 )?;
@@ -174,8 +172,8 @@ impl Node {
                 let child = root;
                 root = Node::new(commit, branches);
                 root.action = default_action;
-                root.children.insert(child.local_commit.id, child);
-                if root.local_commit.id == base_oid {
+                root.children.insert(child.commit.id, child);
+                if root.commit.id == base_oid {
                     break;
                 }
             }
@@ -185,7 +183,7 @@ impl Node {
     }
 
     pub(crate) fn find_commit_mut(&mut self, id: git2::Oid) -> Option<&mut Node> {
-        if self.local_commit.id == id {
+        if self.commit.id == id {
             return Some(self);
         }
 
@@ -199,7 +197,7 @@ impl Node {
     }
 
     fn merge(&mut self, mut other: Self) {
-        assert_eq!(self.local_commit.id, other.local_commit.id);
+        assert_eq!(self.commit.id, other.commit.id);
 
         let mut branches = Vec::new();
         std::mem::swap(&mut other.branches, &mut branches);

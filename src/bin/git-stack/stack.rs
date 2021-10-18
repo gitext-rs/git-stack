@@ -906,7 +906,7 @@ fn to_tree<'r>(
 ) -> Tree<'r> {
     let mut weight = if node.action.is_protected() {
         Weight::Protected(0)
-    } else if node.local_commit.id == head_branch.id {
+    } else if node.commit.id == head_branch.id {
         Weight::Head(0)
     } else {
         Weight::Commit(0)
@@ -1061,11 +1061,11 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                 let abbrev_id = self
                     .repo
                     .raw()
-                    .find_object(node.local_commit.id, None)
+                    .find_object(node.commit.id, None)
                     .unwrap()
                     .short_id()
                     .unwrap();
-                let style = if self.head_branch.id == node.local_commit.id {
+                let style = if self.head_branch.id == node.commit.id {
                     self.palette.highlight
                 } else if node.action.is_protected() {
                     self.palette.info
@@ -1111,13 +1111,13 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                 format_commit_status(self.repo, node, self.palette)
             )?;
 
-            let summary = String::from_utf8_lossy(&node.local_commit.summary);
+            let summary = String::from_utf8_lossy(&node.commit.summary);
             if node.action.is_protected() {
                 write!(f, "{}", self.palette.hint.paint(summary))?;
-            } else if node.local_commit.fixup_summary().is_some() {
+            } else if node.commit.fixup_summary().is_some() {
                 // Needs to be squashed
                 write!(f, "{}", self.palette.warn.paint(summary))?;
-            } else if node.local_commit.wip_summary().is_some() {
+            } else if node.commit.wip_summary().is_some() {
                 // Not for pushing implicitly
                 write!(f, "{}", self.palette.error.paint(summary))?;
             } else {
@@ -1184,7 +1184,7 @@ fn format_branch_status<'d>(
         format!("")
     } else if 1 < repo
         .raw()
-        .find_commit(node.local_commit.id)
+        .find_commit(node.commit.id)
         .unwrap()
         .parent_count()
     {
@@ -1236,7 +1236,7 @@ fn format_commit_status<'d>(
         format!(" {}", palette.error.paint("(drop)"))
     } else if 1 < repo
         .raw()
-        .find_commit(node.local_commit.id)
+        .find_commit(node.commit.id)
         .unwrap()
         .parent_count()
     {
