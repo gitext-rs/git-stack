@@ -11,6 +11,7 @@ pub struct RepoConfig {
     pub show_format: Option<Format>,
     pub show_stacked: Option<bool>,
     pub auto_fixup: Option<Fixup>,
+    pub auto_repair: Option<bool>,
 
     pub capacity: Option<usize>,
 }
@@ -24,6 +25,7 @@ static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
 static FORMAT_FIELD: &str = "stack.show-format";
 static STACKED_FIELD: &str = "stack.show-stacked";
 static AUTO_FIXUP_FIELD: &str = "stack.auto-fixup";
+static AUTO_REPAIR_FIELD: &str = "stack.auto-repair";
 static BACKUP_CAPACITY_FIELD: &str = "branch-stash.capacity";
 
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
@@ -150,6 +152,8 @@ impl RepoConfig {
                 if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
                     config.auto_fixup = Some(value);
                 }
+            } else if key == AUTO_REPAIR_FIELD {
+                config.auto_repair = Some(value.as_ref().map(|v| v == "true").unwrap_or(true));
             } else if key == BACKUP_CAPACITY_FIELD {
                 config.capacity = value.as_deref().and_then(|s| s.parse::<usize>().ok());
             } else {
@@ -249,6 +253,8 @@ impl RepoConfig {
             .ok()
             .and_then(|s| FromStr::from_str(&s).ok());
 
+        let auto_repair = config.get_bool(AUTO_REPAIR_FIELD).ok();
+
         let capacity = config
             .get_i64(BACKUP_CAPACITY_FIELD)
             .map(|i| i as usize)
@@ -264,6 +270,7 @@ impl RepoConfig {
             show_format,
             show_stacked,
             auto_fixup,
+            auto_repair,
 
             capacity,
         }
@@ -303,6 +310,7 @@ impl RepoConfig {
         self.show_format = other.show_format.or(self.show_format);
         self.show_stacked = other.show_stacked.or(self.show_stacked);
         self.auto_fixup = other.auto_fixup.or(self.auto_fixup);
+        self.auto_repair = other.auto_repair.or(self.auto_repair);
         self.capacity = other.capacity.or(self.capacity);
 
         self
@@ -348,6 +356,10 @@ impl RepoConfig {
 
     pub fn auto_fixup(&self) -> Fixup {
         self.auto_fixup.unwrap_or_else(Default::default)
+    }
+
+    pub fn auto_repair(&self) -> bool {
+        self.auto_repair.unwrap_or(true)
     }
 
     pub fn capacity(&self) -> Option<usize> {
@@ -414,6 +426,12 @@ impl std::fmt::Display for RepoConfig {
             "\t{}={}",
             AUTO_FIXUP_FIELD.split_once(".").unwrap().1,
             self.auto_fixup()
+        )?;
+        writeln!(
+            f,
+            "\t{}={}",
+            AUTO_REPAIR_FIELD.split_once(".").unwrap().1,
+            self.auto_repair()
         )?;
         writeln!(f, "[{}]", BACKUP_CAPACITY_FIELD.split_once(".").unwrap().0)?;
         writeln!(
