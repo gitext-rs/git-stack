@@ -211,7 +211,9 @@ fn apply(args: args::ApplyArgs, pop: bool) -> proc_exit::ExitResult {
             let snapshot =
                 git_stack::stash::Snapshot::load(&last).with_code(proc_exit::Code::FAILURE)?;
 
+            let stash_id = git_stack::git::stash_push(&mut repo, "branch-stash");
             if repo.is_dirty() {
+                git_stack::git::stash_pop(&mut repo, stash_id);
                 return Err(
                     proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting")
                 );
@@ -220,6 +222,8 @@ fn apply(args: args::ApplyArgs, pop: bool) -> proc_exit::ExitResult {
             snapshot
                 .apply(&mut repo)
                 .with_code(proc_exit::Code::FAILURE)?;
+
+            git_stack::git::stash_pop(&mut repo, stash_id);
             if pop {
                 let _ = std::fs::remove_file(&last);
             }
