@@ -10,11 +10,8 @@ pub struct Node {
 }
 
 impl Node {
-    pub fn new(
-        commit: std::rc::Rc<crate::git::Commit>,
-        possible_branches: &mut crate::git::Branches,
-    ) -> Self {
-        let branches = possible_branches.remove(commit.id).unwrap_or_else(Vec::new);
+    pub fn new(commit: std::rc::Rc<crate::git::Commit>) -> Self {
+        let branches = Vec::new();
         let children = BTreeMap::new();
         Self {
             commit,
@@ -37,63 +34,14 @@ impl Node {
         branch_ids.sort_by_key(|id| &branches.get(*id).unwrap()[0].name);
         let branch_id = branch_ids.remove(0);
         let branch_commit = repo.find_commit(branch_id).unwrap();
-        let mut root = Self::new(branch_commit, &mut branches);
+        let mut root = Self::new(branch_commit).with_branches(&mut branches);
         for branch_id in branch_ids {
             let branch_commit = repo.find_commit(branch_id).unwrap();
-            root = root.insert_commit(repo, branch_commit, &mut branches)?;
+            let node = Node::new(branch_commit).with_branches(&mut branches);
+            root = root.extend(repo, node)?;
         }
 
         Ok(root)
-    }
-
-    pub fn insert_commit(
-        mut self,
-        repo: &dyn crate::git::Repo,
-        commit: std::rc::Rc<crate::git::Commit>,
-        possible_branches: &mut crate::git::Branches,
-    ) -> eyre::Result<Self> {
-        let merge_base_id = repo
-            .merge_base(self.commit.id, commit.id)
-            .ok_or_else(|| eyre::eyre!("Could not find merge base"))?;
-
-        if merge_base_id != self.commit.id {
-            let prefix = Node::populate(
-                repo,
-                merge_base_id,
-                self.commit.id,
-                possible_branches,
-                self.action,
-            )?;
-            self = prefix.extend(repo, self)?;
-        }
-
-        let other = Node::populate(
-            repo,
-            self.commit.id,
-            commit.id,
-            possible_branches,
-            crate::graph::Action::Pick,
-        )?;
-        self.merge(other);
-
-        Ok(self)
-    }
-
-    pub fn extend_branches(
-        mut self,
-        repo: &dyn crate::git::Repo,
-        mut branches: crate::git::Branches,
-    ) -> eyre::Result<Self> {
-        if !branches.is_empty() {
-            let mut branch_ids: Vec<_> = branches.oids().collect();
-            branch_ids.sort_by_key(|id| &branches.get(*id).unwrap()[0].name);
-            for branch_id in branch_ids {
-                let branch_commit = repo.find_commit(branch_id).unwrap();
-                self = self.insert_commit(repo, branch_commit, &mut branches)?;
-            }
-        }
-
-        Ok(self)
     }
 
     pub fn extend(mut self, repo: &dyn crate::git::Repo, mut other: Self) -> eyre::Result<Self> {
@@ -103,25 +51,12 @@ impl Node {
             let merge_base_id = repo
                 .merge_base(self.commit.id, other.commit.id)
                 .ok_or_else(|| eyre::eyre!("Could not find merge base"))?;
-            let mut possible_branches = crate::git::Branches::default();
             if merge_base_id != self.commit.id {
-                let prefix = Node::populate(
-                    repo,
-                    merge_base_id,
-                    self.commit.id,
-                    &mut possible_branches,
-                    self.action,
-                )?;
+                let prefix = Node::populate(repo, merge_base_id, self.commit.id, self.action)?;
                 self = prefix.extend(repo, self)?;
             }
             if merge_base_id != other.commit.id {
-                let prefix = Node::populate(
-                    repo,
-                    merge_base_id,
-                    other.commit.id,
-                    &mut possible_branches,
-                    other.action,
-                )?;
+                let prefix = Node::populate(repo, merge_base_id, other.commit.id, other.action)?;
                 other = prefix.extend(repo, other)?;
             }
             self.merge(other);
@@ -130,19 +65,20 @@ impl Node {
         Ok(self)
     }
 
+    fn with_branches(mut self, possible_branches: &mut crate::git::Branches) -> Self {
+        self.branches = possible_branches
+            .remove(self.commit.id)
+            .unwrap_or_else(Vec::new);
+        self
+    }
+
     fn populate(
         repo: &dyn crate::git::Repo,
         base_oid: git2::Oid,
         head_oid: git2::Oid,
-        branches: &mut crate::git::Branches,
         default_action: crate::graph::Action,
     ) -> Result<Self, git2::Error> {
-        if let Some(head_branches) = branches.get(head_oid) {
-            let head_name = head_branches.first().unwrap().name.as_str();
-            log::trace!("Populating data for {}..{}", base_oid, head_name);
-        } else {
-            log::trace!("Populating data for {}..{}", base_oid, head_oid);
-        }
+        log::trace!("Populating data for {}..{}", base_oid, head_oid);
         let merge_base_oid = repo.merge_base(base_oid, head_oid).ok_or_else(|| {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
@@ -159,7 +95,7 @@ impl Node {
         }
 
         let head_commit = repo.find_commit(head_oid).unwrap();
-        let mut root = Node::new(head_commit, branches);
+        let mut root = Node::new(head_commit);
         root.action = default_action;
 
         let mut commits = repo.commits_from(head_oid);
@@ -170,7 +106,7 @@ impl Node {
         if head_oid != base_oid {
             for commit in commits {
                 let child = root;
-                root = Node::new(commit, branches);
+                root = Node::new(commit);
                 root.action = default_action;
                 root.children.insert(child.commit.id, child);
                 if root.commit.id == base_oid {
