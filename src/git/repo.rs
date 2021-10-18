@@ -25,6 +25,9 @@ pub trait Repo {
     ) -> Result<git2::Oid, git2::Error>;
     fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid, git2::Error>;
 
+    fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid, git2::Error>;
+    fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<(), git2::Error>;
+
     fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error>;
     fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error>;
     fn find_local_branch(&self, name: &str) -> Option<Branch>;
@@ -419,6 +422,31 @@ impl GitRepo {
         Ok(new_id)
     }
 
+    pub fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid, git2::Error> {
+        let signature = self.repo.signature()?;
+        self.repo.stash_save2(&signature, message, None)
+    }
+
+    pub fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<(), git2::Error> {
+        let mut index = None;
+        self.repo.stash_foreach(|i, _, id| {
+            if *id == stash_id {
+                index = Some(i);
+                false
+            } else {
+                true
+            }
+        })?;
+        let index = index.ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                "stash ID not found",
+            )
+        })?;
+        self.repo.stash_pop(index, None)
+    }
+
     pub fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
         let commit = self.repo.find_commit(id)?;
         self.repo.branch(name, &commit, true)?;
@@ -579,6 +607,14 @@ impl Repo for GitRepo {
 
     fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid, git2::Error> {
         self.squash(head_id, into_id)
+    }
+
+    fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid, git2::Error> {
+        self.stash_push(message)
+    }
+
+    fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<(), git2::Error> {
+        self.stash_pop(stash_id)
     }
 
     fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
@@ -769,7 +805,23 @@ impl InMemoryRepo {
         Ok(new_id)
     }
 
-    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
+    pub fn stash_push(&mut self, _message: Option<&str>) -> Result<git2::Oid, git2::Error> {
+        Err(git2::Error::new(
+            git2::ErrorCode::NotFound,
+            git2::ErrorClass::Reference,
+            "stash is unsupported",
+        ))
+    }
+
+    pub fn stash_pop(&mut self, _stash_id: git2::Oid) -> Result<(), git2::Error> {
+        Err(git2::Error::new(
+            git2::ErrorCode::NotFound,
+            git2::ErrorClass::Reference,
+            "stash is unsupported",
+        ))
+    }
+
+    pub fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
         self.branches.insert(
             name.to_owned(),
             Branch {
@@ -894,6 +946,14 @@ impl Repo for InMemoryRepo {
         self.head_branch()
     }
 
+    fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid, git2::Error> {
+        self.stash_push(message)
+    }
+
+    fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<(), git2::Error> {
+        self.stash_pop(stash_id)
+    }
+
     fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
         self.branch(name, id)
     }
@@ -931,4 +991,40 @@ fn bytes2path(b: &[u8]) -> &std::path::Path {
 fn bytes2path(b: &[u8]) -> &std::path::Path {
     use std::str;
     std::path::Path::new(str::from_utf8(b).unwrap())
+}
+
+pub fn stash_push(repo: &mut dyn Repo, context: &str) -> Option<git2::Oid> {
+    let branch = repo.head_branch();
+    let stash_msg = format!(
+        "WIP on {} ({})",
+        branch.as_ref().map(|b| b.name.as_str()).unwrap_or("HEAD"),
+        context
+    );
+    match repo.stash_push(Some(&stash_msg)) {
+        Ok(stash_id) => {
+            log::info!(
+                "Saved working directory and index state {}: {}",
+                stash_msg,
+                stash_id
+            );
+            Some(stash_id)
+        }
+        Err(err) => {
+            log::debug!("Failed to stash: {}", err);
+            None
+        }
+    }
+}
+
+pub fn stash_pop(repo: &mut dyn Repo, stash_id: Option<git2::Oid>) {
+    if let Some(stash_id) = stash_id {
+        match repo.stash_pop(stash_id) {
+            Ok(()) => {
+                log::info!("Dropped refs/stash {}", stash_id);
+            }
+            Err(err) => {
+                log::error!("Failed to pop {} from stash: {}", stash_id, err);
+            }
+        }
+    }
 }

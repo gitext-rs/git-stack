@@ -229,9 +229,14 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git_stack::git::GitRepo::new(repo);
     let mut state = State::new(repo, args)?;
+    let mut stash_id = None;
 
     if state.pull {
+        if stash_id.is_none() {
+            stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
+        }
         if state.repo.is_dirty() {
+            git_stack::git::stash_pop(&mut state.repo, stash_id);
             return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
         }
 
@@ -293,7 +298,11 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
     let mut success = true;
     let mut backed_up = false;
     if state.rebase {
+        if stash_id.is_none() {
+            stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
+        }
         if state.repo.is_dirty() {
+            git_stack::git::stash_pop(&mut state.repo, stash_id);
             return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
         }
 
@@ -350,6 +359,8 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
     }
 
     show(&state, colored_stdout).with_code(proc_exit::Code::FAILURE)?;
+
+    git_stack::git::stash_pop(&mut state.repo, stash_id);
 
     if backed_up {
         log::info!("To undo, run `git branch-stash pop {}`", STASH_STACK_NAME);

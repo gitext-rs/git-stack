@@ -39,8 +39,8 @@ fn run() -> proc_exit::ExitResult {
         args::Subcommand::List(sub_args) => list(sub_args, colored_stdout),
         args::Subcommand::Clear(sub_args) => clear(sub_args),
         args::Subcommand::Drop(sub_args) => drop(sub_args),
-        args::Subcommand::Pop(sub_args) => pop(sub_args),
-        args::Subcommand::Apply(sub_args) => apply(sub_args),
+        args::Subcommand::Pop(sub_args) => apply(sub_args, true),
+        args::Subcommand::Apply(sub_args) => apply(sub_args, false),
         args::Subcommand::Stacks(sub_args) => stacks(sub_args),
     }
 }
@@ -177,6 +177,7 @@ impl Palette {
         }
     }
 }
+
 fn clear(args: args::ClearArgs) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -199,50 +200,33 @@ fn drop(args: args::DropArgs) -> proc_exit::ExitResult {
     Ok(())
 }
 
-fn pop(args: args::PopArgs) -> proc_exit::ExitResult {
+fn apply(args: args::ApplyArgs, pop: bool) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let mut repo = git_stack::git::GitRepo::new(repo);
     let mut stack = git_stack::stash::Stack::new(&args.stack, &repo);
 
-    if repo.is_dirty() {
-        return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
-    }
-
     match stack.peek() {
         Some(last) => {
             let snapshot =
                 git_stack::stash::Snapshot::load(&last).with_code(proc_exit::Code::FAILURE)?;
+
+            let stash_id = git_stack::git::stash_push(&mut repo, "branch-stash");
+            if repo.is_dirty() {
+                git_stack::git::stash_pop(&mut repo, stash_id);
+                return Err(
+                    proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting")
+                );
+            }
+
             snapshot
                 .apply(&mut repo)
                 .with_code(proc_exit::Code::FAILURE)?;
-            let _ = std::fs::remove_file(&last);
-        }
-        None => {
-            log::warn!("Nothing to apply");
-        }
-    }
 
-    Ok(())
-}
-
-fn apply(args: args::ApplyArgs) -> proc_exit::ExitResult {
-    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
-    let mut repo = git_stack::git::GitRepo::new(repo);
-    let mut stack = git_stack::stash::Stack::new(&args.stack, &repo);
-
-    if repo.is_dirty() {
-        return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
-    }
-
-    match stack.peek() {
-        Some(last) => {
-            let snapshot =
-                git_stack::stash::Snapshot::load(&last).with_code(proc_exit::Code::FAILURE)?;
-            snapshot
-                .apply(&mut repo)
-                .with_code(proc_exit::Code::FAILURE)?;
+            git_stack::git::stash_pop(&mut repo, stash_id);
+            if pop {
+                let _ = std::fs::remove_file(&last);
+            }
         }
         None => {
             log::warn!("Nothing to apply");
