@@ -5,43 +5,33 @@ pub fn protect_branches(
     repo: &dyn crate::git::Repo,
     protected_branches: &crate::git::Branches,
 ) {
-    // Assuming the root is the base.  The base is not guaranteed to be a protected branch but
-    // might be an ancestor of one that was not included in the graph.
-    //
-    // We can't use `descendant_protected` because a protect branch might not be in the
-    // descendants, depending on what Graph the user selected.
+    let mut protected_commits = std::collections::HashSet::new();
     for protected_oid in protected_branches.oids() {
         if let Some(merge_base_oid) = repo.merge_base(root.local_commit.id, protected_oid) {
             if merge_base_oid == root.local_commit.id {
-                root.action = crate::graph::Action::Protected;
-                break;
+                for commit in repo.commits_from(protected_oid) {
+                    protected_commits.insert(commit.id);
+                    if commit.id == root.local_commit.id {
+                        break;
+                    }
+                }
             }
         }
     }
 
-    for node in root.children.values_mut() {
-        protect_branches_node(node, repo, protected_branches);
-    }
+    protect_branches_node(root, &protected_commits);
 }
 
 fn protect_branches_node(
     node: &mut Node,
-    repo: &dyn crate::git::Repo,
-    protected_branches: &crate::git::Branches,
-) -> bool {
-    // Can't short-circuit since we need to ensure all nodes are marked.
-    let mut is_protected = false;
-    for child in node.children.values_mut() {
-        is_protected |= protect_branches_node(child, repo, protected_branches);
-    }
-
-    is_protected |= protected_branches.contains_oid(node.local_commit.id);
-
-    if is_protected {
+    protected_commits: &std::collections::HashSet<git2::Oid>,
+) {
+    if protected_commits.contains(&node.local_commit.id) {
         node.action = crate::graph::Action::Protected;
+        for child in node.children.values_mut() {
+            protect_branches_node(child, protected_commits);
+        }
     }
-
-    is_protected
 }
 
 /// Pre-requisites:
