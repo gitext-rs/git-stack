@@ -30,7 +30,7 @@ pub enum Subcommand {
     /// Delete the last snapshot
     Drop(DropArgs),
     /// Apply the last snapshot, deleting it
-    Pop(PopArgs),
+    Pop(ApplyArgs),
     /// Apply the last snapshot
     Apply(ApplyArgs),
     /// List all snapshot stacks
@@ -64,13 +64,6 @@ pub struct ClearArgs {
 
 #[derive(structopt::StructOpt)]
 pub struct DropArgs {
-    /// Specify which stash stack to use
-    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
-    pub stack: String,
-}
-
-#[derive(structopt::StructOpt)]
-pub struct PopArgs {
     /// Specify which stash stack to use
     #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
