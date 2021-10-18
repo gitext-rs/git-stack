@@ -206,14 +206,17 @@ fn apply(args: args::ApplyArgs, pop: bool) -> proc_exit::ExitResult {
     let mut repo = git_stack::git::GitRepo::new(repo);
     let mut stack = git_stack::stash::Stack::new(&args.stack, &repo);
 
-    if repo.is_dirty() {
-        return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
-    }
-
     match stack.peek() {
         Some(last) => {
             let snapshot =
                 git_stack::stash::Snapshot::load(&last).with_code(proc_exit::Code::FAILURE)?;
+
+            if repo.is_dirty() {
+                return Err(
+                    proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting")
+                );
+            }
+
             snapshot
                 .apply(&mut repo)
                 .with_code(proc_exit::Code::FAILURE)?;
