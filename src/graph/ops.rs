@@ -5,43 +5,33 @@ pub fn protect_branches(
     repo: &dyn crate::git::Repo,
     protected_branches: &crate::git::Branches,
 ) {
-    // Assuming the root is the base.  The base is not guaranteed to be a protected branch but
-    // might be an ancestor of one that was not included in the graph.
-    //
-    // We can't use `descendant_protected` because a protect branch might not be in the
-    // descendants, depending on what Graph the user selected.
+    let mut protected_commits = std::collections::HashSet::new();
     for protected_oid in protected_branches.oids() {
-        if let Some(merge_base_oid) = repo.merge_base(root.local_commit.id, protected_oid) {
-            if merge_base_oid == root.local_commit.id {
-                root.action = crate::graph::Action::Protected;
-                break;
+        if let Some(merge_base_oid) = repo.merge_base(root.commit.id, protected_oid) {
+            if merge_base_oid == root.commit.id {
+                for commit in repo.commits_from(protected_oid) {
+                    protected_commits.insert(commit.id);
+                    if commit.id == root.commit.id {
+                        break;
+                    }
+                }
             }
         }
     }
 
-    for node in root.children.values_mut() {
-        protect_branches_node(node, repo, protected_branches);
-    }
+    protect_branches_node(root, &protected_commits);
 }
 
 fn protect_branches_node(
     node: &mut Node,
-    repo: &dyn crate::git::Repo,
-    protected_branches: &crate::git::Branches,
-) -> bool {
-    // Can't short-circuit since we need to ensure all nodes are marked.
-    let mut is_protected = false;
-    for child in node.children.values_mut() {
-        is_protected |= protect_branches_node(child, repo, protected_branches);
-    }
-
-    is_protected |= protected_branches.contains_oid(node.local_commit.id);
-
-    if is_protected {
+    protected_commits: &std::collections::HashSet<git2::Oid>,
+) {
+    if protected_commits.contains(&node.commit.id) {
         node.action = crate::graph::Action::Protected;
+        for child in node.children.values_mut() {
+            protect_branches_node(child, protected_commits);
+        }
     }
-
-    is_protected
 }
 
 /// Pre-requisites:
@@ -62,7 +52,7 @@ pub fn rebase_branches(node: &mut Node, new_base_id: git2::Oid) {
     let new_base = node.find_commit_mut(new_base_id).unwrap();
     new_base
         .children
-        .extend(rebaseable.into_iter().map(|n| (n.local_commit.id, n)));
+        .extend(rebaseable.into_iter().map(|n| (n.commit.id, n)));
 }
 
 fn pop_rebaseable_stacks(node: &mut Node, rebaseable: &mut Vec<Node>) {
@@ -104,7 +94,7 @@ fn pushable_node(node: &mut Node, mut cause: Option<&str>) {
         return;
     }
 
-    if node.local_commit.wip_summary().is_some() {
+    if node.commit.wip_summary().is_some() {
         cause = Some("contains WIP commit");
     }
 
@@ -151,7 +141,7 @@ fn track_protected_tree_id(
     mut protected_tree_ids: std::collections::HashSet<git2::Oid>,
 ) {
     assert!(node.action.is_protected());
-    protected_tree_ids.insert(node.local_commit.tree_id);
+    protected_tree_ids.insert(node.commit.tree_id);
 
     match node.children.len() {
         0 => (),
@@ -204,9 +194,9 @@ fn drop_first_branch_by_tree_id(
                 all_dropped
             }
         }
-    } else if !protected_tree_ids.contains(&node.local_commit.tree_id) {
+    } else if !protected_tree_ids.contains(&node.commit.tree_id) {
         false
-    } else if node.local_commit.revert_summary().is_some() {
+    } else if node.commit.revert_summary().is_some() {
         // Might not *actually* be a revert or something more complicated might be going on.  Let's
         // just be cautious.
         false
@@ -228,7 +218,7 @@ pub fn fixup(node: &mut Node, effect: crate::config::Fixup) {
         for nodes in outstanding.into_values() {
             for mut other in nodes.into_iter() {
                 std::mem::swap(node, &mut other);
-                node.children.insert(other.local_commit.id, other);
+                node.children.insert(other.commit.id, other);
             }
         }
     }
@@ -246,7 +236,7 @@ fn fixup_nodes(
         if child.action.is_protected() || child.action.is_delete() {
             continue;
         }
-        if let Some(summary) = node.local_commit.fixup_summary() {
+        if let Some(summary) = node.commit.fixup_summary() {
             fixups.push((*id, summary.to_owned()));
         }
     }
@@ -268,7 +258,7 @@ fn fixup_nodes(
             .push(child);
     }
 
-    if let Some(mut fixups) = outstanding.remove(&node.local_commit.summary) {
+    if let Some(mut fixups) = outstanding.remove(&node.commit.summary) {
         if effect == crate::config::Fixup::Squash {
             for fixup in fixups.iter_mut() {
                 assert!(fixup.action == crate::graph::Action::Pick);
@@ -296,10 +286,7 @@ fn splice_after(node: &mut Node, fixups: Vec<Node>) -> &mut Node {
 
     let mut current = node;
     for fixup in fixups.into_iter().rev() {
-        current = current
-            .children
-            .entry(fixup.local_commit.id)
-            .or_insert(fixup);
+        current = current.children.entry(fixup.commit.id).or_insert(fixup);
     }
 
     std::mem::swap(&mut current.children, &mut new_children);
@@ -323,7 +310,7 @@ pub fn to_script(node: &Node) -> crate::git::Script {
                 .filter_map(|child| node_to_script(child))
                 .collect();
             if !node_dependents.is_empty() {
-                let stack_mark = node.local_commit.id;
+                let stack_mark = node.commit.id;
                 script
                     .commands
                     .push(crate::git::Command::SwitchCommit(stack_mark));
@@ -346,7 +333,7 @@ fn node_to_script(node: &Node) -> Option<crate::git::Script> {
         crate::graph::Action::Pick => {
             script
                 .commands
-                .push(crate::git::Command::CherryPick(node.local_commit.id));
+                .push(crate::git::Command::CherryPick(node.commit.id));
             for branch in node.branches.iter() {
                 script
                     .commands
@@ -367,7 +354,7 @@ fn node_to_script(node: &Node) -> Option<crate::git::Script> {
         crate::graph::Action::Squash => {
             script
                 .commands
-                .push(crate::git::Command::Squash(node.local_commit.id));
+                .push(crate::git::Command::Squash(node.commit.id));
             // We can't re-target the branches of the commit we are squashing into, so the ops that
             // creates a `Squash` option has to handle that.
             for branch in node.branches.iter() {
@@ -394,7 +381,7 @@ fn node_to_script(node: &Node) -> Option<crate::git::Script> {
                 .filter_map(|child| node_to_script(child))
                 .collect();
             if !node_dependents.is_empty() {
-                let stack_mark = node.local_commit.id;
+                let stack_mark = node.commit.id;
                 script
                     .commands
                     .push(crate::git::Command::SwitchCommit(stack_mark));
@@ -444,7 +431,7 @@ fn extend_dependents(
         script.dependents.extend(dependent.dependents);
     } else {
         // Ensure each dependent can pick up where needed
-        let stack_mark = node.local_commit.id;
+        let stack_mark = node.commit.id;
         script
             .commands
             .push(crate::git::Command::RegisterMark(stack_mark));
