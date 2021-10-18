@@ -177,6 +177,7 @@ impl Palette {
         }
     }
 }
+
 fn clear(args: args::ClearArgs) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
