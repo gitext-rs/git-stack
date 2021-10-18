@@ -270,6 +270,7 @@ impl RepoConfig {
         self.stack = other.stack.or(self.stack);
         self.show_format = other.show_format.or(self.show_format);
         self.show_stacked = other.show_stacked.or(self.show_stacked);
+        self.fixup = other.fixup.or(self.fixup);
         self.capacity = other.capacity.or(self.capacity);
 
         self
