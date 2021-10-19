@@ -374,13 +374,13 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
 }
 
 fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
-    let mut graphed_branches = stack.graphed_branches();
+    let graphed_branches = stack.graphed_branches();
     let base_commit = state
         .repo
         .find_commit(stack.base.id)
         .expect("base branch is valid");
-    let mut root = git_stack::graph::Node::new(base_commit, &mut graphed_branches);
-    root = root.extend_branches(&state.repo, graphed_branches)?;
+    let root = git_stack::graph::Node::from_branches(&state.repo, graphed_branches)?;
+    let mut root = root.extend(&state.repo, git_stack::graph::Node::new(base_commit))?;
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
 
     git_stack::graph::rebase_branches(&mut root, stack.onto.id);
@@ -398,8 +398,11 @@ fn push(state: &mut State) -> eyre::Result<()> {
         let stack_graphed_branches = stack.graphed_branches();
         graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
     }
-    let mut root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
-    root = root.extend_branches(&state.repo, graphed_branches)?;
+    let root = git_stack::graph::Node::from_branches(&state.repo, graphed_branches)?;
+    let mut root = root.extend(
+        &state.repo,
+        git_stack::graph::Node::new(state.head_commit.clone()),
+    )?;
 
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
     git_stack::graph::pushable(&mut root);
@@ -414,13 +417,13 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
         .stacks
         .iter()
         .map(|stack| -> eyre::Result<git_stack::graph::Node> {
-            let mut graphed_branches = stack.graphed_branches();
+            let graphed_branches = stack.graphed_branches();
             let base_commit = state
                 .repo
                 .find_commit(stack.base.id)
                 .expect("base branch is valid");
-            let mut root = git_stack::graph::Node::new(base_commit, &mut graphed_branches);
-            root = root.extend_branches(&state.repo, graphed_branches)?;
+            let root = git_stack::graph::Node::from_branches(&state.repo, graphed_branches)?;
+            let mut root = root.extend(&state.repo, git_stack::graph::Node::new(base_commit))?;
             git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
 
             if state.dry_run {
@@ -433,8 +436,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
             eyre::Result::Ok(root)
         });
     let mut root = roots.next().unwrap_or_else(|| {
-        let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
-        let root = git_stack::graph::Node::new(state.head_commit.clone(), &mut graphed_branches);
+        let root = git_stack::graph::Node::new(state.head_commit.clone());
         Ok(root)
     })?;
     for other in roots {
