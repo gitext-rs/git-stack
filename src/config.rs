@@ -375,7 +375,7 @@ fn git_dir_config(repo: &git2::Repository) -> std::path::PathBuf {
 }
 
 fn default_branch(config: &git2::Config) -> &str {
-    config.get_str("init.defaultStack").ok().unwrap_or("main")
+    config.get_str("init.defaultBranch").ok().unwrap_or("main")
 }
 
 arg_enum! {
