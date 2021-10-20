@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.3.0] - 2021-10-20
+
 ### Breaking Changes
 
 - Command line argument values have changed
@@ -140,7 +142,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.2.10...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/epage/git-stack/compare/v0.2.10...v0.3.0
 [0.2.10]: https://github.com/epage/git-stack/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/epage/git-stack/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/epage/git-stack/compare/v0.2.7...v0.2.8
