@@ -102,13 +102,13 @@ jobs:
         cp {CHANGELOG.md,docs/*} "$staging/doc/"
         if [ "${{ matrix.os }}" = "windows-2019" ]; then
           cp "target/${{ matrix.target }}/release/git-stack.exe" "$staging/"
-          cp "target/${{ matrix.target }}/release/git-branch-backup.exe" "$staging/"
+          cp "target/${{ matrix.target }}/release/git-branch-stash.exe" "$staging/"
           cd "$staging"
           7z a "../$staging.zip" .
           echo "ASSET=$staging.zip" >> $GITHUB_ENV
         else
           cp "target/${{ matrix.target }}/release/git-stack" "$staging/"
-          cp "target/${{ matrix.target }}/release/git-branch-backup" "$staging/"
+          cp "target/${{ matrix.target }}/release/git-branch-stash" "$staging/"
           tar czf "$staging.tar.gz" -C "$staging" .
           echo "ASSET=$staging.tar.gz" >> $GITHUB_ENV
         fi
