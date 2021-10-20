@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.2.10] - 2021-10-20
+
 #### Features
 
 - Auto-stash support
@@ -133,7 +135,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.2.9...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.2.10...HEAD
+[0.2.10]: https://github.com/epage/git-stack/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/epage/git-stack/compare/v0.2.8...v0.2.9
 [0.2.8]: https://github.com/epage/git-stack/compare/v0.2.7...v0.2.8
 [0.2.7]: https://github.com/epage/git-stack/compare/v0.2.6...v0.2.7
