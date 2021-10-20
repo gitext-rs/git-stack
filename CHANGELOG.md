@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Features
+
+- Auto-stash support
+
+#### Fixes
+
+- Don't panic on some merge conflicts
+- Correctly detect `init.defaultBranch` as a protected branch
+- Correctly detect some more protected commit cases
+- Reduce scope of dirty checks
+- Some visualization improvements
+- Fix some branch deletion corner cases
+- Auto-delete branches from squash-merges
+
 ## [0.2.9] - 2021-10-07
 
 #### Features
