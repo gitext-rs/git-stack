@@ -378,15 +378,45 @@ fn default_branch(config: &git2::Config) -> &str {
     config.get_str("init.defaultBranch").ok().unwrap_or("main")
 }
 
-arg_enum! {
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-    #[serde(rename_all = "kebab-case")]
-    pub enum Format {
-        Silent,
-        Branches,
-        BranchCommits,
-        Commits,
-        Debug,
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Format {
+    Silent,
+    Branches,
+    BranchCommits,
+    Commits,
+    Debug,
+}
+
+impl Format {
+    pub fn variants() -> [&'static str; 5] {
+        ["silent", "branches", "branch-commits", "commits", "debug"]
+    }
+}
+
+impl std::str::FromStr for Format {
+    type Err = String;
+    fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
+        match s {
+            "silent" => Ok(Format::Silent),
+            "branches" => Ok(Format::Branches),
+            "branch-commits" => Ok(Format::BranchCommits),
+            "commits" => Ok(Format::Commits),
+            "debug" => Ok(Format::Debug),
+            _ => Err(format!("valid values: {}", Self::variants().join(", "))),
+        }
+    }
+}
+
+impl std::fmt::Display for Format {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        match self {
+            Format::Silent => "silent".fmt(f),
+            Format::Branches => "branches".fmt(f),
+            Format::BranchCommits => "branch-commits".fmt(f),
+            Format::Commits => "commits".fmt(f),
+            Format::Debug => "debug".fmt(f),
+        }
     }
 }
 
@@ -396,14 +426,42 @@ impl Default for Format {
     }
 }
 
-arg_enum! {
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-    #[serde(rename_all = "kebab-case")]
-    pub enum Stack {
-        Current,
-        Dependents,
-        Descendants,
-        All,
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Stack {
+    Current,
+    Dependents,
+    Descendants,
+    All,
+}
+
+impl Stack {
+    pub fn variants() -> [&'static str; 4] {
+        ["current", "dependents", "descendants", "all"]
+    }
+}
+
+impl std::str::FromStr for Stack {
+    type Err = String;
+    fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
+        match s {
+            "current" => Ok(Stack::Current),
+            "dependents" => Ok(Stack::Dependents),
+            "descendants" => Ok(Stack::Descendants),
+            "all" => Ok(Stack::All),
+            _ => Err(format!("valid values: {}", Self::variants().join(", "))),
+        }
+    }
+}
+
+impl std::fmt::Display for Stack {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        match self {
+            Stack::Current => "current".fmt(f),
+            Stack::Dependents => "dependents".fmt(f),
+            Stack::Descendants => "descendants".fmt(f),
+            Stack::All => "all".fmt(f),
+        }
     }
 }
 
@@ -413,13 +471,39 @@ impl Default for Stack {
     }
 }
 
-arg_enum! {
-    #[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-    #[serde(rename_all = "kebab-case")]
-    pub enum Fixup {
-        Ignore,
-        Move,
-        Squash,
+#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum Fixup {
+    Ignore,
+    Move,
+    Squash,
+}
+
+impl Fixup {
+    pub fn variants() -> [&'static str; 3] {
+        ["ignore", "move", "squash"]
+    }
+}
+
+impl std::str::FromStr for Fixup {
+    type Err = String;
+    fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
+        match s {
+            "ignore" => Ok(Fixup::Ignore),
+            "move" => Ok(Fixup::Move),
+            "squash" => Ok(Fixup::Squash),
+            _ => Err(format!("valid values: {}", Self::variants().join(", "))),
+        }
+    }
+}
+
+impl std::fmt::Display for Fixup {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        match self {
+            Fixup::Ignore => "ignore".fmt(f),
+            Fixup::Move => "move".fmt(f),
+            Fixup::Squash => "squash".fmt(f),
+        }
     }
 }
 
