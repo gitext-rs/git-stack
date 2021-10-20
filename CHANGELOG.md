@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
-## [0.2.10] - 2021-10-20
+### Breaking Changes
+
+- Command line argument values have changed
+- Renamed `git-branch-backup` to `git-branch-stash`
 
 #### Features
 
@@ -15,6 +18,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 #### Fixes
 
+- Switched command line arguments to match config file
+- Vendor libgit2
 - Don't panic on some merge conflicts
 - Correctly detect `init.defaultBranch` as a protected branch
 - Correctly detect some more protected commit cases
