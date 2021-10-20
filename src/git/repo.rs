@@ -327,7 +327,8 @@ impl GitRepo {
                             .as_ref()
                             .map(|c| bytes2path(&c.path))
                             .or_else(|| conflict.their.as_ref().map(|c| bytes2path(&c.path)))
-                            .unwrap();
+                            .or_else(|| conflict.ancestor.as_ref().map(|c| bytes2path(&c.path)))
+                            .unwrap_or_else(|| std::path::Path::new("<unknown>"));
                         format!("{}", our_path.display())
                     })
                     .join("\n  ");
@@ -399,7 +400,8 @@ impl GitRepo {
                         .as_ref()
                         .map(|c| bytes2path(&c.path))
                         .or_else(|| conflict.their.as_ref().map(|c| bytes2path(&c.path)))
-                        .unwrap();
+                        .or_else(|| conflict.ancestor.as_ref().map(|c| bytes2path(&c.path)))
+                        .unwrap_or_else(|| std::path::Path::new("<unknown>"));
                     format!("{}", our_path.display())
                 })
                 .join("\n  ");
