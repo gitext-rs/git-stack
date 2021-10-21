@@ -299,7 +299,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
     const STASH_STACK_NAME: &str = "git-stack";
     let mut success = true;
     let mut backed_up = false;
-    if state.rebase {
+    if state.rebase || state.fixup != git_stack::config::Fixup::Ignore {
         if stash_id.is_none() {
             stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
         }
@@ -329,7 +329,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
             .stacks
             .iter()
             .map(|stack| {
-                let script = plan_rebase(&state, stack).with_code(proc_exit::Code::FAILURE)?;
+                let script = plan_changes(&state, stack).with_code(proc_exit::Code::FAILURE)?;
                 if script.is_branch_deleted(&head_branch) {
                     head_branch = stack.onto.name.clone();
                 }
@@ -375,7 +375,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
     Ok(())
 }
 
-fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
+fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
     let graphed_branches = stack.graphed_branches();
     let base_commit = state
         .repo
@@ -385,8 +385,10 @@ fn plan_rebase(state: &State, stack: &StackState) -> eyre::Result<git_stack::git
     let mut root = root.extend(&state.repo, git_stack::graph::Node::new(base_commit))?;
     git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
 
-    git_stack::graph::rebase_branches(&mut root, stack.onto.id);
-    git_stack::graph::drop_by_tree_id(&mut root);
+    if state.rebase {
+        git_stack::graph::rebase_branches(&mut root, stack.onto.id);
+        git_stack::graph::drop_by_tree_id(&mut root);
+    }
     git_stack::graph::fixup(&mut root, state.fixup);
 
     let script = git_stack::graph::to_script(&root);
