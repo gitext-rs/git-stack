@@ -95,13 +95,17 @@ cargo install git-stack
 
 ### Configuring `git-stack`
 
-**Protected branches:** run `git-stack --protected -v` to test your config
+**Protected branches:** These are branches like `main` or `v3` that `git-stack`
+must not modify.  `git-stack` will also rebase local protected branches against
+their remote counter parts.
+
+Run `git-stack --protected -v` to test your config
 - To locally protect additional branches, run `git-stack --protect <glob>`.
 - When adopting `git-stack` as a team, you can move the protected branches from
   `$REPO/.git/config` to `$REPO/.gitconfig` and commit it.
 
-**Pull remotes** when working from a fork (upstream is a different remote than
-`origin`), in `$REPO/.git/config`, set `stack.pull-remote` to your remote.
+**Pull remote** when working from a fork, where upstream is a different remote than
+`origin`, run `git config --add stack.pull-remote <REMOTE>` to set your remote in `$REPO/.git/config`.
 
 To see the config, run `git-stack --dump-config -`.
 
@@ -128,27 +132,28 @@ git-stack --push
 
 ## FAQ
 
-### How do I stack another branch (PR) on top of an existing one?
+### How do I stack another branch on top of an existing one?
 
-- Append: `git switch feature1 && git switch -v feature2` and start adding commits
-- Move: `git rebase HEAD~~ --onto feature1`
-- Move: `git-stack --rebase --base HEAD~~ --onto feature`
-
-### How do I add a commit to a branch (PR)?
-
-- If this is for fixing a problem in a previous commit, `git commit --fixup
-  <ref>` and then `git-stack --rebase` will move it to where it needs to be.
-- If this is to append to the PR, for now you'll have to use `git rebase -i`
+- New branch: `git switch feature1 && git switch -c feature2` and start adding commits
+- Moving existing: `git rebase HEAD~~ --onto feature1`
+- Moving existing: `git-stack --rebase --base HEAD~~ --onto feature`
 
 ### How do I start a new feature?
 
-- `git switch feature1 && git switch -c feature2` and start adding commits
+This works like normal, just checkout the branch you want to base the feature on and start adding commits.
 
-### Why don't you just ...?
+For example:
+```bash
+git switch feature1
+git switch -c feature2
+```
 
-Have an idea, we'd love to [hear it](https://github.com/epage/git-stack/discussions)!
-There are probably `git` operations or workflows we haven't heard of and would
-welcome the opportunity to learn more.
+### How do I add a commit to a parent branch in a stack?
+
+- If this is for fixing a problem in a previous commit,
+  [`git commit --fixup <ref>`](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupamendrewordltcommitgt)
+  and then `git-stack --rebase` will move it to where it needs to be.
+- If this is to append to the parent branch, for now you'll have to use `git rebase -i`
 
 ### How do I stack my PRs in Github?
 
@@ -157,6 +162,35 @@ of those commits are "owned" by another PR.  We recommend only posting one PR
 at a time within a stack.  If you really need to, you can direct your reviewers
 to the commits within each PR to look at.  However, you will see the CI run
 status of top commit for each PR dependency.
+
+## When does `git-stack` consider a branch ready to be pushed?
+
+A branch is ready if
+- It is not stacked on top of any other development branches (see "How do I stack my PRs in Github")
+- It has no WIP commits
+
+We consider branches with [`fixup!`
+commits](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupamendrewordltcommitgt)
+to be ready in case you are wanting reviewers to see some intermediate states.
+You can use a tool like [committed](https://github.com/crate-ci/committed) to
+prevent these from being merged.
+
+## When is a commit considered WIP?
+
+If a commit summary is only `WIP` or is prefixed by:
+- `WIP:`
+- `draft:`
+- `Draft:`
+- `wip `
+- `WIP `
+
+*This includes the prefixes used by [Gitlab](https://docs.gitlab.com/ee/user/project/merge_requests/drafts.html)*
+
+### Why don't you just ...?
+
+Have an idea, we'd love to [hear it](https://github.com/epage/git-stack/discussions)!
+There are probably `git` operations or workflows we haven't heard of and would
+welcome the opportunity to learn more.
 
 [Crates.io]: https://crates.io/crates/git-stack
 [Documentation]: https://docs.rs/git-stack
