@@ -1,5 +1,32 @@
 # `git-stack` Reference
 
+## Concepts
+
+### Protected Branch
+
+These are branches like `main` or `v3` that `git-stack` must not modify.  If
+there is a matching branch in the `stack.push-remote`, we assume that is the
+canonical version of the branch (the one being modified) and we will track the
+local branch to that.
+
+`git-stack` finds the best-match protected base branch for each development branch:
+- `--pull` will only pull protected bases
+- `--rebase` will move development development branches to the latest commit of this protected base
+
+### pull-remote
+
+The remote that contains shared branches you are developing against.  Because
+these are shared branches, we do not want to modify their history locally.
+
+### push-remote
+
+The remote that contains your personal branches in preparation for being merged
+into a shared branch in the pull-remote.  `git-stack` assumes the local version
+is canonical (that no edits are happening in the remote) and that `git-stack`
+is free to modify and force-push to this remote.
+
+This may be the same as the `pull-remote` when working directly in the upstream org, rather than on a fork.
+
 ## Commands
 
 ### `git stack`
