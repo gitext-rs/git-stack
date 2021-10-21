@@ -1,0 +1,60 @@
+init: true
+events:
+- tree:
+    tracked:
+      "file_a.txt": "3"
+    message: "commit 1"
+    branch: base
+- tree:
+    tracked:
+      "file_a.txt": "3"
+      "file_b.txt": "1"
+    message: "commit 2"
+- tree:
+    tracked:
+      "file_a.txt": "3"
+      "file_b.txt": "2"
+    message: "master commit"
+    branch: master
+- tree:
+    tracked:
+      "file_a.txt": "3"
+      "file_b.txt": "3"
+    message: "feature1 commit 1"
+- tree:
+    tracked:
+      "file_a.txt": "3"
+      "file_b.txt": "5"
+    message: "feature1 commit 2"
+    branch: feature1
+- tree:
+    tracked:
+      "file_a.txt": "3"
+      "file_c.txt": "1"
+    message: "fixup! feature1 commit 1"
+- tree:
+    tracked:
+      "file_a.txt": "3"
+      "file_c.txt": "4"
+    message: "feature1 commit 3"
+- tree:
+    tracked:
+      "file_a.txt": "3"
+      "file_c.txt": "1"
+    message: "fixup! feature1 commit 1"
+- tree:
+    tracked:
+      "file_a.txt": "3"
+      "file_c.txt": "2"
+    message: "fixup! feature1 commit 2"
+- tree:
+    tracked:
+      "file_a.txt": "3"
+      "file_c.txt": "4"
+    message: "feature2 commit"
+- tree:
+    tracked:
+      "file_a.txt": "3"
+      "file_c.txt": "1"
+    message: "fixup! feature1 commit 1"
+    branch: feature2

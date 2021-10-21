@@ -644,6 +644,7 @@ impl Repo for GitRepo {
     }
 }
 
+#[derive(Debug)]
 pub struct InMemoryRepo {
     commits: std::collections::HashMap<git2::Oid, (Option<git2::Oid>, std::rc::Rc<Commit>)>,
     branches: std::collections::HashMap<String, Branch>,
@@ -670,7 +671,7 @@ impl InMemoryRepo {
         let last_id = self
             .last_id
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let sha = format!("{:x}", last_id);
+        let sha = format!("{:040x}", last_id);
         git2::Oid::from_str(&sha).unwrap()
     }
 
