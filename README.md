@@ -175,7 +175,7 @@ at a time within a stack.  If you really need to, you can direct your reviewers
 to the commits within each PR to look at.  However, you will see the CI run
 status of top commit for each PR dependency.
 
-## When is a commit considered WIP?
+### When is a commit considered WIP?
 
 If a commit summary is only `WIP` or is prefixed by:
 - `WIP:`
