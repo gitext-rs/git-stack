@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Read all values from `.gitconfig`, rather than just some
+
 ## [0.4.0] - 2021-10-21
 
 ### Breaking Changes
