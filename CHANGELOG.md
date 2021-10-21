@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.4.0] - 2021-10-21
+
 ### Breaking Changes
 
 - Renamed config `stack.fixp` to `stack.auto-fixup` to clarify role
@@ -151,7 +153,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/epage/git-stack/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/epage/git-stack/compare/v0.2.10...v0.3.0
 [0.2.10]: https://github.com/epage/git-stack/compare/v0.2.9...v0.2.10
 [0.2.9]: https://github.com/epage/git-stack/compare/v0.2.8...v0.2.9
