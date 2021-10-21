@@ -1,4 +1,5 @@
 use std::collections::HashSet;
+use std::collections::VecDeque;
 use std::io::Write;
 
 use bstr::ByteSlice;
@@ -381,17 +382,17 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         .repo
         .find_commit(stack.base.id)
         .expect("base branch is valid");
-    let root = git_stack::graph::Node::from_branches(&state.repo, graphed_branches)?;
-    let mut root = root.extend(&state.repo, git_stack::graph::Node::new(base_commit))?;
-    git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
+    let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
+    graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
+    git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
 
     if state.rebase {
-        git_stack::graph::rebase_branches(&mut root, stack.onto.id);
-        git_stack::graph::drop_by_tree_id(&mut root);
+        git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
+        git_stack::graph::drop_by_tree_id(&mut graph);
     }
-    git_stack::graph::fixup(&mut root, state.fixup);
+    git_stack::graph::fixup(&mut graph, state.fixup);
 
-    let script = git_stack::graph::to_script(&root);
+    let script = git_stack::graph::to_script(&graph);
 
     Ok(script)
 }
@@ -402,54 +403,55 @@ fn push(state: &mut State) -> eyre::Result<()> {
         let stack_graphed_branches = stack.graphed_branches();
         graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
     }
-    let root = git_stack::graph::Node::from_branches(&state.repo, graphed_branches)?;
-    let mut root = root.extend(
+    let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
+    graph.insert(
         &state.repo,
         git_stack::graph::Node::new(state.head_commit.clone()),
     )?;
 
-    git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
-    git_stack::graph::pushable(&mut root);
+    git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+    git_stack::graph::pushable(&mut graph);
 
-    git_push(&mut state.repo, &root, state.dry_run)?;
+    git_push(&mut state.repo, &graph, state.dry_run)?;
 
     Ok(())
 }
 
 fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
-    let mut roots = state
+    let mut graphs = state
         .stacks
         .iter()
-        .map(|stack| -> eyre::Result<git_stack::graph::Node> {
+        .map(|stack| -> eyre::Result<git_stack::graph::Graph> {
             let graphed_branches = stack.graphed_branches();
             let base_commit = state
                 .repo
                 .find_commit(stack.base.id)
                 .expect("base branch is valid");
-            let root = git_stack::graph::Node::from_branches(&state.repo, graphed_branches)?;
-            let mut root = root.extend(&state.repo, git_stack::graph::Node::new(base_commit))?;
-            git_stack::graph::protect_branches(&mut root, &state.repo, &state.protected_branches);
+            let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
+            graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
+            git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
 
             if state.dry_run {
                 // Show as-if we performed all mutations
                 if state.rebase {
-                    git_stack::graph::rebase_branches(&mut root, stack.onto.id);
-                    git_stack::graph::drop_by_tree_id(&mut root);
+                    git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
+                    git_stack::graph::drop_by_tree_id(&mut graph);
                 }
-                git_stack::graph::fixup(&mut root, state.fixup);
+                git_stack::graph::fixup(&mut graph, state.fixup);
             }
 
-            eyre::Result::Ok(root)
+            eyre::Result::Ok(graph)
         });
-    let mut root = roots.next().unwrap_or_else(|| {
-        let root = git_stack::graph::Node::new(state.head_commit.clone());
-        Ok(root)
+    let mut graph = graphs.next().unwrap_or_else(|| {
+        let graph =
+            git_stack::graph::Graph::new(git_stack::graph::Node::new(state.head_commit.clone()));
+        Ok(graph)
     })?;
-    for other in roots {
-        root = root.extend(&state.repo, other?)?;
+    for other in graphs {
+        graph.extend(&state.repo, other?)?;
     }
 
-    git_stack::graph::pushable(&mut root);
+    git_stack::graph::pushable(&mut graph);
 
     match state.show_format {
         git_stack::config::Format::Silent => (),
@@ -459,7 +461,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
             writeln!(
                 std::io::stdout(),
                 "{}",
-                DisplayTree::new(&state.repo, &root)
+                DisplayTree::new(&state.repo, &graph)
                     .colored(colored_stdout)
                     .show(state.show_format)
                     .stacked(state.show_stacked)
@@ -467,7 +469,7 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
             )?;
         }
         git_stack::config::Format::Debug => {
-            writeln!(std::io::stdout(), "{:#?}", root)?;
+            writeln!(std::io::stdout(), "{:#?}", graph)?;
         }
     }
 
@@ -756,10 +758,23 @@ fn drop_branches(
 
 fn git_push(
     repo: &mut git_stack::git::GitRepo,
-    node: &git_stack::graph::Node,
+    graph: &git_stack::graph::Graph,
     dry_run: bool,
 ) -> eyre::Result<()> {
-    let failed = git_push_internal(repo, node, dry_run);
+    let mut failed = Vec::new();
+
+    let mut node_queue = VecDeque::new();
+    node_queue.push_back(graph.root_id());
+    while let Some(current_id) = node_queue.pop_front() {
+        let current = graph.get(current_id).expect("all children exist");
+
+        failed.extend(git_push_node(repo, current, dry_run));
+
+        for child_id in current.children.iter().copied() {
+            node_queue.push_back(child_id);
+        }
+    }
+
     if failed.is_empty() {
         Ok(())
     } else {
@@ -767,7 +782,7 @@ fn git_push(
     }
 }
 
-fn git_push_internal(
+fn git_push_node(
     repo: &mut git_stack::git::GitRepo,
     node: &git_stack::graph::Node,
     dry_run: bool,
@@ -808,18 +823,12 @@ fn git_push_internal(
         }
     }
 
-    if failed.is_empty() {
-        for child in node.children.values() {
-            failed.extend(git_push_internal(repo, child, dry_run));
-        }
-    }
-
     failed
 }
 
 struct DisplayTree<'r> {
     repo: &'r git_stack::git::GitRepo,
-    root: &'r git_stack::graph::Node,
+    graph: &'r git_stack::graph::Graph,
     protected_branches: git_stack::git::Branches,
     palette: Palette,
     show: git_stack::config::Format,
@@ -827,10 +836,10 @@ struct DisplayTree<'r> {
 }
 
 impl<'r> DisplayTree<'r> {
-    pub fn new(repo: &'r git_stack::git::GitRepo, root: &'r git_stack::graph::Node) -> Self {
+    pub fn new(repo: &'r git_stack::git::GitRepo, graph: &'r git_stack::graph::Graph) -> Self {
         Self {
             repo,
-            root,
+            graph,
             protected_branches: Default::default(),
             palette: Palette::plain(),
             show: Default::default(),
@@ -870,7 +879,8 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
             self.repo,
             &head_branch,
             &self.protected_branches,
-            self.root,
+            self.graph,
+            self.graph.root_id(),
             &self.palette,
         );
         if self.stacked {
@@ -909,9 +919,12 @@ fn to_tree<'r>(
     repo: &'r git_stack::git::GitRepo,
     head_branch: &'r git_stack::git::Branch,
     protected_branches: &'r git_stack::git::Branches,
-    node: &'r git_stack::graph::Node,
+    graph: &'r git_stack::graph::Graph,
+    node_id: git2::Oid,
     palette: &'r Palette,
 ) -> Tree<'r> {
+    let node = graph.get(node_id).expect("all children exist");
+
     let mut weight = if node.action.is_protected() {
         Weight::Protected(0)
     } else if node.commit.id == head_branch.id {
@@ -921,8 +934,15 @@ fn to_tree<'r>(
     };
 
     let mut stacks = Vec::new();
-    for child in node.children.values() {
-        let child_tree = to_tree(repo, head_branch, protected_branches, child, palette);
+    for child_id in node.children.iter().copied() {
+        let child_tree = to_tree(
+            repo,
+            head_branch,
+            protected_branches,
+            graph,
+            child_id,
+            palette,
+        );
         weight = weight.max(child_tree.weight);
         stacks.push(vec![child_tree]);
     }

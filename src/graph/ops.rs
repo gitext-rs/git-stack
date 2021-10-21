@@ -1,35 +1,30 @@
-pub use crate::graph::Node;
+use std::collections::HashSet;
+use std::collections::VecDeque;
+
+use crate::graph::Graph;
+use crate::graph::Node;
 
 pub fn protect_branches(
-    root: &mut Node,
+    graph: &mut Graph,
     repo: &dyn crate::git::Repo,
     protected_branches: &crate::git::Branches,
 ) {
-    let mut protected_commits = std::collections::HashSet::new();
-    for protected_oid in protected_branches.oids() {
-        if let Some(merge_base_oid) = repo.merge_base(root.commit.id, protected_oid) {
-            if merge_base_oid == root.commit.id {
-                for commit in repo.commits_from(protected_oid) {
-                    protected_commits.insert(commit.id);
-                    if commit.id == root.commit.id {
-                        break;
-                    }
+    let root_id = graph.root_id();
+    for protected_oid in protected_branches.oids().filter(|protected_oid| {
+        repo.merge_base(root_id, *protected_oid)
+            .map(|merge_base_oid| merge_base_oid == root_id)
+            .unwrap_or(false)
+    }) {
+        for commit in repo.commits_from(protected_oid) {
+            if let Some(node) = graph.get_mut(commit.id) {
+                if node.action.is_protected() {
+                    break;
                 }
+                node.action = crate::graph::Action::Protected;
             }
-        }
-    }
-
-    protect_branches_node(root, &protected_commits);
-}
-
-fn protect_branches_node(
-    node: &mut Node,
-    protected_commits: &std::collections::HashSet<git2::Oid>,
-) {
-    if protected_commits.contains(&node.commit.id) {
-        node.action = crate::graph::Action::Protected;
-        for child in node.children.values_mut() {
-            protect_branches_node(child, protected_commits);
+            if commit.id == root_id {
+                break;
+            }
         }
     }
 }
@@ -40,80 +35,73 @@ fn protect_branches_node(
 /// # Panics
 ///
 /// - If `new_base_id` doesn't exist
-/// - If `new_base_id` isn't protected
-pub fn rebase_branches(node: &mut Node, new_base_id: git2::Oid) {
-    debug_assert_eq!(
-        node.find_commit_mut(new_base_id).unwrap().action,
-        crate::graph::Action::Protected
-    );
-    let mut rebaseable = Vec::new();
-    pop_rebaseable_stacks(node, &mut rebaseable);
+pub fn rebase_branches(graph: &mut Graph, new_base_id: git2::Oid) {
+    debug_assert!(graph.get(new_base_id).is_some());
 
-    let new_base = node.find_commit_mut(new_base_id).unwrap();
-    new_base
-        .children
-        .extend(rebaseable.into_iter().map(|n| (n.commit.id, n)));
-}
-
-fn pop_rebaseable_stacks(node: &mut Node, rebaseable: &mut Vec<Node>) {
-    if !node.action.is_protected() {
-        // The parent is responsible for popping this node
-        return;
+    let mut protected_queue = VecDeque::new();
+    if graph.root().action.is_protected() {
+        protected_queue.push_back(graph.root_id());
     }
+    while let Some(current_id) = protected_queue.pop_front() {
+        let current_children = graph
+            .get(current_id)
+            .expect("all children exist")
+            .children
+            .clone();
 
-    let mut base_ids = Vec::new();
-    for (child_id, child) in node.children.iter_mut() {
-        if child.action.is_protected() {
-            pop_rebaseable_stacks(child, rebaseable);
-        } else {
-            base_ids.push(*child_id);
+        let mut rebaseable = Vec::new();
+        for child_id in current_children {
+            let child_action = graph.get(child_id).expect("all children exist").action;
+            if child_action.is_protected() {
+                protected_queue.push_back(child_id);
+            } else {
+                rebaseable.push(child_id);
+            }
         }
-    }
-    for base_id in base_ids {
-        let child = node.children.remove(&base_id).unwrap();
-        rebaseable.push(child);
-    }
-}
 
-pub fn pushable(node: &mut Node) {
-    if node.action.is_protected() {
-        for child in node.children.values_mut() {
-            pushable_node(child, None);
+        if !rebaseable.is_empty() {
+            let current = graph.get_mut(current_id).expect("all children exist");
+            for child_id in rebaseable.iter().copied() {
+                current.children.remove(&child_id);
+            }
+            graph
+                .get_mut(new_base_id)
+                .expect("pre-asserted")
+                .children
+                .extend(rebaseable);
         }
-    } else {
-        // No idea if a parent commit invalidates our results
     }
 }
 
-fn pushable_node(node: &mut Node, mut cause: Option<&str>) {
-    if node.action.is_protected() {
-        assert_eq!(cause, None);
-        for child in node.children.values_mut() {
-            pushable_node(child, cause);
+pub fn pushable(graph: &mut Graph) {
+    let mut node_queue: VecDeque<(git2::Oid, Option<&str>)> = VecDeque::new();
+    // No idea if a parent commit invalidates our results
+    if graph.root().action.is_protected() {
+        node_queue.push_back((graph.root_id(), None));
+    }
+    while let Some((current_id, mut cause)) = node_queue.pop_front() {
+        let current = graph.get_mut(current_id).expect("all children exist");
+        if !current.action.is_protected() {
+            if current.branches.iter().all(|b| Some(b.id) == b.push_id) {
+                cause = Some("already pushed");
+            } else if current.commit.wip_summary().is_some() {
+                cause = Some("contains WIP commit");
+            }
+
+            if !current.branches.is_empty() {
+                let branch = &current.branches[0];
+                if let Some(cause) = cause {
+                    log::debug!("{} isn't pushable, {}", branch.name, cause);
+                } else {
+                    log::debug!("{} is pushable", branch.name);
+                    current.pushable = true;
+                }
+                // Bail out, only the first branch of a stack is up for consideration
+                continue;
+            }
         }
-        return;
-    }
 
-    if node.commit.wip_summary().is_some() {
-        cause = Some("contains WIP commit");
-    }
-
-    if !node.branches.is_empty() {
-        let branch = &node.branches[0];
-        if let Some(cause) = cause {
-            log::debug!("{} isn't pushable, {}", branch.name, cause);
-        } else if node.branches.iter().all(|b| Some(b.id) == b.push_id) {
-            log::debug!("{} is already pushed", branch.name);
-        } else {
-            log::debug!("{} is pushable", branch.name);
-            node.pushable = true;
-        }
-        // Bail out, only the first branch of a stack is up for consideration
-        return;
-    }
-
-    for stack in node.children.values_mut() {
-        pushable_node(stack, cause);
+        node_queue.extend(current.children.iter().copied().map(|id| (id, cause)));
     }
 }
 
@@ -130,35 +118,54 @@ fn pushable_node(node: &mut Node, mut cause: Option<&str>) {
 ///
 /// This assumes that the Node was rebased onto all of the new potentially squash-merged Nodes and
 /// we extract the potential tree_id's from those protected commits.
-pub fn drop_by_tree_id(node: &mut Node) {
-    if node.action.is_protected() {
-        track_protected_tree_id(node, std::collections::HashSet::new());
+pub fn drop_by_tree_id(graph: &mut Graph) {
+    let mut node_queue: VecDeque<(git2::Oid, HashSet<git2::Oid>)> = VecDeque::new();
+    if graph.root().action.is_protected() {
+        node_queue.push_back((graph.root_id(), HashSet::new()));
     }
-}
+    while let Some((protected_id, mut protected_tree_ids)) = node_queue.pop_front() {
+        protected_tree_ids.insert(
+            graph
+                .get(protected_id)
+                .expect("all children exist")
+                .commit
+                .tree_id,
+        );
 
-fn track_protected_tree_id(
-    node: &mut Node,
-    mut protected_tree_ids: std::collections::HashSet<git2::Oid>,
-) {
-    assert!(node.action.is_protected());
-    protected_tree_ids.insert(node.commit.tree_id);
-
-    match node.children.len() {
-        0 => (),
-        1 => {
-            let child = node.children.values_mut().next().unwrap();
-            if child.action.is_protected() {
-                track_protected_tree_id(child, protected_tree_ids);
-            } else {
-                drop_first_branch_by_tree_id(child, protected_tree_ids);
-            }
-        }
-        _ => {
-            for child in node.children.values_mut() {
-                if child.action.is_protected() {
-                    track_protected_tree_id(child, protected_tree_ids.clone());
+        let protected_children = graph
+            .get(protected_id)
+            .expect("all children exist")
+            .children
+            .clone();
+        match protected_children.len() {
+            0 => (),
+            1 => {
+                let child_id = protected_children.into_iter().next().unwrap();
+                let child_action = graph.get(child_id).expect("all children exist").action;
+                if child_action.is_protected() {
+                    node_queue.push_back((child_id, protected_tree_ids));
                 } else {
-                    drop_first_branch_by_tree_id(child, protected_tree_ids.clone());
+                    drop_first_branch_by_tree_id(
+                        graph,
+                        child_id,
+                        HashSet::new(),
+                        protected_tree_ids,
+                    );
+                }
+            }
+            _ => {
+                for child_id in protected_children {
+                    let child_action = graph.get(child_id).expect("all children exist").action;
+                    if child_action.is_protected() {
+                        node_queue.push_back((child_id, protected_tree_ids.clone()));
+                    } else {
+                        drop_first_branch_by_tree_id(
+                            graph,
+                            child_id,
+                            HashSet::new(),
+                            protected_tree_ids.clone(),
+                        );
+                    }
                 }
             }
         }
@@ -166,169 +173,269 @@ fn track_protected_tree_id(
 }
 
 fn drop_first_branch_by_tree_id(
-    node: &mut Node,
+    graph: &mut Graph,
+    node_id: git2::Oid,
+    mut branch_ids: std::collections::HashSet<git2::Oid>,
     protected_tree_ids: std::collections::HashSet<git2::Oid>,
-) -> bool {
+) {
     #![allow(clippy::if_same_then_else)]
+    branch_ids.insert(node_id);
 
-    assert!(!node.action.is_protected());
-    if node.branches.is_empty() {
-        match node.children.len() {
-            0 => false,
-            1 => {
-                let child = node.children.values_mut().next().unwrap();
-                let all_dropped = drop_first_branch_by_tree_id(child, protected_tree_ids);
-                if all_dropped {
-                    node.action = crate::graph::Action::Delete;
-                }
-                all_dropped
-            }
-            _ => {
-                let mut all_dropped = true;
-                for child in node.children.values_mut() {
-                    all_dropped &= drop_first_branch_by_tree_id(child, protected_tree_ids.clone());
-                }
-                if all_dropped {
-                    node.action = crate::graph::Action::Delete;
-                }
-                all_dropped
-            }
-        }
-    } else if !protected_tree_ids.contains(&node.commit.tree_id) {
-        false
-    } else if node.commit.revert_summary().is_some() {
+    let node = graph.get(node_id).expect("all children exist");
+    debug_assert!(!node.action.is_protected());
+    if node.commit.revert_summary().is_some() {
         // Might not *actually* be a revert or something more complicated might be going on.  Let's
         // just be cautious.
-        false
+        return;
+    }
+
+    let is_branch = !node.branches.is_empty();
+    let node_tree_id = node.commit.tree_id;
+
+    if is_branch {
+        if protected_tree_ids.contains(&node_tree_id) {
+            for branch_id in branch_ids {
+                graph.get_mut(branch_id).expect("all children exist").action =
+                    crate::graph::Action::Delete;
+            }
+        } else {
+        }
     } else {
-        node.action = crate::graph::Action::Delete;
-        true
+        let node_children = graph
+            .get(node_id)
+            .expect("all children exist")
+            .children
+            .clone();
+        match node_children.len() {
+            0 => {}
+            1 => {
+                let child_id = node_children.into_iter().next().unwrap();
+                drop_first_branch_by_tree_id(graph, child_id, branch_ids, protected_tree_ids);
+            }
+            _ => {
+                for child_id in node_children {
+                    drop_first_branch_by_tree_id(
+                        graph,
+                        child_id,
+                        branch_ids.clone(),
+                        protected_tree_ids.clone(),
+                    );
+                }
+            }
+        }
     }
 }
 
-pub fn fixup(node: &mut Node, effect: crate::config::Fixup) {
+pub fn fixup(graph: &mut Graph, effect: crate::config::Fixup) {
     if effect == crate::config::Fixup::Ignore {
         return;
     }
 
-    let mut outstanding = std::collections::BTreeMap::new();
-    fixup_nodes(node, effect, &mut outstanding);
-    if !outstanding.is_empty() {
-        assert!(!node.action.is_protected());
-        for nodes in outstanding.into_values() {
-            for mut other in nodes.into_iter() {
-                std::mem::swap(node, &mut other);
-                node.children.insert(other.commit.id, other);
+    let mut protected_queue = VecDeque::new();
+    let root_action = graph.root().action;
+    if root_action.is_protected() {
+        protected_queue.push_back(graph.root_id());
+    }
+    while let Some(current_id) = protected_queue.pop_front() {
+        let current_children = graph
+            .get_mut(current_id)
+            .expect("all children exist")
+            .children
+            .clone();
+
+        for child_id in current_children {
+            let child_action = graph.get(child_id).expect("all children exist").action;
+            if child_action.is_protected() || child_action.is_delete() {
+                protected_queue.push_back(child_id);
+            } else {
+                fixup_branch(graph, current_id, child_id, effect);
             }
         }
     }
 }
 
-fn fixup_nodes(
-    node: &mut Node,
+fn fixup_branch(
+    graph: &mut Graph,
+    base_id: git2::Oid,
+    mut node_id: git2::Oid,
     effect: crate::config::Fixup,
-    outstanding: &mut std::collections::BTreeMap<bstr::BString, Vec<Node>>,
 ) {
-    let mut fixups = Vec::new();
-    for (id, child) in node.children.iter_mut() {
-        fixup_nodes(child, effect, outstanding);
+    debug_assert_ne!(effect, crate::config::Fixup::Ignore);
 
-        if child.action.is_protected() || child.action.is_delete() {
-            continue;
+    let mut outstanding = std::collections::BTreeMap::new();
+    let node_children = graph
+        .get_mut(node_id)
+        .expect("all children exist")
+        .children
+        .clone();
+    for child_id in node_children {
+        fixup_node(graph, node_id, child_id, effect, &mut outstanding);
+    }
+    if !outstanding.is_empty() {
+        let node = graph.get_mut(node_id).expect("all children exist");
+        if let Some(fixup_ids) = outstanding.remove(&node.commit.summary) {
+            if effect == crate::config::Fixup::Squash {
+                for fixup_id in fixup_ids.iter().copied() {
+                    let fixup = graph.get_mut(fixup_id).expect("all children exist");
+                    assert!(fixup.action == crate::graph::Action::Pick);
+                    fixup.action = crate::graph::Action::Squash;
+                }
+            }
+            splice_after(graph, node_id, fixup_ids);
         }
+        debug_assert_ne!(
+            graph.get(node_id).expect("all children exist").action,
+            crate::graph::Action::Protected,
+            "Unexpected result for {}",
+            base_id
+        );
+        for fixup_ids in outstanding.into_values() {
+            node_id = splice_between(graph, base_id, node_id, fixup_ids);
+        }
+    }
+}
+
+fn fixup_node(
+    graph: &mut Graph,
+    base_id: git2::Oid,
+    node_id: git2::Oid,
+    effect: crate::config::Fixup,
+    outstanding: &mut std::collections::BTreeMap<bstr::BString, Vec<git2::Oid>>,
+) {
+    debug_assert_ne!(effect, crate::config::Fixup::Ignore);
+
+    let node_children = graph
+        .get_mut(node_id)
+        .expect("all children exist")
+        .children
+        .clone();
+    for child_id in node_children {
+        fixup_node(graph, node_id, child_id, effect, outstanding);
+    }
+
+    let mut patch = None;
+    let mut fixup_ids = Vec::new();
+    {
+        let node = graph.get_mut(node_id).expect("all children exist");
+        debug_assert_ne!(node.action, crate::graph::Action::Protected);
+        debug_assert_ne!(node.action, crate::graph::Action::Delete);
         if let Some(summary) = node.commit.fixup_summary() {
-            fixups.push((*id, summary.to_owned()));
+            outstanding
+                .entry(summary.to_owned())
+                .or_insert_with(Default::default)
+                .push(node_id);
+
+            let mut children = Default::default();
+            std::mem::swap(&mut node.children, &mut children);
+            let mut branches = Default::default();
+            std::mem::swap(&mut node.branches, &mut branches);
+            patch = Some((children, branches));
+        } else if let Some(ids) = outstanding.remove(&node.commit.summary) {
+            fixup_ids = ids;
         }
     }
 
-    for (id, summary) in fixups {
-        let mut child = node.children.remove(&id).unwrap();
+    if let Some((children, branches)) = patch {
+        debug_assert!(fixup_ids.is_empty());
 
-        let mut new_children = Default::default();
-        std::mem::swap(&mut child.children, &mut new_children);
-        node.children.extend(new_children);
-
-        let mut new_branches = Default::default();
-        std::mem::swap(&mut child.branches, &mut new_branches);
-        node.branches.extend(new_branches);
-
-        outstanding
-            .entry(summary)
-            .or_insert_with(Default::default)
-            .push(child);
-    }
-
-    if let Some(mut fixups) = outstanding.remove(&node.commit.summary) {
+        let base = graph.get_mut(base_id).expect("all children exist");
+        debug_assert_ne!(base.action, crate::graph::Action::Protected);
+        debug_assert_ne!(base.action, crate::graph::Action::Delete);
+        base.children.remove(&node_id);
+        base.children.extend(children);
+        base.branches.extend(branches);
+    } else if !fixup_ids.is_empty() {
         if effect == crate::config::Fixup::Squash {
-            for fixup in fixups.iter_mut() {
+            for fixup_id in fixup_ids.iter().copied() {
+                let fixup = graph.get_mut(fixup_id).expect("all children exist");
                 assert!(fixup.action == crate::graph::Action::Pick);
                 fixup.action = crate::graph::Action::Squash;
             }
         }
-        splice_after(node, fixups);
-    } else if (node.action.is_protected() || node.action.is_delete()) && !outstanding.is_empty() {
-        let mut local = Default::default();
-        std::mem::swap(&mut local, outstanding);
-
-        let mut outstanding = local.into_values();
-        let mut fixups = outstanding.next().unwrap();
-        fixups.extend(outstanding.flatten());
-        splice_after(node, fixups);
+        splice_after(graph, node_id, fixup_ids);
     }
 }
 
-fn splice_after(node: &mut Node, fixups: Vec<Node>) -> &mut Node {
+// Does not update references
+fn splice_between(
+    graph: &mut Graph,
+    parent_id: git2::Oid,
+    child_id: git2::Oid,
+    node_ids: Vec<git2::Oid>,
+) -> git2::Oid {
+    let mut new_child_id = child_id;
+    for node_id in node_ids.into_iter() {
+        let node = graph.get_mut(node_id).expect("all children exist");
+        debug_assert!(node.children.is_empty());
+        node.children.insert(new_child_id);
+        new_child_id = node.commit.id;
+    }
+    let parent = graph.get_mut(parent_id).expect("all children exist");
+    parent.children.remove(&child_id);
+    parent.children.insert(new_child_id);
+    new_child_id
+}
+
+// Updates references
+fn splice_after(graph: &mut Graph, node_id: git2::Oid, fixup_ids: Vec<git2::Oid>) {
+    if fixup_ids.is_empty() {
+        return;
+    }
+
     let mut new_children = Default::default();
-    std::mem::swap(&mut node.children, &mut new_children);
-
     let mut new_branches = Default::default();
-    std::mem::swap(&mut node.branches, &mut new_branches);
-
-    let mut current = node;
-    for fixup in fixups.into_iter().rev() {
-        current = current.children.entry(fixup.commit.id).or_insert(fixup);
+    {
+        let node = graph.get_mut(node_id).expect("all children exist");
+        std::mem::swap(&mut node.children, &mut new_children);
+        std::mem::swap(&mut node.branches, &mut new_branches);
     }
 
-    std::mem::swap(&mut current.children, &mut new_children);
-    assert!(new_children.is_empty());
+    let mut last_id = node_id;
+    for fixup_id in fixup_ids.into_iter().rev() {
+        let last = graph.get_mut(last_id).expect("all children exist");
+        last.children.insert(fixup_id);
+        last_id = fixup_id;
+    }
 
-    std::mem::swap(&mut current.branches, &mut new_branches);
-    assert!(new_branches.is_empty());
-
-    current
+    {
+        let last = graph.get_mut(last_id).expect("all children exist");
+        debug_assert!(last.children.is_empty());
+        debug_assert!(last.branches.is_empty());
+        std::mem::swap(&mut last.children, &mut new_children);
+        std::mem::swap(&mut last.branches, &mut new_branches);
+    }
 }
 
-pub fn to_script(node: &Node) -> crate::git::Script {
+pub fn to_script(graph: &Graph) -> crate::git::Script {
     let mut script = crate::git::Script::new();
 
-    match node.action {
-        // The base should be immutable, so nothing to cherry-pick
-        crate::graph::Action::Pick | crate::graph::Action::Protected => {
-            let node_dependents: Vec<_> = node
-                .children
-                .values()
-                .filter_map(|child| node_to_script(child))
-                .collect();
-            if !node_dependents.is_empty() {
-                let stack_mark = node.commit.id;
-                script
-                    .commands
-                    .push(crate::git::Command::SwitchCommit(stack_mark));
+    let mut protected_queue = VecDeque::new();
+    if graph.root().action.is_protected() {
+        protected_queue.push_back(graph.root_id());
+    }
+    while let Some(current_id) = protected_queue.pop_front() {
+        let current = graph.get(current_id).expect("all children exist");
 
-                let transaction = false;
-                extend_dependents(node, &mut script, node_dependents, transaction);
+        for child_id in current.children.iter().copied() {
+            let child_action = graph.get(child_id).expect("all children exist").action;
+            if child_action.is_protected() {
+                protected_queue.push_back(child_id);
+            } else if let Some(mut dependent) = node_to_script(graph, child_id) {
+                dependent
+                    .commands
+                    .insert(0, crate::git::Command::SwitchCommit(current_id));
+                script.dependents.push(dependent);
             }
         }
-        crate::graph::Action::Squash => unreachable!("base should be immutable"),
-        crate::graph::Action::Delete => unreachable!("base should be immutable"),
     }
 
     script
 }
 
-fn node_to_script(node: &Node) -> Option<crate::git::Script> {
+fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Script> {
     let mut script = crate::git::Script::new();
 
+    let node = graph.get(node_id).expect("all children exist");
     match node.action {
         crate::graph::Action::Pick => {
             script
@@ -342,8 +449,9 @@ fn node_to_script(node: &Node) -> Option<crate::git::Script> {
 
             let node_dependents: Vec<_> = node
                 .children
-                .values()
-                .filter_map(|child| node_to_script(child))
+                .iter()
+                .copied()
+                .filter_map(|child_id| node_to_script(graph, child_id))
                 .collect();
             if !node_dependents.is_empty() {
                 // End the transaction on branch boundaries
@@ -365,8 +473,9 @@ fn node_to_script(node: &Node) -> Option<crate::git::Script> {
 
             let node_dependents: Vec<_> = node
                 .children
-                .values()
-                .filter_map(|child| node_to_script(child))
+                .iter()
+                .copied()
+                .filter_map(|child_id| node_to_script(graph, child_id))
                 .collect();
             if !node_dependents.is_empty() {
                 // End the transaction on branch boundaries
@@ -377,8 +486,9 @@ fn node_to_script(node: &Node) -> Option<crate::git::Script> {
         crate::graph::Action::Protected => {
             let node_dependents: Vec<_> = node
                 .children
-                .values()
-                .filter_map(|child| node_to_script(child))
+                .iter()
+                .copied()
+                .filter_map(|child_id| node_to_script(graph, child_id))
                 .collect();
             if !node_dependents.is_empty() {
                 let stack_mark = node.commit.id;
@@ -400,8 +510,9 @@ fn node_to_script(node: &Node) -> Option<crate::git::Script> {
 
             let node_dependents: Vec<_> = node
                 .children
-                .values()
-                .filter_map(|child| node_to_script(child))
+                .iter()
+                .copied()
+                .filter_map(|child_id| node_to_script(graph, child_id))
                 .collect();
             if !node_dependents.is_empty() {
                 // End the transaction on branch boundaries

@@ -644,6 +644,7 @@ impl Repo for GitRepo {
     }
 }
 
+#[derive(Debug)]
 pub struct InMemoryRepo {
     commits: std::collections::HashMap<git2::Oid, (Option<git2::Oid>, std::rc::Rc<Commit>)>,
     branches: std::collections::HashMap<String, Branch>,
