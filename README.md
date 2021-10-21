@@ -14,7 +14,7 @@ Dual-licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE)
 ## Documentation
 
 - [About](#about)
-- [Installation](#install)
+- [Install](#install)
 - [Getting Started](#getting-started)
 - [Reference](docs/reference.md)
 - [FAQ](#faq)
@@ -90,6 +90,15 @@ Or use rust to install:
 ```bash
 cargo install git-stack
 ```
+
+### Uninstall
+
+See the uninstall method for your installer.
+
+Once removed, `git-stack` leaves behind:
+- `.git/branch-stash`
+
+Removing this is safe and will have no effect.
 
 ## Getting Started
 
