@@ -204,21 +204,21 @@ impl RepoConfig {
         let pull_remote = config.get_string(PULL_REMOTE_FIELD).ok();
 
         let stack = config
-            .get_str(STACK_FIELD)
+            .get_string(STACK_FIELD)
             .ok()
-            .and_then(|s| FromStr::from_str(s).ok());
+            .and_then(|s| FromStr::from_str(&s).ok());
 
         let show_format = config
-            .get_str(FORMAT_FIELD)
+            .get_string(FORMAT_FIELD)
             .ok()
-            .and_then(|s| FromStr::from_str(s).ok());
+            .and_then(|s| FromStr::from_str(&s).ok());
 
         let show_stacked = config.get_bool(STACKED_FIELD).ok();
 
         let auto_fixup = config
-            .get_str(AUTO_FIXUP_FIELD)
+            .get_string(AUTO_FIXUP_FIELD)
             .ok()
-            .and_then(|s| FromStr::from_str(s).ok());
+            .and_then(|s| FromStr::from_str(&s).ok());
 
         let capacity = config
             .get_i64(BACKUP_CAPACITY_FIELD)
