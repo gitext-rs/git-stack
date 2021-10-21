@@ -1,29 +1,5 @@
 # Related Stacking Tools
 
-## Raw git
-
-- `git stack`, why not `git log --graph --all --oneline --decorate main..HEAD`?
-  - Doesn't show status as you progress through review
-  - Fairly verbose
-  - Have to manually select your base to limit to relevant commits
-- `git stack --pull`, why not `git pull --rebase upstream main`?
-  - Have to manually select your remote/branch
-  - Only updates current branch
-  - Even looping over all branches, the relationship between branches gets
-    lost, requiring rebasing branches back on top of each other, making sure
-    you do it in a way to avoid conflicts.
-  - Have to manually delete merged branches
-  - Only fetches from `upstream`, leaving your deleted `origin` branches lingering locally
-- `git stack --rebase`, why not `git rebase -i --autosquash master`?
-  - Have to manually select the base
-  - By default, it will squash the commits and you won't know of
-    merge-conflicts you are ready to squash (e.g. leaving in fixups to help
-    reviewers until PR is ready to merge).
-- `git stack --push`, why not `git push -u origin <branch>`?
-  - Have to remember `-u` on first push
-  - Have remember and type out `--force-with-lease` when you've changed history (or cheat with `--force`)
-  - Might forget to clean up your branch (e.g. WIP, fixup)
-
 ## `arcanist` (`arc`)
 
 [Website](https://secure.phabricator.com/book/phabricator/article/arcanist/)

@@ -109,7 +109,7 @@ Run `git-stack --protected -v` to test your config
 
 To see the config, run `git-stack --dump-config -`.
 
-For more, see [Reference](docs/reference.md).
+For more, see [Configuration Reference](docs/reference.md#configuration).
 
 ### Using
 
@@ -129,6 +129,8 @@ git-stack
 # To push whats ready
 git-stack --push
 ```
+
+For more, see [Command Reference](docs/reference.md#commands).
 
 ## FAQ
 
