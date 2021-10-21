@@ -19,6 +19,7 @@ Dual-licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE)
 - [Reference](docs/reference.md)
 - [FAQ](#faq)
 - [Comparison](docs/comparison.md)
+- [Design](docs/design.md)
 - [Contribute](CONTRIBUTING.md)
 - [CHANGELOG](CHANGELOG.md)
 
