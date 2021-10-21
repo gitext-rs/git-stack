@@ -11,6 +11,6 @@ Requirements:
 Example: When pushing a branch and creating a PR, people general mark the
 remote branch as the upstream for their branch, allowing them to do a simple
 `git push` in the future.  We need to set this for the user and can't use it like 
-[depot-tools]((https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html)
+[depot-tools](https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html)
 which simplifies some of `git-stack`s work by having the parent branch be the
 upstream.
