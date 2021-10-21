@@ -418,58 +418,62 @@ fn push(state: &mut State) -> eyre::Result<()> {
 }
 
 fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
-    let mut graphs = state
-        .stacks
-        .iter()
-        .map(|stack| -> eyre::Result<git_stack::graph::Graph> {
-            let graphed_branches = stack.graphed_branches();
-            let base_commit = state
-                .repo
-                .find_commit(stack.base.id)
-                .expect("base branch is valid");
-            let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
-            graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
-            git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+    let mut graphs = Vec::with_capacity(state.stacks.len());
+    for stack in state.stacks.iter() {
+        let graphed_branches = stack.graphed_branches();
+        let base_commit = state
+            .repo
+            .find_commit(stack.base.id)
+            .expect("base branch is valid");
+        let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
+        graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
+        git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
 
-            if state.dry_run {
-                // Show as-if we performed all mutations
-                if state.rebase {
-                    git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
-                    git_stack::graph::drop_by_tree_id(&mut graph);
-                }
-                git_stack::graph::fixup(&mut graph, state.fixup);
+        if state.dry_run {
+            // Show as-if we performed all mutations
+            if state.rebase {
+                git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
+                git_stack::graph::drop_by_tree_id(&mut graph);
             }
+            git_stack::graph::fixup(&mut graph, state.fixup);
+        }
 
-            eyre::Result::Ok(graph)
-        });
-    let mut graph = graphs.next().unwrap_or_else(|| {
+        git_stack::graph::pushable(&mut graph);
+
+        graphs.push(graph);
+    }
+    if graphs.is_empty() {
         let graph =
             git_stack::graph::Graph::new(git_stack::graph::Node::new(state.head_commit.clone()));
-        Ok(graph)
-    })?;
-    for other in graphs {
-        graph.extend(&state.repo, other?)?;
+        graphs.push(graph);
     }
+    graphs.sort_by_key(|g| {
+        let mut revwalk = state.repo.raw().revwalk().unwrap();
+        // Reduce the number of commits to walk
+        revwalk.simplify_first_parent().unwrap();
+        revwalk.push(g.root_id()).unwrap();
+        revwalk.count()
+    });
 
-    git_stack::graph::pushable(&mut graph);
-
-    match state.show_format {
-        git_stack::config::Format::Silent => (),
-        git_stack::config::Format::Branches
-        | git_stack::config::Format::BranchCommits
-        | git_stack::config::Format::Commits => {
-            writeln!(
-                std::io::stdout(),
-                "{}",
-                DisplayTree::new(&state.repo, &graph)
-                    .colored(colored_stdout)
-                    .show(state.show_format)
-                    .stacked(state.show_stacked)
-                    .protected_branches(&state.protected_branches)
-            )?;
-        }
-        git_stack::config::Format::Debug => {
-            writeln!(std::io::stdout(), "{:#?}", graph)?;
+    for graph in graphs {
+        match state.show_format {
+            git_stack::config::Format::Silent => (),
+            git_stack::config::Format::Branches
+            | git_stack::config::Format::BranchCommits
+            | git_stack::config::Format::Commits => {
+                write!(
+                    std::io::stdout(),
+                    "{}",
+                    DisplayTree::new(&state.repo, &graph)
+                        .colored(colored_stdout)
+                        .show(state.show_format)
+                        .stacked(state.show_stacked)
+                        .protected_branches(&state.protected_branches)
+                )?;
+            }
+            git_stack::config::Format::Debug => {
+                writeln!(std::io::stdout(), "{:#?}", graph)?;
+            }
         }
     }
 
