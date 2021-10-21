@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Breaking Changes
+
+- Renamed config `stack.fixp` to `stack.auto-fixup` to clarify role
+
+#### Fixes
+
+- Changed `--pull` to not perform `stack.auto-fixup`
+- Allow `--fixup` to run without `--rebase`
+
 ## [0.3.0] - 2021-10-20
 
 ### Breaking Changes
