@@ -41,18 +41,20 @@ impl State {
         }
         let rebase = rebase;
 
-        let fixup = if args.fixup.is_some() || rebase {
-            repo_config.fixup()
-        } else {
-            // Assume the user is only wanting to show the tree and not modify it.
-            let no_op = git_stack::config::Fixup::Ignore;
-            if no_op != repo_config.fixup() {
-                log::trace!(
-                    "Ignoring `fixup={}` without an explicit `--rebase` or `--fixup`",
-                    repo_config.fixup()
-                );
+        let fixup = match (args.fixup, args.rebase) {
+            (Some(fixup), _) => fixup,
+            (_, true) => repo_config.auto_fixup(),
+            _ => {
+                // Assume the user is only wanting to show the tree and not modify it.
+                let no_op = git_stack::config::Fixup::Ignore;
+                if no_op != repo_config.auto_fixup() {
+                    log::trace!(
+                        "Ignoring `auto-fixup={}` without an explicit `--rebase`",
+                        repo_config.auto_fixup()
+                    );
+                }
+                no_op
             }
-            no_op
         };
         let push = args.push;
         let protected = git_stack::git::ProtectedBranches::new(

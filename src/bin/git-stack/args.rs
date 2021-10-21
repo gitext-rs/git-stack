@@ -82,7 +82,7 @@ impl Args {
             pull_remote: None,
             show_format: self.format,
             show_stacked: None,
-            fixup: self.fixup,
+            auto_fixup: None,
 
             capacity: None,
         }

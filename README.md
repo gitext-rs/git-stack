@@ -163,18 +163,6 @@ at a time within a stack.  If you really need to, you can direct your reviewers
 to the commits within each PR to look at.  However, you will see the CI run
 status of top commit for each PR dependency.
 
-## When does `git-stack` consider a branch ready to be pushed?
-
-A branch is ready if
-- It is not stacked on top of any other development branches (see "How do I stack my PRs in Github")
-- It has no WIP commits
-
-We consider branches with [`fixup!`
-commits](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupamendrewordltcommitgt)
-to be ready in case you are wanting reviewers to see some intermediate states.
-You can use a tool like [committed](https://github.com/crate-ci/committed) to
-prevent these from being merged.
-
 ## When is a commit considered WIP?
 
 If a commit summary is only `WIP` or is prefixed by:
