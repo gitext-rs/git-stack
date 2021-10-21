@@ -432,8 +432,10 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
 
             if state.dry_run {
                 // Show as-if we performed all mutations
-                git_stack::graph::rebase_branches(&mut root, stack.onto.id);
-                git_stack::graph::drop_by_tree_id(&mut root);
+                if state.rebase {
+                    git_stack::graph::rebase_branches(&mut root, stack.onto.id);
+                    git_stack::graph::drop_by_tree_id(&mut root);
+                }
                 git_stack::graph::fixup(&mut root, state.fixup);
             }
 
