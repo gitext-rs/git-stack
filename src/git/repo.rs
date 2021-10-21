@@ -670,7 +670,7 @@ impl InMemoryRepo {
         let last_id = self
             .last_id
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let sha = format!("{:x}", last_id);
+        let sha = format!("{:040x}", last_id);
         git2::Oid::from_str(&sha).unwrap()
     }
 
