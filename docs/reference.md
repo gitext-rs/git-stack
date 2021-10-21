@@ -21,4 +21,4 @@ Configuration is read from the following (in precedence order):
 | stack.pull-remote      | \-       | string                     | Upstream remote for pulling protected branches |
 | stack.show-format      | --format | "silent", "brief", "full"  | How to show the stacked diffs at the end |
 | stack.show-stacked     | \-       | bool                       | Show branches as stacked on top of each other, where possible |
-| stack.fixup            | \-       | "ignore", "move", "squash" | Default fixup operation with `--rebase` |
+| stack.auto-fixup       | --fixup  | "ignore", "move", "squash" | Default fixup operation with `--rebase` |
