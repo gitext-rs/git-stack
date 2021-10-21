@@ -147,7 +147,7 @@ For more, see [Command Reference](docs/reference.md#commands).
 ### How do I stack another branch on top of an existing one?
 
 - New branch: `git switch feature1 && git switch -c feature2` and start adding commits
-- Moving existing: `git stack --rebase --base feature1 --onto main`
+- Moving existing: `git stack --rebase --base feature1 --onto main` moves `feature2` to `main`, from off of `feature1`
   - Without `git stack`: `git rebase feature1 --onto main`
 
 ### How do I start a new feature?
