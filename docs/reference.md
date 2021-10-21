@@ -125,6 +125,6 @@ Configuration is read from the following (in precedence order):
 | stack.stack            | --stack  | "current", "dependents", "descendants", "all" | Which development branch-stacks to operate on |
 | stack.push-remote      | \-       | string                     | Development remote for pushing local branches |
 | stack.pull-remote      | \-       | string                     | Upstream remote for pulling protected branches |
-| stack.show-format      | --format | "silent", "brief", "full"  | How to show the stacked diffs at the end |
+| stack.show-format      | --format | "silent", "branches", "branch-commits", "commits", "debug"  | How to show the stacked diffs at the end |
 | stack.show-stacked     | \-       | bool                       | Show branches as stacked on top of each other, where possible |
 | stack.auto-fixup       | --fixup  | "ignore", "move", "squash" | Default fixup operation with `--rebase` |
