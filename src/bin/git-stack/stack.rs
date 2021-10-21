@@ -41,7 +41,7 @@ impl State {
         }
         let rebase = rebase;
 
-        let fixup = match (args.fixup, rebase) {
+        let fixup = match (args.fixup, args.rebase) {
             (Some(fixup), _) => fixup,
             (_, true) => repo_config.auto_fixup(),
             _ => {
