@@ -256,10 +256,21 @@ pub fn stack(
         }
 
         // Update status of remote unprotected branches
-        match git_fetch(&mut state.repo, state.dry_run) {
-            Ok(_) => (),
-            Err(err) => {
-                log::warn!("Skipping fetch of `{}`, {}", state.repo.push_remote(), err);
+        let mut push_branches: Vec<_> = state
+            .stacks
+            .iter()
+            .flat_map(|stack| stack.branches.iter())
+            .filter(|(oid, _)| !state.protected_branches.contains_oid(*oid))
+            .flat_map(|(_, b)| b.iter())
+            .filter_map(|b| b.push_id.map(|_| b.name.as_str()))
+            .collect();
+        push_branches.sort_unstable();
+        if !push_branches.is_empty() {
+            match git_fetch(&mut state.repo, &push_branches, state.dry_run) {
+                Ok(_) => (),
+                Err(err) => {
+                    log::warn!("Skipping fetch of `{}`, {}", state.repo.push_remote(), err);
+                }
             }
         }
 
@@ -577,9 +588,13 @@ fn resolve_implicit_base(
     Ok(branch.clone())
 }
 
-fn git_fetch(repo: &mut git_stack::git::GitRepo, dry_run: bool) -> eyre::Result<()> {
+fn git_fetch(
+    repo: &mut git_stack::git::GitRepo,
+    branches: &[&str],
+    dry_run: bool,
+) -> eyre::Result<()> {
     let remote = repo.push_remote();
-    log::debug!("git fetch {}", remote);
+    log::debug!("git fetch {} {}", remote, branches.join(" "));
     if dry_run {
         return Ok(());
     }
@@ -589,10 +604,11 @@ fn git_fetch(repo: &mut git_stack::git::GitRepo, dry_run: bool) -> eyre::Result<
     let status = std::process::Command::new("git")
         .arg("fetch")
         .arg(remote)
+        .args(branches)
         .status()
         .wrap_err("Could not run `git fetch`")?;
     if !status.success() {
-        eyre::bail!("`git fetch {}` failed", remote);
+        eyre::bail!("`git fetch {} {}` failed", remote, branches.join(" "));
     }
 
     Ok(())
