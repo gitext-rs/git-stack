@@ -10,7 +10,13 @@ pub fn protect_branches(
     protected_branches: &crate::git::Branches,
 ) {
     let root_id = graph.root_id();
-    for protected_oid in protected_branches.oids().filter(|protected_oid| {
+
+    let protected_oids: HashSet<_> = protected_branches
+        .iter()
+        .flat_map(|(_, branches)| branches.iter().map(|b| b.pull_id.unwrap_or(b.id)))
+        .collect();
+
+    for protected_oid in protected_oids.into_iter().filter(|protected_oid| {
         repo.merge_base(root_id, *protected_oid)
             .map(|merge_base_oid| merge_base_oid == root_id)
             .unwrap_or(false)
