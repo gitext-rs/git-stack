@@ -523,7 +523,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
     }
 
     if !empty_stacks.is_empty() {
-        log::info!("Empty stacks: {}", empty_stacks.join("\n"));
+        log::info!("Empty stacks: {}", empty_stacks.join(", "));
     }
 
     Ok(())
