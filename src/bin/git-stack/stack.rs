@@ -495,13 +495,17 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             }
         }
         old_stacks.extend(
-            git_stack::graph::trim_old_branches(&mut graph, state.protect_commit_time)
-                .into_iter()
-                .map(|b| format!("{}", palette_stderr.warn.paint(b))),
+            git_stack::graph::trim_old_branches(
+                &mut graph,
+                state.protect_commit_time,
+                &[state.head_commit.id],
+            )
+            .into_iter()
+            .map(|b| format!("{}", palette_stderr.warn.paint(b))),
         );
         if let Some(user) = state.repo.user() {
             foreign_stacks.extend(
-                git_stack::graph::trim_foreign_branches(&mut graph, &user)
+                git_stack::graph::trim_foreign_branches(&mut graph, &user, &[state.head_commit.id])
                     .into_iter()
                     .map(|b| format!("{}", palette_stderr.warn.paint(b))),
             );
@@ -637,7 +641,7 @@ fn git_fetch(
         .collect();
 
     for branch in branches {
-        if !remote_branches.iter().contains(branch) {
+        if !remote_branches.contains(branch) {
             let remote_branch = format!("{}/{}", remote, branch);
             log::info!("Pruning {}", remote_branch);
             let mut branch = repo
