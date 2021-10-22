@@ -295,6 +295,7 @@ impl RepoConfig {
             (None, Some(rhs)) => self.protected_branches = Some(rhs),
             (_, _) => (),
         }
+        self.protect_commit_count = other.protect_commit_count.or(self.protect_commit_count);
         self.protect_commit_age = other.protect_commit_age.or(self.protect_commit_age);
         self.push_remote = other.push_remote.or(self.push_remote);
         self.pull_remote = other.pull_remote.or(self.pull_remote);
