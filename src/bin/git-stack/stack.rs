@@ -21,6 +21,7 @@ struct State {
     dry_run: bool,
     snapshot_capacity: Option<usize>,
     protect_commit_count: Option<usize>,
+    protect_commit_age: std::time::SystemTime,
 
     show_format: git_stack::config::Format,
     show_stacked: bool,
@@ -66,6 +67,7 @@ impl State {
         let dry_run = args.dry_run;
         let snapshot_capacity = repo_config.capacity();
         let protect_commit_count = repo_config.protect_commit_count();
+        let protect_commit_age = std::time::SystemTime::now() - repo_config.protect_commit_age();
 
         let show_format = repo_config.show_format();
         let show_stacked = repo_config.show_stacked();
@@ -180,6 +182,7 @@ impl State {
             dry_run,
             snapshot_capacity,
             protect_commit_count,
+            protect_commit_age,
 
             show_format,
             show_stacked,
@@ -395,6 +398,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     if let Some(protect_commit_count) = state.protect_commit_count {
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
+    git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_age);
 
     if state.rebase {
         git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
@@ -423,6 +427,7 @@ fn push(state: &mut State) -> eyre::Result<()> {
     if let Some(protect_commit_count) = state.protect_commit_count {
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
+    git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_age);
     git_stack::graph::pushable(&mut graph);
 
     git_push(&mut state.repo, &graph, state.dry_run)?;
@@ -467,6 +472,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 );
             }
         }
+        git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_age);
 
         if state.dry_run {
             // Show as-if we performed all mutations

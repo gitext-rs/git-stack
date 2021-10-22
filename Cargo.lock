@@ -362,6 +362,7 @@ dependencies = [
  "git-fixture",
  "git2",
  "human-panic",
+ "humantime",
  "ignore",
  "itertools",
  "log",
