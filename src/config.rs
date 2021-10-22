@@ -174,6 +174,7 @@ impl RepoConfig {
         conf.pull_remote = Some(conf.pull_remote().to_owned());
         conf.show_format = Some(conf.show_format());
         conf.show_stacked = Some(conf.show_stacked());
+        conf.auto_fixup = Some(conf.auto_fixup());
         conf.capacity = Some(DEFAULT_CAPACITY);
 
         let mut protected_branches: Vec<String> = Vec::new();
