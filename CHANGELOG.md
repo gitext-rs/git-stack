@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Color log level, regardless of min log level
+
 ## [0.4.2] - 2021-10-22
 
 #### Fixes
