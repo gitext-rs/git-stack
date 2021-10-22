@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.4.2] - 2021-10-22
+
 #### Fixes
 
 - Clean up stack visualization
@@ -168,7 +170,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/epage/git-stack/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/epage/git-stack/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/epage/git-stack/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/epage/git-stack/compare/v0.2.10...v0.3.0
