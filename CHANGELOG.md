@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Always prune from the push-remote, not just when configured
+- Speed up fetching large push-remotes by only fetching what is needed
+- Don't fetch the push-remote on dry-run
+- Don't mark local edits as protected
+
 ## [0.4.3] - 2021-10-22
 
 #### Fixes
