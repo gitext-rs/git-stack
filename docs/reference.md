@@ -46,9 +46,7 @@ your development branches on top of their relevant protected branches.
 Unlike `--rebase`, this does not perform any "auto" operations.
 
 Note:
-- This also performs a fetch of your `stack.push-remote` to take advantage of
-  [`fetch.prune`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-fetchprune)
-  (`git config --global fetch.prune true`).
+- This also performs a fetch of your `stack.push-remote` to prune any removed remotes
 
 Why not `git pull --rebase upstream main`?
 - Have to manually select your remote/branch
@@ -74,7 +72,7 @@ Why not `git rebase -i --autosquash master`?
 
 ### `git stack --fixup <action>`
 
-Process [fixup!](https://git-scm.com/docs/git-config#Documentation/git-config.txt-fetchprune) commits according to the specified action.
+Process [fixup!](https://git-scm.com/docs/git-commit#Documentation/git-commit.txt---fixupamendrewordltcommitgt) commits according to the specified action.
 
 Note:
 - This can be used to override `stack.auto-fixup` during a `--rebase`.
