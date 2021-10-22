@@ -49,6 +49,7 @@ pub struct Commit {
     pub id: git2::Oid,
     pub tree_id: git2::Oid,
     pub summary: bstr::BString,
+    pub time: std::time::SystemTime,
 }
 
 impl Commit {
@@ -161,10 +162,13 @@ impl GitRepo {
         } else {
             let commit = self.repo.find_commit(id).ok()?;
             let summary: bstr::BString = commit.summary_bytes().unwrap().into();
+            let time = std::time::SystemTime::UNIX_EPOCH
+                + std::time::Duration::from_secs(commit.time().seconds().max(0) as u64);
             let commit = std::rc::Rc::new(Commit {
                 id: commit.id(),
                 tree_id: commit.tree_id(),
                 summary,
+                time,
             });
             commits.insert(id, std::rc::Rc::clone(&commit));
             Some(commit)

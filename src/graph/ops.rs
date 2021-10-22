@@ -98,7 +98,7 @@ fn protect_large_branches_recursive(
     needs_protection
 }
 
-fn mark_branch_protected(graph: &mut Graph, node_id: git2::Oid, large_branches: &mut Vec<String>) {
+fn mark_branch_protected(graph: &mut Graph, node_id: git2::Oid, branches: &mut Vec<String>) {
     let mut protected_queue = VecDeque::new();
     protected_queue.push_back(node_id);
     while let Some(current_id) = protected_queue.pop_front() {
@@ -108,9 +108,54 @@ fn mark_branch_protected(graph: &mut Graph, node_id: git2::Oid, large_branches: 
         if current.branches.is_empty() {
             protected_queue.extend(&graph.get(current_id).expect("all children exist").children);
         } else {
-            large_branches.extend(current.branches.iter().map(|b| b.name.clone()));
+            branches.extend(current.branches.iter().map(|b| b.name.clone()));
         }
     }
+}
+
+pub fn protect_old_branches(graph: &mut Graph, earlier_than: std::time::SystemTime) -> Vec<String> {
+    let mut old_branches = Vec::new();
+
+    let mut protected_queue = VecDeque::new();
+    if graph.root().action.is_protected() {
+        protected_queue.push_back(graph.root_id());
+    }
+    while let Some(current_id) = protected_queue.pop_front() {
+        let current_children = graph
+            .get(current_id)
+            .expect("all children exist")
+            .children
+            .clone();
+
+        for child_id in current_children {
+            let child_action = graph.get(child_id).expect("all children exist").action;
+            if child_action.is_protected() {
+                protected_queue.push_back(child_id);
+            } else {
+                if is_branch_old(graph, child_id, earlier_than) {
+                    mark_branch_protected(graph, child_id, &mut old_branches);
+                }
+            }
+        }
+    }
+
+    old_branches
+}
+
+fn is_branch_old(graph: &Graph, node_id: git2::Oid, earlier_than: std::time::SystemTime) -> bool {
+    let current = graph.get(node_id).expect("all children exist");
+
+    if earlier_than < current.commit.time {
+        return false;
+    }
+
+    for child_id in current.children.iter().copied() {
+        if !is_branch_old(graph, child_id, earlier_than) {
+            return false;
+        }
+    }
+
+    true
 }
 
 /// Pre-requisites:

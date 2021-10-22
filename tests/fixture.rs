@@ -35,6 +35,7 @@ fn populate_event(
                     id: commit_id,
                     tree_id: commit_id,
                     summary: bstr::BString::from(summary),
+                    time: std::time::SystemTime::now(),
                 };
                 repo.push_commit(parent_id, commit);
 

@@ -4,6 +4,7 @@ use std::str::FromStr;
 pub struct RepoConfig {
     pub protected_branches: Option<Vec<String>>,
     pub protect_commit_count: Option<usize>,
+    pub protect_commit_age: Option<std::time::Duration>,
     pub stack: Option<Stack>,
     pub push_remote: Option<String>,
     pub pull_remote: Option<String>,
@@ -16,6 +17,7 @@ pub struct RepoConfig {
 
 static PROTECTED_STACK_FIELD: &str = "stack.protected-branch";
 static PROTECT_COMMIT_COUNT: &str = "stack.protect-commit-count";
+static PROTECT_COMMIT_AGE: &str = "stack.protect-commit-age";
 static STACK_FIELD: &str = "stack.stack";
 static PUSH_REMOTE_FIELD: &str = "stack.push-remote";
 static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
@@ -26,6 +28,8 @@ static BACKUP_CAPACITY_FIELD: &str = "branch-stash.capacity";
 
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
 static DEFAULT_PROTECT_COMMIT_COUNT: usize = 50;
+static DEFAULT_PROTECT_COMMIT_AGE: std::time::Duration =
+    std::time::Duration::from_secs(60 * 60 * 24 * 30);
 const DEFAULT_CAPACITY: usize = 30;
 
 impl RepoConfig {
@@ -117,6 +121,13 @@ impl RepoConfig {
                 if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
                     config.protect_commit_count = Some(value);
                 }
+            } else if key == PROTECT_COMMIT_AGE {
+                if let Some(value) = value
+                    .as_ref()
+                    .and_then(|v| humantime::parse_duration(v).ok())
+                {
+                    config.protect_commit_age = Some(value);
+                }
             } else if key == STACK_FIELD {
                 if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
                     config.stack = Some(value);
@@ -168,6 +179,7 @@ impl RepoConfig {
     fn from_defaults_internal(config: Option<&git2::Config>) -> Self {
         let mut conf = Self::default();
         conf.protect_commit_count = Some(conf.protect_commit_count().unwrap_or(0));
+        conf.protect_commit_age = Some(conf.protect_commit_age());
         conf.stack = Some(conf.stack());
         conf.push_remote = Some(conf.push_remote().to_owned());
         conf.pull_remote = Some(conf.pull_remote().to_owned());
@@ -212,6 +224,10 @@ impl RepoConfig {
             .get_i64(PROTECT_COMMIT_COUNT)
             .ok()
             .map(|i| i.max(0) as usize);
+        let protect_commit_age = config
+            .get_string(AUTO_FIXUP_FIELD)
+            .ok()
+            .and_then(|s| humantime::parse_duration(&s).ok());
 
         let push_remote = config.get_string(PUSH_REMOTE_FIELD).ok();
         let pull_remote = config.get_string(PULL_REMOTE_FIELD).ok();
@@ -241,6 +257,7 @@ impl RepoConfig {
         Self {
             protected_branches,
             protect_commit_count,
+            protect_commit_age,
             push_remote,
             pull_remote,
             stack,
@@ -278,7 +295,7 @@ impl RepoConfig {
             (None, Some(rhs)) => self.protected_branches = Some(rhs),
             (_, _) => (),
         }
-
+        self.protect_commit_age = other.protect_commit_age.or(self.protect_commit_age);
         self.push_remote = other.push_remote.or(self.push_remote);
         self.pull_remote = other.pull_remote.or(self.pull_remote);
         self.stack = other.stack.or(self.stack);
@@ -299,6 +316,11 @@ impl RepoConfig {
             .protect_commit_count
             .unwrap_or(DEFAULT_PROTECT_COMMIT_COUNT);
         (protect_commit_count != 0).then(|| protect_commit_count)
+    }
+
+    pub fn protect_commit_age(&self) -> std::time::Duration {
+        self.protect_commit_age
+            .unwrap_or(DEFAULT_PROTECT_COMMIT_AGE)
     }
 
     pub fn push_remote(&self) -> &str {
@@ -349,6 +371,12 @@ impl std::fmt::Display for RepoConfig {
             "\t{}={}",
             PROTECT_COMMIT_COUNT.split_once(".").unwrap().1,
             self.protect_commit_count().unwrap_or(0)
+        )?;
+        writeln!(
+            f,
+            "\t{}={}",
+            PROTECT_COMMIT_AGE.split_once(".").unwrap().1,
+            humantime::format_duration(self.protect_commit_age())
         )?;
         writeln!(
             f,
