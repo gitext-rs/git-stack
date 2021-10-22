@@ -599,12 +599,42 @@ fn git_fetch(
         return Ok(());
     }
 
+    let output = std::process::Command::new("git")
+        .arg("ls-remote")
+        .arg("--heads")
+        .arg(remote)
+        .args(branches)
+        .stdout(std::process::Stdio::piped())
+        .spawn()
+        .wrap_err("Could not run `git fetch`")?
+        .wait_with_output()?;
+    if !output.status.success() {
+        eyre::bail!("Could not run `git fetch`");
+    }
+    let stdout = String::from_utf8(output.stdout).wrap_err("Could not run `git fetch`")?;
+    let remote_branches: Vec<_> = stdout
+        .lines()
+        .filter_map(|l| l.rsplit_once('/'))
+        .map(|s| s.1)
+        .collect();
+
+    for branch in branches {
+        if !remote_branches.iter().contains(branch) {
+            let remote_branch = format!("{}/{}", remote, branch);
+            log::info!("Pruning {}", remote_branch);
+            let mut branch = repo
+                .raw()
+                .find_branch(&remote_branch, git2::BranchType::Remote)?;
+            branch.delete()?;
+        }
+    }
+
     // A little uncertain about some of the weirder authentication needs, just deferring to `git`
     // instead of using `libgit2`
     let status = std::process::Command::new("git")
         .arg("fetch")
         .arg(remote)
-        .args(branches)
+        .args(remote_branches)
         .status()
         .wrap_err("Could not run `git fetch`")?;
     if !status.success() {
