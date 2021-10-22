@@ -256,7 +256,7 @@ pub fn stack(
         }
 
         // Update status of remote unprotected branches
-        match git_fetch(&mut state.repo) {
+        match git_fetch(&mut state.repo, state.dry_run) {
             Ok(_) => (),
             Err(err) => {
                 log::warn!("Skipping fetch of `{}`, {}", state.repo.push_remote(), err);
@@ -577,9 +577,13 @@ fn resolve_implicit_base(
     Ok(branch.clone())
 }
 
-fn git_fetch(repo: &mut git_stack::git::GitRepo) -> eyre::Result<()> {
+fn git_fetch(repo: &mut git_stack::git::GitRepo, dry_run: bool) -> eyre::Result<()> {
     let remote = repo.push_remote();
     log::debug!("git fetch {}", remote);
+    if dry_run {
+        return Ok(());
+    }
+
     // A little uncertain about some of the weirder authentication needs, just deferring to `git`
     // instead of using `libgit2`
     let status = std::process::Command::new("git")
