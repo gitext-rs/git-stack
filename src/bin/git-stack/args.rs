@@ -77,6 +77,7 @@ impl Args {
     pub fn to_config(&self) -> git_stack::config::RepoConfig {
         git_stack::config::RepoConfig {
             protected_branches: None,
+            protect_commit_count: None,
             stack: self.stack,
             push_remote: None,
             pull_remote: None,

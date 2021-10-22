@@ -119,9 +119,10 @@ Configuration is read from the following (in precedence order):
 
 ### Config Fields
 
-| Field                  | Argument | Format                    | Description |
-|------------------------|----------|---------------------------|-------------|
+| Field                  | Argument | Format                     | Description |
+|------------------------|----------|----------------------------|-------------|
 | stack.protected-branch | \-       | multivar of globs          | Branch names that match these globs (`.gitignore` syntax) are considered protected branches |
+| stack.protect-commit-count | \-   | integer                    | Protect commits that are on a branch with `count`+ commits |
 | stack.stack            | --stack  | "current", "dependents", "descendants", "all" | Which development branch-stacks to operate on |
 | stack.push-remote      | \-       | string                     | Development remote for pushing local branches |
 | stack.pull-remote      | \-       | string                     | Upstream remote for pulling protected branches |

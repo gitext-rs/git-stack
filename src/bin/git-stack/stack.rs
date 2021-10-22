@@ -20,6 +20,7 @@ struct State {
     fixup: git_stack::config::Fixup,
     dry_run: bool,
     snapshot_capacity: Option<usize>,
+    protect_commit_count: Option<usize>,
 
     show_format: git_stack::config::Format,
     show_stacked: bool,
@@ -64,6 +65,7 @@ impl State {
         .with_code(proc_exit::Code::CONFIG_ERR)?;
         let dry_run = args.dry_run;
         let snapshot_capacity = repo_config.capacity();
+        let protect_commit_count = repo_config.protect_commit_count();
 
         let show_format = repo_config.show_format();
         let show_stacked = repo_config.show_stacked();
@@ -177,6 +179,7 @@ impl State {
             fixup,
             dry_run,
             snapshot_capacity,
+            protect_commit_count,
 
             show_format,
             show_stacked,
@@ -385,6 +388,9 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
     git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+    if let Some(protect_commit_count) = state.protect_commit_count {
+        git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
+    }
 
     if state.rebase {
         git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
@@ -410,6 +416,9 @@ fn push(state: &mut State) -> eyre::Result<()> {
     )?;
 
     git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+    if let Some(protect_commit_count) = state.protect_commit_count {
+        git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
+    }
     git_stack::graph::pushable(&mut graph);
 
     git_push(&mut state.repo, &graph, state.dry_run)?;
@@ -428,6 +437,17 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
         let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
         graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
         git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+        if let Some(protect_commit_count) = state.protect_commit_count {
+            let protected =
+                git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
+            if !protected.is_empty() {
+                log::warn!(
+                    "Branches contain more than {} commits (should these be protected?): {}",
+                    protect_commit_count,
+                    protected.join("m ")
+                );
+            }
+        }
 
         if state.dry_run {
             // Show as-if we performed all mutations
