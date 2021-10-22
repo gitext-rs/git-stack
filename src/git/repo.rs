@@ -2,6 +2,8 @@ use bstr::ByteSlice;
 use itertools::Itertools;
 
 pub trait Repo {
+    fn user(&self) -> Option<std::rc::Rc<str>>;
+
     fn is_dirty(&self) -> bool;
     fn merge_base(&self, one: git2::Oid, two: git2::Oid) -> Option<git2::Oid>;
 
@@ -50,6 +52,8 @@ pub struct Commit {
     pub tree_id: git2::Oid,
     pub summary: bstr::BString,
     pub time: std::time::SystemTime,
+    pub author: Option<std::rc::Rc<str>>,
+    pub committer: Option<std::rc::Rc<str>>,
 }
 
 impl Commit {
@@ -95,15 +99,17 @@ pub struct GitRepo {
     push_remote: Option<String>,
     pull_remote: Option<String>,
     commits: std::cell::RefCell<std::collections::HashMap<git2::Oid, std::rc::Rc<Commit>>>,
+    interned_strings: std::cell::RefCell<std::collections::HashSet<std::rc::Rc<str>>>,
 }
 
 impl GitRepo {
     pub fn new(repo: git2::Repository) -> Self {
         Self {
             repo,
-            commits: Default::default(),
             push_remote: None,
             pull_remote: None,
+            commits: Default::default(),
+            interned_strings: Default::default(),
         }
     }
 
@@ -125,6 +131,13 @@ impl GitRepo {
 
     pub fn raw(&self) -> &git2::Repository {
         &self.repo
+    }
+
+    pub fn user(&self) -> Option<std::rc::Rc<str>> {
+        self.repo
+            .signature()
+            .ok()
+            .and_then(|s| s.name().map(|n| self.intern_string(n)))
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -164,11 +177,16 @@ impl GitRepo {
             let summary: bstr::BString = commit.summary_bytes().unwrap().into();
             let time = std::time::SystemTime::UNIX_EPOCH
                 + std::time::Duration::from_secs(commit.time().seconds().max(0) as u64);
+
+            let author = commit.author().name().map(|n| self.intern_string(n));
+            let committer = commit.author().name().map(|n| self.intern_string(n));
             let commit = std::rc::Rc::new(Commit {
                 id: commit.id(),
                 tree_id: commit.tree_id(),
                 summary,
                 time,
+                author,
+                committer,
             });
             commits.insert(id, std::rc::Rc::clone(&commit));
             Some(commit)
@@ -561,9 +579,24 @@ impl GitRepo {
         self.repo.checkout_head(Some(&mut builder))?;
         Ok(())
     }
+
+    fn intern_string(&self, data: &str) -> std::rc::Rc<str> {
+        let mut interned_strings = self.interned_strings.borrow_mut();
+        if let Some(interned) = interned_strings.get(data) {
+            std::rc::Rc::clone(interned)
+        } else {
+            let interned = std::rc::Rc::from(data);
+            interned_strings.insert(std::rc::Rc::clone(&interned));
+            interned
+        }
+    }
 }
 
 impl Repo for GitRepo {
+    fn user(&self) -> Option<std::rc::Rc<str>> {
+        self.user()
+    }
+
     fn is_dirty(&self) -> bool {
         self.is_dirty()
     }
@@ -700,6 +733,10 @@ impl InMemoryRepo {
     pub fn mark_branch(&mut self, branch: Branch) {
         assert!(self.commits.contains_key(&branch.id));
         self.branches.insert(branch.name.clone(), branch);
+    }
+
+    fn user(&self) -> Option<std::rc::Rc<str>> {
+        None
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -902,6 +939,10 @@ impl<'c> Iterator for CommitsFrom<'c> {
 }
 
 impl Repo for InMemoryRepo {
+    fn user(&self) -> Option<std::rc::Rc<str>> {
+        self.user()
+    }
+
     fn is_dirty(&self) -> bool {
         self.is_dirty()
     }

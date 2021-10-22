@@ -412,6 +412,9 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
     git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_time);
+    if let Some(user) = state.repo.user() {
+        git_stack::graph::protect_foreign_branches(&mut graph, &user);
+    }
 
     if state.rebase {
         git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
@@ -441,6 +444,10 @@ fn push(state: &mut State) -> eyre::Result<()> {
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
     git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_time);
+    if let Some(user) = state.repo.user() {
+        git_stack::graph::protect_foreign_branches(&mut graph, &user);
+    }
+
     git_stack::graph::pushable(&mut graph);
 
     git_push(&mut state.repo, &graph, state.dry_run)?;
@@ -456,6 +463,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
     };
     let mut empty_stacks = Vec::new();
     let mut old_stacks = Vec::new();
+    let mut foreign_stacks = Vec::new();
 
     let mut graphs = Vec::with_capacity(state.stacks.len());
     for stack in state.stacks.iter() {
@@ -491,6 +499,13 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 .into_iter()
                 .map(|b| format!("{}", palette_stderr.warn.paint(b))),
         );
+        if let Some(user) = state.repo.user() {
+            foreign_stacks.extend(
+                git_stack::graph::trim_foreign_branches(&mut graph, &user)
+                    .into_iter()
+                    .map(|b| format!("{}", palette_stderr.warn.paint(b))),
+            );
+        }
 
         if state.dry_run {
             // Show as-if we performed all mutations
@@ -549,6 +564,9 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             humantime::format_duration(state.protect_commit_age),
             old_stacks.join(", ")
         );
+    }
+    if !foreign_stacks.is_empty() {
+        log::info!("Stack from other users: {}", foreign_stacks.join(", "));
     }
 
     Ok(())
