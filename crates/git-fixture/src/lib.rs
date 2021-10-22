@@ -34,6 +34,28 @@ impl Dag {
         Ok(dag)
     }
 
+    pub fn save(&self, path: &std::path::Path) -> eyre::Result<()> {
+        let raw: String = match path.extension().and_then(std::ffi::OsStr::to_str) {
+            Some("yaml") | Some("yml") => serde_yaml::to_string(self)
+                .wrap_err_with(|| format!("Could not parse {}", path.display()))?,
+            Some("json") => serde_json::to_string(self)
+                .wrap_err_with(|| format!("Could not parse {}", path.display()))?,
+            Some("toml") => toml::to_string(self)
+                .wrap_err_with(|| format!("Could not parse {}", path.display()))?,
+            Some(other) => {
+                return Err(eyre::eyre!("Unknown extension: {:?}", other));
+            }
+            None => {
+                return Err(eyre::eyre!("No extension for {}", path.display()));
+            }
+        };
+
+        std::fs::write(path, &raw)
+            .wrap_err_with(|| format!("Could not write {}", path.display()))?;
+
+        Ok(())
+    }
+
     pub fn run(self, cwd: &std::path::Path) -> eyre::Result<()> {
         if self.init {
             std::process::Command::new("git")
