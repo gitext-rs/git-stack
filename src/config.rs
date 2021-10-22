@@ -1,7 +1,6 @@
 use std::str::FromStr;
 
-#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Default, Clone, Debug)]
 pub struct RepoConfig {
     pub protected_branches: Option<Vec<String>>,
     pub protect_commit_count: Option<usize>,
@@ -406,8 +405,7 @@ fn default_branch(config: &git2::Config) -> &str {
     config.get_str("init.defaultBranch").ok().unwrap_or("main")
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Format {
     Silent,
     Branches,
@@ -454,8 +452,7 @@ impl Default for Format {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Stack {
     Current,
     Dependents,
@@ -499,8 +496,7 @@ impl Default for Stack {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "kebab-case")]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Fixup {
     Ignore,
     Move,
