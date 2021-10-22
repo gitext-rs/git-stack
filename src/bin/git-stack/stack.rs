@@ -229,7 +229,11 @@ impl StackState {
     }
 }
 
-pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitResult {
+pub fn stack(
+    args: &crate::args::Args,
+    colored_stdout: bool,
+    colored_stderr: bool,
+) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
@@ -364,7 +368,7 @@ pub fn stack(args: &crate::args::Args, colored_stdout: bool) -> proc_exit::ExitR
         state.update().with_code(proc_exit::Code::FAILURE)?;
     }
 
-    show(&state, colored_stdout).with_code(proc_exit::Code::FAILURE)?;
+    show(&state, colored_stdout, colored_stderr).with_code(proc_exit::Code::FAILURE)?;
 
     git_stack::git::stash_pop(&mut state.repo, stash_id);
 
@@ -426,10 +430,25 @@ fn push(state: &mut State) -> eyre::Result<()> {
     Ok(())
 }
 
-fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
+fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Result<()> {
+    let palette_stderr = if colored_stderr {
+        Palette::colored()
+    } else {
+        Palette::plain()
+    };
+    let mut empty_stacks = Vec::new();
+
     let mut graphs = Vec::with_capacity(state.stacks.len());
     for stack in state.stacks.iter() {
         let graphed_branches = stack.graphed_branches();
+        if graphed_branches.len() == 1 {
+            let branches = graphed_branches.iter().next().unwrap().1;
+            if branches.len() == 1 && branches[0].id != state.head_commit.id {
+                empty_stacks.push(format!("{}", palette_stderr.info.paint(&branches[0].name)));
+                continue;
+            }
+        }
+
         let base_commit = state
             .repo
             .find_commit(stack.base.id)
@@ -495,6 +514,10 @@ fn show(state: &State, colored_stdout: bool) -> eyre::Result<()> {
                 writeln!(std::io::stdout(), "{:#?}", graph)?;
             }
         }
+    }
+
+    if !empty_stacks.is_empty() {
+        log::info!("Empty stacks: {}", empty_stacks.join("\n"));
     }
 
     Ok(())
