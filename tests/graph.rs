@@ -305,7 +305,7 @@ fn overflow() {
             branch: Some(git_fixture::Branch::new("base")),
             mark: None,
         }));
-    for i in 0..200 {
+    for i in 0..1000 {
         plan.events
             .push(git_fixture::Event::Tree(git_fixture::Tree {
             tracked: maplit::hashmap! {
