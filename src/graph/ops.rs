@@ -29,6 +29,90 @@ pub fn protect_branches(
     }
 }
 
+pub fn protect_large_branches(graph: &mut Graph, max: usize) -> Vec<String> {
+    let mut large_branches = Vec::new();
+
+    let mut protected_queue = VecDeque::new();
+    if graph.root().action.is_protected() {
+        protected_queue.push_back(graph.root_id());
+    }
+    while let Some(current_id) = protected_queue.pop_front() {
+        let current_children = graph
+            .get(current_id)
+            .expect("all children exist")
+            .children
+            .clone();
+
+        for child_id in current_children {
+            let child_action = graph.get(child_id).expect("all children exist").action;
+            if child_action.is_protected() {
+                protected_queue.push_back(child_id);
+            } else {
+                let protected =
+                    protect_large_branches_recursive(graph, child_id, 0, max, &mut large_branches);
+                if protected {
+                    protected_queue.push_back(child_id);
+                }
+            }
+        }
+    }
+
+    large_branches
+}
+
+fn protect_large_branches_recursive(
+    graph: &mut Graph,
+    node_id: git2::Oid,
+    count: usize,
+    max: usize,
+    large_branches: &mut Vec<String>,
+) -> bool {
+    let mut needs_protection = false;
+
+    if !graph
+        .get(node_id)
+        .expect("all children exist")
+        .branches
+        .is_empty()
+    {
+    } else if count <= max {
+        let current_children = graph
+            .get(node_id)
+            .expect("all children exist")
+            .children
+            .clone();
+
+        for child_id in current_children {
+            needs_protection |=
+                protect_large_branches_recursive(graph, child_id, count + 1, max, large_branches);
+        }
+        if needs_protection {
+            let mut node = graph.get_mut(node_id).expect("all children exist");
+            node.action = crate::graph::Action::Protected;
+        }
+    } else {
+        mark_branch_protected(graph, node_id, large_branches);
+        needs_protection = true;
+    }
+
+    needs_protection
+}
+
+fn mark_branch_protected(graph: &mut Graph, node_id: git2::Oid, large_branches: &mut Vec<String>) {
+    let mut protected_queue = VecDeque::new();
+    protected_queue.push_back(node_id);
+    while let Some(current_id) = protected_queue.pop_front() {
+        let mut current = graph.get_mut(current_id).expect("all children exist");
+        current.action = crate::graph::Action::Protected;
+
+        if current.branches.is_empty() {
+            protected_queue.extend(&graph.get(current_id).expect("all children exist").children);
+        } else {
+            large_branches.extend(current.branches.iter().map(|b| b.name.clone()));
+        }
+    }
+}
+
 /// Pre-requisites:
 /// - Running protect_branches
 ///
@@ -75,6 +159,7 @@ pub fn rebase_branches(graph: &mut Graph, new_base_id: git2::Oid) {
 
 pub fn pushable(graph: &mut Graph) {
     let mut node_queue: VecDeque<(git2::Oid, Option<&str>)> = VecDeque::new();
+
     // No idea if a parent commit invalidates our results
     if graph.root().action.is_protected() {
         node_queue.push_back((graph.root_id(), None));

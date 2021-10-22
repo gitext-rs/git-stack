@@ -4,6 +4,7 @@ use std::str::FromStr;
 #[serde(rename_all = "kebab-case")]
 pub struct RepoConfig {
     pub protected_branches: Option<Vec<String>>,
+    pub protect_commit_count: Option<usize>,
     pub stack: Option<Stack>,
     pub push_remote: Option<String>,
     pub pull_remote: Option<String>,
@@ -15,6 +16,7 @@ pub struct RepoConfig {
 }
 
 static PROTECTED_STACK_FIELD: &str = "stack.protected-branch";
+static PROTECT_COMMIT_COUNT: &str = "stack.protect-commit-count";
 static STACK_FIELD: &str = "stack.stack";
 static PUSH_REMOTE_FIELD: &str = "stack.push-remote";
 static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
@@ -24,6 +26,7 @@ static AUTO_FIXUP_FIELD: &str = "stack.auto-fixup";
 static BACKUP_CAPACITY_FIELD: &str = "branch-stash.capacity";
 
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
+static DEFAULT_PROTECT_COMMIT_COUNT: usize = 50;
 const DEFAULT_CAPACITY: usize = 30;
 
 impl RepoConfig {
@@ -111,6 +114,10 @@ impl RepoConfig {
                         .get_or_insert_with(Vec::new)
                         .push(value.into_owned());
                 }
+            } else if key == PROTECT_COMMIT_COUNT {
+                if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
+                    config.protect_commit_count = Some(value);
+                }
             } else if key == STACK_FIELD {
                 if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
                     config.stack = Some(value);
@@ -161,11 +168,13 @@ impl RepoConfig {
 
     fn from_defaults_internal(config: Option<&git2::Config>) -> Self {
         let mut conf = Self::default();
+        conf.protect_commit_count = Some(conf.protect_commit_count().unwrap_or(0));
         conf.stack = Some(conf.stack());
         conf.push_remote = Some(conf.push_remote().to_owned());
         conf.pull_remote = Some(conf.pull_remote().to_owned());
         conf.show_format = Some(conf.show_format());
         conf.show_stacked = Some(conf.show_stacked());
+        conf.auto_fixup = Some(conf.auto_fixup());
         conf.capacity = Some(DEFAULT_CAPACITY);
 
         let mut protected_branches: Vec<String> = Vec::new();
@@ -200,6 +209,11 @@ impl RepoConfig {
             })
             .unwrap_or(None);
 
+        let protect_commit_count = config
+            .get_i64(PROTECT_COMMIT_COUNT)
+            .ok()
+            .map(|i| i.max(0) as usize);
+
         let push_remote = config.get_string(PUSH_REMOTE_FIELD).ok();
         let pull_remote = config.get_string(PULL_REMOTE_FIELD).ok();
 
@@ -227,6 +241,7 @@ impl RepoConfig {
 
         Self {
             protected_branches,
+            protect_commit_count,
             push_remote,
             pull_remote,
             stack,
@@ -280,6 +295,13 @@ impl RepoConfig {
         self.protected_branches.as_deref().unwrap_or(&[])
     }
 
+    pub fn protect_commit_count(&self) -> Option<usize> {
+        let protect_commit_count = self
+            .protect_commit_count
+            .unwrap_or(DEFAULT_PROTECT_COMMIT_COUNT);
+        (protect_commit_count != 0).then(|| protect_commit_count)
+    }
+
     pub fn push_remote(&self) -> &str {
         self.push_remote.as_deref().unwrap_or("origin")
     }
@@ -323,6 +345,12 @@ impl std::fmt::Display for RepoConfig {
                 branch
             )?;
         }
+        writeln!(
+            f,
+            "\t{}={}",
+            PROTECT_COMMIT_COUNT.split_once(".").unwrap().1,
+            self.protect_commit_count().unwrap_or(0)
+        )?;
         writeln!(
             f,
             "\t{}={}",
