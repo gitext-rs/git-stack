@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Summarize other people's branches to unclutter visualization
+- Avoid summarizing a branch with HEAD
+
 ## [0.4.4] - 2021-10-22
 
 #### Fixes
