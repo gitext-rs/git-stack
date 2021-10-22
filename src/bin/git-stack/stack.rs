@@ -463,6 +463,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
     };
     let mut empty_stacks = Vec::new();
     let mut old_stacks = Vec::new();
+    let mut foreign_stacks = Vec::new();
 
     let mut graphs = Vec::with_capacity(state.stacks.len());
     for stack in state.stacks.iter() {
@@ -499,7 +500,11 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 .map(|b| format!("{}", palette_stderr.warn.paint(b))),
         );
         if let Some(user) = state.repo.user() {
-            git_stack::graph::protect_foreign_branches(&mut graph, &user);
+            foreign_stacks.extend(
+                git_stack::graph::trim_foreign_branches(&mut graph, &user)
+                    .into_iter()
+                    .map(|b| format!("{}", palette_stderr.warn.paint(b))),
+            );
         }
 
         if state.dry_run {
@@ -559,6 +564,9 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             humantime::format_duration(state.protect_commit_age),
             old_stacks.join(", ")
         );
+    }
+    if !foreign_stacks.is_empty() {
+        log::info!("Stack from other users: {}", foreign_stacks.join(", "));
     }
 
     Ok(())
