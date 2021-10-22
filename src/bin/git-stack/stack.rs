@@ -412,6 +412,9 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
     git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_time);
+    if let Some(user) = state.repo.user() {
+        git_stack::graph::protect_foreign_branches(&mut graph, &user);
+    }
 
     if state.rebase {
         git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
@@ -441,6 +444,10 @@ fn push(state: &mut State) -> eyre::Result<()> {
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
     git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_time);
+    if let Some(user) = state.repo.user() {
+        git_stack::graph::protect_foreign_branches(&mut graph, &user);
+    }
+
     git_stack::graph::pushable(&mut graph);
 
     git_push(&mut state.repo, &graph, state.dry_run)?;
@@ -491,6 +498,9 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 .into_iter()
                 .map(|b| format!("{}", palette_stderr.warn.paint(b))),
         );
+        if let Some(user) = state.repo.user() {
+            git_stack::graph::protect_foreign_branches(&mut graph, &user);
+        }
 
         if state.dry_run {
             // Show as-if we performed all mutations
