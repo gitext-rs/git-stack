@@ -19,13 +19,13 @@ mod test_rebase {
         let mut protected_branches = git_stack::git::Branches::default();
         protected_branches.insert(master_branch.clone());
 
-        let mut graph_branches = git_stack::git::Branches::default();
-        graph_branches.insert(master_branch.clone());
-        graph_branches.insert(repo.find_local_branch("off_master").unwrap());
+        let mut graphed_branches = git_stack::git::Branches::default();
+        graphed_branches.insert(master_branch.clone());
+        graphed_branches.insert(repo.find_local_branch("off_master").unwrap());
 
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
-        let mut graph = Graph::from_branches(&repo, graph_branches).unwrap();
+        let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
         git_stack::graph::protect_branches(&mut graph, &repo, &protected_branches);
         git_stack::graph::rebase_branches(&mut graph, master_commit.id);
         let script = git_stack::graph::to_script(&graph);
@@ -62,14 +62,14 @@ mod test_rebase {
         let mut protected_branches = git_stack::git::Branches::default();
         protected_branches.insert(master_branch.clone());
 
-        let mut graph_branches = git_stack::git::Branches::default();
-        graph_branches.insert(master_branch.clone());
-        graph_branches.insert(repo.find_local_branch("feature1").unwrap());
-        graph_branches.insert(repo.find_local_branch("feature2").unwrap());
+        let mut graphed_branches = git_stack::git::Branches::default();
+        graphed_branches.insert(master_branch.clone());
+        graphed_branches.insert(repo.find_local_branch("feature1").unwrap());
+        graphed_branches.insert(repo.find_local_branch("feature2").unwrap());
 
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
-        let mut graph = Graph::from_branches(&repo, graph_branches).unwrap();
+        let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
         git_stack::graph::protect_branches(&mut graph, &repo, &protected_branches);
         git_stack::graph::rebase_branches(&mut graph, master_commit.id);
         let script = git_stack::graph::to_script(&graph);
@@ -114,13 +114,13 @@ mod test_fixup {
         let mut protected_branches = git_stack::git::Branches::default();
         protected_branches.insert(master_branch.clone());
 
-        let mut graph_branches = git_stack::git::Branches::default();
-        graph_branches.insert(master_branch.clone());
-        graph_branches.insert(repo.find_local_branch("off_master").unwrap());
+        let mut graphed_branches = git_stack::git::Branches::default();
+        graphed_branches.insert(master_branch.clone());
+        graphed_branches.insert(repo.find_local_branch("off_master").unwrap());
 
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
-        let mut graph = Graph::from_branches(&repo, graph_branches).unwrap();
+        let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
         git_stack::graph::protect_branches(&mut graph, &repo, &protected_branches);
         git_stack::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
         let script = git_stack::graph::to_script(&graph);
@@ -157,14 +157,14 @@ mod test_fixup {
         let mut protected_branches = git_stack::git::Branches::default();
         protected_branches.insert(master_branch.clone());
 
-        let mut graph_branches = git_stack::git::Branches::default();
-        graph_branches.insert(master_branch.clone());
-        graph_branches.insert(repo.find_local_branch("feature1").unwrap());
-        graph_branches.insert(repo.find_local_branch("feature2").unwrap());
+        let mut graphed_branches = git_stack::git::Branches::default();
+        graphed_branches.insert(master_branch.clone());
+        graphed_branches.insert(repo.find_local_branch("feature1").unwrap());
+        graphed_branches.insert(repo.find_local_branch("feature2").unwrap());
 
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
-        let mut graph = Graph::from_branches(&repo, graph_branches).unwrap();
+        let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
         git_stack::graph::protect_branches(&mut graph, &repo, &protected_branches);
         git_stack::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
         let script = git_stack::graph::to_script(&graph);
@@ -228,14 +228,14 @@ mod test_fixup {
         let mut protected_branches = git_stack::git::Branches::default();
         protected_branches.insert(master_branch.clone());
 
-        let mut graph_branches = git_stack::git::Branches::default();
-        graph_branches.insert(master_branch.clone());
-        graph_branches.insert(repo.find_local_branch("feature1").unwrap());
-        graph_branches.insert(repo.find_local_branch("feature2").unwrap());
+        let mut graphed_branches = git_stack::git::Branches::default();
+        graphed_branches.insert(master_branch.clone());
+        graphed_branches.insert(repo.find_local_branch("feature1").unwrap());
+        graphed_branches.insert(repo.find_local_branch("feature2").unwrap());
 
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
-        let mut graph = Graph::from_branches(&repo, graph_branches).unwrap();
+        let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
         git_stack::graph::protect_branches(&mut graph, &repo, &protected_branches);
         git_stack::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
         let script = git_stack::graph::to_script(&graph);
@@ -283,4 +283,97 @@ mod test_fixup {
         let feature2_commit = repo.find_commit(feature2_branch.id).unwrap();
         assert_eq!(feature2_commit.summary.to_str(), Ok("feature2 commit"));
     }
+}
+
+#[test]
+fn overflow() {
+    let mut repo = git_stack::git::InMemoryRepo::new();
+    let mut plan = git_fixture::Dag {
+        init: true,
+        sleep: None,
+        events: Default::default(),
+        import_root: std::env::current_dir().unwrap(),
+    };
+    plan.events
+        .push(git_fixture::Event::Tree(git_fixture::Tree {
+            tracked: maplit::hashmap! {
+                std::path::PathBuf::from("file.txt") => git_fixture::FileContent::Text("content base".into()),
+            },
+            state: Default::default(),
+            message: Some("Base Commit".to_owned()),
+            author: Some("Someone <email>".to_owned()),
+            branch: Some(git_fixture::Branch::new("base")),
+            mark: None,
+        }));
+    for i in 0..200 {
+        plan.events
+            .push(git_fixture::Event::Tree(git_fixture::Tree {
+            tracked: maplit::hashmap! {
+                std::path::PathBuf::from("file.txt") => git_fixture::FileContent::Text(format!("content {}", i)),
+            },
+                state: Default::default(),
+                message: Some(format!("Shared Commit {}", i)),
+                author: Some("Someone <email>".to_owned()),
+                branch: None,
+                mark: None,
+            }));
+    }
+    plan.events
+        .push(git_fixture::Event::Tree(git_fixture::Tree {
+            tracked: maplit::hashmap! {
+                std::path::PathBuf::from("file.txt") => git_fixture::FileContent::Text("content master".into()),
+            },
+            state: Default::default(),
+            message: Some("Master Commit".to_owned()),
+            author: Some("Someone <email>".to_owned()),
+            branch: Some(git_fixture::Branch::new("master")),
+            mark: None,
+        }));
+    for i in 0..49 {
+        plan.events
+            .push(git_fixture::Event::Tree(git_fixture::Tree {
+            tracked: maplit::hashmap! {
+                std::path::PathBuf::from("file.txt") => git_fixture::FileContent::Text(format!("content {}", i)),
+            },
+                state: Default::default(),
+                message: Some(format!("Private Commit {}", i)),
+                author: Some("Myself <email>".to_owned()),
+                branch: None,
+                mark: None,
+            }));
+    }
+    plan.events
+        .push(git_fixture::Event::Tree(git_fixture::Tree {
+            tracked: maplit::hashmap! {
+                std::path::PathBuf::from("file.txt") => git_fixture::FileContent::Text("content feature".into()),
+            },
+            state: Default::default(),
+            message: Some("Feature Commit".to_owned()),
+            author: Some("Myself <email>".to_owned()),
+            branch: Some(git_fixture::Branch::new("feature")),
+            mark: None,
+        }));
+    fixture::populate_repo(&mut repo, plan);
+
+    let mut graphed_branches = git_stack::git::Branches::default();
+    graphed_branches.insert(repo.find_local_branch("base").unwrap());
+    graphed_branches.insert(repo.find_local_branch("master").unwrap());
+    graphed_branches.insert(repo.find_local_branch("feature").unwrap());
+
+    let mut protected_branches = git_stack::git::Branches::default();
+    protected_branches.insert(repo.find_local_branch("master").unwrap());
+
+    let mut graph = git_stack::graph::Graph::from_branches(&repo, graphed_branches).unwrap();
+    git_stack::graph::protect_branches(&mut graph, &repo, &protected_branches);
+    git_stack::graph::protect_large_branches(&mut graph, 50);
+    git_stack::graph::protect_foreign_branches(&mut graph, "Myself");
+
+    git_stack::graph::drop_by_tree_id(&mut graph);
+    git_stack::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
+
+    let script = git_stack::graph::to_script(&graph);
+    let mut executor = git_stack::git::Executor::new(&repo, false);
+    let result = executor.run_script(&mut repo, &script);
+    assert_eq!(result, vec![]);
+    executor.close(&mut repo, "master").unwrap();
 }

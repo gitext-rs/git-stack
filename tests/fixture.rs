@@ -36,8 +36,12 @@ fn populate_event(
                     tree_id: commit_id,
                     summary: bstr::BString::from(summary),
                     time: std::time::SystemTime::now(),
-                    author: Some(std::rc::Rc::from("fixture")),
-                    committer: Some(std::rc::Rc::from("fixture")),
+                    author: Some(std::rc::Rc::from(
+                        tree.author.as_deref().unwrap_or("fixture"),
+                    )),
+                    committer: Some(std::rc::Rc::from(
+                        tree.author.as_deref().unwrap_or("fixture"),
+                    )),
                 };
                 repo.push_commit(parent_id, commit);
 
