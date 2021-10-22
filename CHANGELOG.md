@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Clean up stack visualization
+  - Remove nesting by not showing merge-bases of protected branches
+  - Treat large branches as protected, abbreviating them
+  - Summarize empty stacks
+  - Summarize old branches
+- Reduced or eliminated stackoverflows
+
 ## [0.4.1] - 2021-10-21
 
 #### Fixes
