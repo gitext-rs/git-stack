@@ -138,7 +138,7 @@ pub fn protect_old_branches(graph: &mut Graph, earlier_than: std::time::SystemTi
             if child_action.is_protected() {
                 protected_queue.push_back(child_id);
             } else {
-                if is_branch_old(graph, child_id, earlier_than) {
+                if is_branch_old(graph, child_id, earlier_than, &[]) {
                     mark_branch_protected(graph, child_id, &mut old_branches);
                 }
             }
@@ -148,7 +148,11 @@ pub fn protect_old_branches(graph: &mut Graph, earlier_than: std::time::SystemTi
     old_branches
 }
 
-pub fn trim_old_branches(graph: &mut Graph, earlier_than: std::time::SystemTime) -> Vec<String> {
+pub fn trim_old_branches(
+    graph: &mut Graph,
+    earlier_than: std::time::SystemTime,
+    ignore: &[git2::Oid],
+) -> Vec<String> {
     let mut old_branches = Vec::new();
 
     let mut protected_queue = VecDeque::new();
@@ -167,7 +171,7 @@ pub fn trim_old_branches(graph: &mut Graph, earlier_than: std::time::SystemTime)
             if child_action.is_protected() {
                 protected_queue.push_back(child_id);
             } else {
-                if is_branch_old(graph, child_id, earlier_than) {
+                if is_branch_old(graph, child_id, earlier_than, ignore) {
                     let removed = graph
                         .remove_child(current_id, child_id)
                         .expect("all children exist");
@@ -184,7 +188,16 @@ pub fn trim_old_branches(graph: &mut Graph, earlier_than: std::time::SystemTime)
     old_branches
 }
 
-fn is_branch_old(graph: &Graph, node_id: git2::Oid, earlier_than: std::time::SystemTime) -> bool {
+fn is_branch_old(
+    graph: &Graph,
+    node_id: git2::Oid,
+    earlier_than: std::time::SystemTime,
+    ignore: &[git2::Oid],
+) -> bool {
+    if ignore.contains(&node_id) {
+        return false;
+    }
+
     let current = graph.get(node_id).expect("all children exist");
 
     if earlier_than < current.commit.time {
@@ -192,7 +205,7 @@ fn is_branch_old(graph: &Graph, node_id: git2::Oid, earlier_than: std::time::Sys
     }
 
     for child_id in current.children.iter().copied() {
-        if !is_branch_old(graph, child_id, earlier_than) {
+        if !is_branch_old(graph, child_id, earlier_than, ignore) {
             return false;
         }
     }
@@ -219,7 +232,7 @@ pub fn protect_foreign_branches(graph: &mut Graph, user: &str) -> Vec<String> {
             if child_action.is_protected() {
                 protected_queue.push_back(child_id);
             } else {
-                if !is_personal_branch(graph, child_id, user) {
+                if !is_personal_branch(graph, child_id, user, &[]) {
                     mark_branch_protected(graph, child_id, &mut foreign_branches);
                 }
             }
@@ -229,7 +242,7 @@ pub fn protect_foreign_branches(graph: &mut Graph, user: &str) -> Vec<String> {
     foreign_branches
 }
 
-pub fn trim_foreign_branches(graph: &mut Graph, user: &str) -> Vec<String> {
+pub fn trim_foreign_branches(graph: &mut Graph, user: &str, ignore: &[git2::Oid]) -> Vec<String> {
     let mut foreign_branches = Vec::new();
 
     let mut protected_queue = VecDeque::new();
@@ -248,7 +261,7 @@ pub fn trim_foreign_branches(graph: &mut Graph, user: &str) -> Vec<String> {
             if child_action.is_protected() {
                 protected_queue.push_back(child_id);
             } else {
-                if !is_personal_branch(graph, child_id, user) {
+                if !is_personal_branch(graph, child_id, user, ignore) {
                     let removed = graph
                         .remove_child(current_id, child_id)
                         .expect("all children exist");
@@ -265,7 +278,11 @@ pub fn trim_foreign_branches(graph: &mut Graph, user: &str) -> Vec<String> {
     foreign_branches
 }
 
-fn is_personal_branch(graph: &Graph, node_id: git2::Oid, user: &str) -> bool {
+fn is_personal_branch(graph: &Graph, node_id: git2::Oid, user: &str, ignore: &[git2::Oid]) -> bool {
+    if ignore.contains(&node_id) {
+        return true;
+    }
+
     let current = graph.get(node_id).expect("all children exist");
 
     if current.commit.committer.as_deref() == Some(user)
@@ -275,7 +292,7 @@ fn is_personal_branch(graph: &Graph, node_id: git2::Oid, user: &str) -> bool {
     }
 
     for child_id in current.children.iter().copied() {
-        if is_personal_branch(graph, child_id, user) {
+        if is_personal_branch(graph, child_id, user, ignore) {
             return true;
         }
     }
