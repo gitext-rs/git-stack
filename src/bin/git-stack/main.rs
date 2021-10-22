@@ -42,7 +42,7 @@ fn run() -> proc_exit::ExitResult {
     } else if args.protected {
         config::protected(&args)?;
     } else {
-        stack::stack(&args, colored_stdout)?;
+        stack::stack(&args, colored_stdout, colored_stderr)?;
     }
 
     Ok(())

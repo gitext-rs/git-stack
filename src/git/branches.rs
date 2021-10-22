@@ -66,6 +66,10 @@ impl Branches {
         self.branches.is_empty()
     }
 
+    pub fn len(&self) -> usize {
+        self.branches.len()
+    }
+
     pub fn all(&self) -> Self {
         self.clone()
     }
