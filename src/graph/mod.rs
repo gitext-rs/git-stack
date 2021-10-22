@@ -8,6 +8,7 @@ pub use ops::*;
 
 use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
+use std::collections::VecDeque;
 
 #[derive(Clone, Debug)]
 pub struct Graph {
@@ -88,6 +89,26 @@ impl Graph {
         Ok(())
     }
 
+    pub fn remove_child(&mut self, parent_id: git2::Oid, child_id: git2::Oid) -> Option<Self> {
+        let parent = self.get_mut(parent_id)?;
+        if !parent.children.remove(&child_id) {
+            return None;
+        }
+
+        let child = self.nodes.remove(&child_id)?;
+        let mut node_queue = VecDeque::new();
+        node_queue.extend(child.children.iter().copied());
+        let mut removed = Self::new(child);
+        while let Some(current_id) = node_queue.pop_front() {
+            let current = self.nodes.remove(&current_id).expect("all children exist");
+            //branches.extend(current.branches.into_iter().map(|b| b.name));
+            node_queue.extend(current.children.iter().copied());
+            removed.nodes.insert(current_id, current);
+        }
+
+        Some(removed)
+    }
+
     pub fn root(&self) -> &Node {
         self.nodes.get(&self.root_id).expect("root always exists")
     }
@@ -102,6 +123,10 @@ impl Graph {
 
     pub fn get_mut(&mut self, id: git2::Oid) -> Option<&mut Node> {
         self.nodes.get_mut(&id)
+    }
+
+    pub fn breadth_first_iter(&self) -> BreadthFirstIter<'_> {
+        BreadthFirstIter::new(self, self.root_id())
     }
 
     fn populate(
@@ -148,5 +173,30 @@ impl Graph {
         }
 
         Ok(())
+    }
+}
+
+pub struct BreadthFirstIter<'g> {
+    graph: &'g Graph,
+    node_queue: VecDeque<git2::Oid>,
+}
+
+impl<'g> BreadthFirstIter<'g> {
+    pub fn new(graph: &'g Graph, root_id: git2::Oid) -> Self {
+        let mut node_queue = VecDeque::new();
+        if graph.nodes.contains_key(&root_id) {
+            node_queue.push_back(root_id);
+        }
+        Self { graph, node_queue }
+    }
+}
+
+impl<'g> Iterator for BreadthFirstIter<'g> {
+    type Item = &'g Node;
+    fn next(&mut self) -> Option<Self::Item> {
+        let next_id = self.node_queue.pop_front()?;
+        let next = self.graph.get(next_id)?;
+        self.node_queue.extend(next.children.iter().copied());
+        Some(next)
     }
 }

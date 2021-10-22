@@ -21,7 +21,8 @@ struct State {
     dry_run: bool,
     snapshot_capacity: Option<usize>,
     protect_commit_count: Option<usize>,
-    protect_commit_age: std::time::SystemTime,
+    protect_commit_age: std::time::Duration,
+    protect_commit_time: std::time::SystemTime,
 
     show_format: git_stack::config::Format,
     show_stacked: bool,
@@ -67,8 +68,8 @@ impl State {
         let dry_run = args.dry_run;
         let snapshot_capacity = repo_config.capacity();
         let protect_commit_count = repo_config.protect_commit_count();
-        let protect_commit_age = std::time::SystemTime::now() - repo_config.protect_commit_age();
-
+        let protect_commit_age = repo_config.protect_commit_age();
+        let protect_commit_time = std::time::SystemTime::now() - protect_commit_age;
         let show_format = repo_config.show_format();
         let show_stacked = repo_config.show_stacked();
 
@@ -183,6 +184,7 @@ impl State {
             snapshot_capacity,
             protect_commit_count,
             protect_commit_age,
+            protect_commit_time,
 
             show_format,
             show_stacked,
@@ -398,7 +400,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     if let Some(protect_commit_count) = state.protect_commit_count {
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
-    git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_age);
+    git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_time);
 
     if state.rebase {
         git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
@@ -427,7 +429,7 @@ fn push(state: &mut State) -> eyre::Result<()> {
     if let Some(protect_commit_count) = state.protect_commit_count {
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
-    git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_age);
+    git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_time);
     git_stack::graph::pushable(&mut graph);
 
     git_push(&mut state.repo, &graph, state.dry_run)?;
@@ -442,6 +444,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         Palette::plain()
     };
     let mut empty_stacks = Vec::new();
+    let mut old_stacks = Vec::new();
 
     let mut graphs = Vec::with_capacity(state.stacks.len());
     for stack in state.stacks.iter() {
@@ -472,7 +475,11 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 );
             }
         }
-        git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_age);
+        old_stacks.extend(
+            git_stack::graph::trim_old_branches(&mut graph, state.protect_commit_time)
+                .into_iter()
+                .map(|b| format!("{}", palette_stderr.warn.paint(b))),
+        );
 
         if state.dry_run {
             // Show as-if we performed all mutations
@@ -523,7 +530,14 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
     }
 
     if !empty_stacks.is_empty() {
-        log::info!("Empty stacks: {}", empty_stacks.join("\n"));
+        log::info!("Empty stacks: {}", empty_stacks.join(", "));
+    }
+    if !old_stacks.is_empty() {
+        log::info!(
+            "Stacks older than {}: {}",
+            humantime::format_duration(state.protect_commit_age),
+            old_stacks.join(", ")
+        );
     }
 
     Ok(())

@@ -142,6 +142,42 @@ pub fn protect_old_branches(graph: &mut Graph, earlier_than: std::time::SystemTi
     old_branches
 }
 
+pub fn trim_old_branches(graph: &mut Graph, earlier_than: std::time::SystemTime) -> Vec<String> {
+    let mut old_branches = Vec::new();
+
+    let mut protected_queue = VecDeque::new();
+    if graph.root().action.is_protected() {
+        protected_queue.push_back(graph.root_id());
+    }
+    while let Some(current_id) = protected_queue.pop_front() {
+        let current_children = graph
+            .get(current_id)
+            .expect("all children exist")
+            .children
+            .clone();
+
+        for child_id in current_children {
+            let child_action = graph.get(child_id).expect("all children exist").action;
+            if child_action.is_protected() {
+                protected_queue.push_back(child_id);
+            } else {
+                if is_branch_old(graph, child_id, earlier_than) {
+                    let removed = graph
+                        .remove_child(current_id, child_id)
+                        .expect("all children exist");
+                    old_branches.extend(
+                        removed
+                            .breadth_first_iter()
+                            .flat_map(|n| n.branches.iter().map(|b| b.name.clone())),
+                    );
+                }
+            }
+        }
+    }
+
+    old_branches
+}
+
 fn is_branch_old(graph: &Graph, node_id: git2::Oid, earlier_than: std::time::SystemTime) -> bool {
     let current = graph.get(node_id).expect("all children exist");
 
