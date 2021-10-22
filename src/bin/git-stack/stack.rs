@@ -1014,6 +1014,26 @@ impl<'r> DisplayTree<'r> {
 impl<'r> std::fmt::Display for DisplayTree<'r> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let head_branch = self.repo.head_branch().unwrap();
+
+        let is_visible: Box<dyn Fn(&git_stack::graph::Node) -> bool> = match self.show {
+            git_stack::config::Format::Silent => unreachable!("No silent view for tree"),
+            git_stack::config::Format::Commits => Box::new(|_| false),
+            git_stack::config::Format::BranchCommits => Box::new(|node| {
+                let interesting_commit =
+                    node.commit.id == head_branch.id || node.commit.id == self.graph.root_id();
+                let boring_commit = node.branches.is_empty() && node.children.len() == 1;
+                let protected = node.action.is_protected();
+                interesting_commit || !boring_commit || !protected
+            }),
+            git_stack::config::Format::Branches => Box::new(|node| {
+                let interesting_commit =
+                    node.commit.id == head_branch.id || node.commit.id == self.graph.root_id();
+                let boring_commit = node.branches.is_empty() && node.children.len() == 1;
+                interesting_commit || !boring_commit
+            }),
+            git_stack::config::Format::Debug => unreachable!("No debug view for tree"),
+        };
+
         let mut tree = to_tree(
             self.repo,
             &head_branch,
@@ -1021,33 +1041,12 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
             self.graph,
             self.graph.root_id(),
             &self.palette,
+            &is_visible,
         );
         if self.stacked {
             tree.linearize();
         } else {
             tree.sort();
-        }
-        match self.show {
-            git_stack::config::Format::Silent => tree.skip(|_| true),
-            git_stack::config::Format::Commits => tree.skip(|_| false),
-            git_stack::config::Format::BranchCommits => tree.skip(|tree| {
-                if let Some(node) = tree.root.node {
-                    let protected = node.action.is_protected();
-                    let boring_commit = node.branches.is_empty() && tree.stacks.is_empty();
-                    protected && boring_commit
-                } else {
-                    false
-                }
-            }),
-            git_stack::config::Format::Branches => tree.skip(|tree| {
-                if let Some(node) = tree.root.node {
-                    let boring_commit = node.branches.is_empty() && tree.stacks.is_empty();
-                    boring_commit
-                } else {
-                    false
-                }
-            }),
-            git_stack::config::Format::Debug => tree.skip(|_| false),
         }
         let tree = tree.into_display();
         tree.fmt(f)
@@ -1059,46 +1058,54 @@ fn to_tree<'r>(
     head_branch: &'r git_stack::git::Branch,
     protected_branches: &'r git_stack::git::Branches,
     graph: &'r git_stack::graph::Graph,
-    node_id: git2::Oid,
+    mut node_id: git2::Oid,
     palette: &'r Palette,
+    is_visible: &dyn Fn(&git_stack::graph::Node) -> bool,
 ) -> Tree<'r> {
-    let node = graph.get(node_id).expect("all children exist");
+    loop {
+        let node = graph.get(node_id).expect("all children exist");
+        // The API requires us to handle 0 or many children, so not checking visibility
+        if node.children.len() == 1 && !is_visible(node) {
+            node_id = node.children.iter().copied().next().unwrap();
+            continue;
+        }
 
-    let mut weight = if node.action.is_protected() {
-        Weight::Protected(0)
-    } else if node.commit.id == head_branch.id {
-        Weight::Head(0)
-    } else {
-        Weight::Commit(0)
-    };
+        let mut weight = if node.action.is_protected() {
+            Weight::Protected(0)
+        } else if node.commit.id == head_branch.id {
+            Weight::Head(0)
+        } else {
+            Weight::Commit(0)
+        };
 
-    let mut stacks = Vec::new();
-    for child_id in node.children.iter().copied() {
-        let child_tree = to_tree(
-            repo,
-            head_branch,
-            protected_branches,
-            graph,
-            child_id,
-            palette,
-        );
-        weight = weight.max(child_tree.weight);
-        stacks.push(vec![child_tree]);
+        let mut stacks = Vec::new();
+        for child_id in node.children.iter().copied() {
+            let child_tree = to_tree(
+                repo,
+                head_branch,
+                protected_branches,
+                graph,
+                child_id,
+                palette,
+                is_visible,
+            );
+            weight = weight.max(child_tree.weight);
+            stacks.push(vec![child_tree]);
+        }
+
+        let tree = Tree {
+            root: RenderNode {
+                repo,
+                head_branch,
+                protected_branches,
+                node: Some(node),
+                palette,
+            },
+            weight,
+            stacks,
+        };
+        return tree;
     }
-
-    let tree = Tree {
-        root: RenderNode {
-            repo,
-            head_branch,
-            protected_branches,
-            node: Some(node),
-            palette,
-        },
-        weight,
-        stacks,
-    };
-
-    tree
 }
 
 struct Tree<'r> {
@@ -1108,26 +1115,6 @@ struct Tree<'r> {
 }
 
 impl<'r> Tree<'r> {
-    fn skip<F>(&mut self, is_skipped: F)
-    where
-        F: Fn(&Self) -> bool + Copy,
-    {
-        for stack in self.stacks.iter_mut() {
-            let mut skipped = Vec::new();
-            for (index, child) in stack.iter_mut().enumerate() {
-                if is_skipped(child) {
-                    skipped.push(index)
-                } else {
-                    child.skip(is_skipped);
-                }
-            }
-            skipped.reverse();
-            for index in skipped {
-                stack.remove(index);
-            }
-        }
-    }
-
     fn sort(&mut self) {
         self.stacks.sort_by_key(|s| s[0].weight);
         for stack in self.stacks.iter_mut() {
