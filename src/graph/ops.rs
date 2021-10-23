@@ -354,7 +354,9 @@ pub fn pushable(graph: &mut Graph) {
     while let Some((current_id, mut cause)) = node_queue.pop_front() {
         let current = graph.get_mut(current_id).expect("all children exist");
         if !current.action.is_protected() {
-            if current.branches.iter().all(|b| Some(b.id) == b.push_id) {
+            if !current.branches.is_empty()
+                && current.branches.iter().all(|b| Some(b.id) == b.push_id)
+            {
                 cause = Some("already pushed");
             } else if current.commit.wip_summary().is_some() {
                 cause = Some("contains WIP commit");
