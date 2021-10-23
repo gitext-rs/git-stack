@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Detect multi-commit branches are pushable
+
 ## [0.4.6] - 2021-10-22
 
 #### Fixes
