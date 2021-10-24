@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.4.7] - 2021-10-23
+
 #### Fixes
 
 - Detect multi-commit branches are pushable
@@ -202,7 +204,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.4.6...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.4.7...HEAD
+[0.4.7]: https://github.com/epage/git-stack/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/epage/git-stack/compare/v0.4.5...v0.4.6
 [0.4.5]: https://github.com/epage/git-stack/compare/v0.4.4...v0.4.5
 [0.4.4]: https://github.com/epage/git-stack/compare/v0.4.3...v0.4.4
