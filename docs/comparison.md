@@ -91,6 +91,14 @@ Cons:
   - In contrast, `git-stack` relies on branches (multi-commit PRs) and
      ["fixup" commits (auto-squashing)](https://thoughtbot.com/blog/autosquashing-git-commits)
 
-## git-series
+## `git-series`
 
 [Website](https://github.com/git-series/git-series)
+
+## `git-chain`
+
+[Website](https://github.com/Shopify/git-chain)
+- [Rewrite](https://github.com/dashed/git-chain)
+
+Cons:
+- Requires manually defining a chain
