@@ -315,7 +315,7 @@ fn squash_clean() {
         assert!(!repo.is_dirty());
 
         let base = repo.find_local_branch("master").unwrap();
-        let source = repo.find_local_branch("feature2").unwrap();
+        let source = repo.find_local_branch("feature1").unwrap();
         let dest_id = repo.squash(source.id, base.id).unwrap();
 
         repo.branch("squashed", dest_id).unwrap();
