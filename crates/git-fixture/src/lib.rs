@@ -26,10 +26,11 @@ impl Dag {
             }
         };
 
-        dag.import_root = path
-            .parent()
-            .unwrap_or_else(|| std::path::Path::new(""))
-            .to_owned();
+        dag.import_root = Some(
+            path.parent()
+                .unwrap_or_else(|| std::path::Path::new(""))
+                .to_owned(),
+        );
 
         Ok(dag)
     }
@@ -66,7 +67,14 @@ impl Dag {
         }
 
         let mut marks: std::collections::HashMap<String, String> = Default::default();
-        self.run_events(&self.events, cwd, &self.import_root, &mut marks)?;
+        self.run_events(
+            &self.events,
+            cwd,
+            self.import_root
+                .as_deref()
+                .unwrap_or_else(|| std::path::Path::new("")),
+            &mut marks,
+        )?;
 
         Ok(())
     }
