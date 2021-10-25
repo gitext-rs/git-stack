@@ -61,5 +61,5 @@ bstr = "0.2"
 maplit = "1"
 
 [dev-dependencies]
-git-fixture = { version = "0.1", path = "crates/git-fixture" }
+git-fixture = { version = "^0.2", path = "crates/git-fixture" }
 assert_fs = "1"
