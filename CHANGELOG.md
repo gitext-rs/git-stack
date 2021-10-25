@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- We should only squash the fixup and not the ones before it
+
 ## [0.4.7] - 2021-10-23
 
 #### Fixes
