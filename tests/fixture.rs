@@ -8,7 +8,14 @@ pub fn populate_repo(repo: &mut git_stack::git::InMemoryRepo, fixture: git_fixtu
     let import_root = fixture.import_root;
     let mut marks: std::collections::HashMap<String, git2::Oid> = Default::default();
     for event in fixture.events.into_iter() {
-        populate_event(repo, event, &import_root, &mut marks);
+        populate_event(
+            repo,
+            event,
+            import_root
+                .as_deref()
+                .unwrap_or_else(|| std::path::Path::new("")),
+            &mut marks,
+        );
     }
 }
 

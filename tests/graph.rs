@@ -288,70 +288,58 @@ mod test_fixup {
 #[test]
 fn overflow() {
     let mut repo = git_stack::git::InMemoryRepo::new();
-    let mut plan = git_fixture::Dag {
-        init: true,
-        sleep: None,
-        events: Default::default(),
-        import_root: std::env::current_dir().unwrap(),
-    };
+    let mut plan = git_fixture::Dag::default();
     plan.events
         .push(git_fixture::Event::Tree(git_fixture::Tree {
             tracked: maplit::hashmap! {
-                std::path::PathBuf::from("file.txt") => git_fixture::FileContent::Text("content base".into()),
+                std::path::PathBuf::from("file.txt") => "content base".into(),
             },
-            state: Default::default(),
             message: Some("Base Commit".to_owned()),
             author: Some("Someone <email>".to_owned()),
             branch: Some(git_fixture::Branch::new("base")),
-            mark: None,
+            ..Default::default()
         }));
     for i in 0..1000 {
         plan.events
             .push(git_fixture::Event::Tree(git_fixture::Tree {
-            tracked: maplit::hashmap! {
-                std::path::PathBuf::from("file.txt") => git_fixture::FileContent::Text(format!("content {}", i)),
-            },
-                state: Default::default(),
+                tracked: maplit::hashmap! {
+                    std::path::PathBuf::from("file.txt") => format!("content {}", i).into(),
+                },
                 message: Some(format!("Shared Commit {}", i)),
                 author: Some("Someone <email>".to_owned()),
-                branch: None,
-                mark: None,
+                ..Default::default()
             }));
     }
     plan.events
         .push(git_fixture::Event::Tree(git_fixture::Tree {
             tracked: maplit::hashmap! {
-                std::path::PathBuf::from("file.txt") => git_fixture::FileContent::Text("content master".into()),
+                std::path::PathBuf::from("file.txt") => "content master".into(),
             },
-            state: Default::default(),
             message: Some("Master Commit".to_owned()),
             author: Some("Someone <email>".to_owned()),
             branch: Some(git_fixture::Branch::new("master")),
-            mark: None,
+            ..Default::default()
         }));
     for i in 0..49 {
         plan.events
             .push(git_fixture::Event::Tree(git_fixture::Tree {
-            tracked: maplit::hashmap! {
-                std::path::PathBuf::from("file.txt") => git_fixture::FileContent::Text(format!("content {}", i)),
-            },
-                state: Default::default(),
+                tracked: maplit::hashmap! {
+                    std::path::PathBuf::from("file.txt") => format!("content {}", i).into(),
+                },
                 message: Some(format!("Private Commit {}", i)),
                 author: Some("Myself <email>".to_owned()),
-                branch: None,
-                mark: None,
+                ..Default::default()
             }));
     }
     plan.events
         .push(git_fixture::Event::Tree(git_fixture::Tree {
             tracked: maplit::hashmap! {
-                std::path::PathBuf::from("file.txt") => git_fixture::FileContent::Text("content feature".into()),
+                std::path::PathBuf::from("file.txt") => "content feature".into(),
             },
-            state: Default::default(),
             message: Some("Feature Commit".to_owned()),
             author: Some("Myself <email>".to_owned()),
             branch: Some(git_fixture::Branch::new("feature")),
-            mark: None,
+            ..Default::default()
         }));
     fixture::populate_repo(&mut repo, plan);
 

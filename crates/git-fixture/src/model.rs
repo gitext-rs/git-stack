@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub struct Dag {
@@ -11,11 +11,22 @@ pub struct Dag {
     #[serde(default)]
     pub events: Vec<Event>,
     #[serde(skip)]
-    pub import_root: std::path::PathBuf,
+    pub import_root: Option<std::path::PathBuf>,
 }
 
 fn init_default() -> bool {
     true
+}
+
+impl Default for Dag {
+    fn default() -> Self {
+        Self {
+            init: init_default(),
+            sleep: None,
+            events: Vec::new(),
+            import_root: None,
+        }
+    }
 }
 
 #[derive(
@@ -28,6 +39,12 @@ pub enum Event {
     Tree(Tree),
     Children(Vec<Vec<Event>>),
     Head(Reference),
+}
+
+impl From<Tree> for Event {
+    fn from(tree: Tree) -> Self {
+        Self::Tree(tree)
+    }
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -48,6 +65,19 @@ pub struct Tree {
     pub mark: Option<Mark>,
 }
 
+impl Default for Tree {
+    fn default() -> Self {
+        Self {
+            tracked: Default::default(),
+            state: Default::default(),
+            message: Default::default(),
+            author: Default::default(),
+            branch: Default::default(),
+            mark: Default::default(),
+        }
+    }
+}
+
 #[derive(
     Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema, derive_more::IsVariant,
 )]
@@ -65,6 +95,24 @@ impl FileContent {
             FileContent::Binary(v) => v.as_slice(),
             FileContent::Text(v) => v.as_bytes(),
         }
+    }
+}
+
+impl From<String> for FileContent {
+    fn from(data: String) -> Self {
+        Self::Text(data)
+    }
+}
+
+impl<'d> From<&'d String> for FileContent {
+    fn from(data: &'d String) -> Self {
+        Self::Text(data.clone())
+    }
+}
+
+impl<'d> From<&'d str> for FileContent {
+    fn from(data: &'d str) -> Self {
+        Self::Text(data.to_owned())
     }
 }
 
@@ -104,6 +152,18 @@ impl Default for TreeState {
 pub enum Reference {
     Branch(Branch),
     Mark(Mark),
+}
+
+impl From<Branch> for Reference {
+    fn from(inner: Branch) -> Self {
+        Self::Branch(inner)
+    }
+}
+
+impl From<Mark> for Reference {
+    fn from(inner: Mark) -> Self {
+        Self::Mark(inner)
+    }
 }
 
 #[derive(
