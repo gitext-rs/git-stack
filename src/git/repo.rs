@@ -389,12 +389,15 @@ impl GitRepo {
         into_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error> {
         // Based on https://www.pygit2.org/recipes/git-cherry-pick.html
-        let base_id = self.repo.merge_base(head_id, into_id)?;
-        let base_commit = self.repo.find_commit(base_id)?;
-        let base_tree = self.repo.find_tree(base_commit.tree_id())?;
-
         let head_commit = self.repo.find_commit(head_id)?;
         let head_tree = self.repo.find_tree(head_commit.tree_id())?;
+
+        let base_commit = if 0 < head_commit.parent_count() {
+            head_commit.parent(0)?
+        } else {
+            head_commit.clone()
+        };
+        let base_tree = self.repo.find_tree(base_commit.tree_id())?;
 
         let into_commit = self.repo.find_commit(into_id)?;
         let into_tree = self.repo.find_tree(into_commit.tree_id())?;
@@ -430,7 +433,7 @@ impl GitRepo {
             return Err(git2::Error::new(
                 git2::ErrorCode::Unmerged,
                 git2::ErrorClass::Index,
-                format!("cherry-pick conflicts:\n  {}\n", conflicts),
+                format!("squash conflicts:\n  {}\n", conflicts),
             ));
         }
         let result_id = result_index.write_tree_to(&self.repo)?;
