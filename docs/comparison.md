@@ -24,6 +24,9 @@ Cons:
 - `git nav-downstream` / `git nav-upstream` to move between parent / child branches in a stack
   - `git nav-downstream` prompts on ambiguity
 
+Cons:
+- Relies on a branch's upstream being set to the parent branch, rather than the remote used for PRs
+
 ## `git-branchless`
 
 [Website](https://github.com/arxanas/git-branchless)
@@ -35,6 +38,11 @@ Pros:
   - Nice use of glyphs in visualization
 - `git restack`
   - Fixes when a commit is rewritten but dependents weren't updated
+
+Cons:
+- Relies on creating an event log via git hooks
+  - Only as reliable as tools calling the hooks (incompatible with `git-revise` and others)
+  - Nothing is documented on how to be compatible with other commit hooks, like [pre-commit](https://pre-commit.com/)
 
 ## `ghstack`
 
