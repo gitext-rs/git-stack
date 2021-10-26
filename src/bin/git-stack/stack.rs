@@ -77,7 +77,7 @@ impl State {
         repo.set_pull_remote(repo_config.pull_remote());
 
         let branches = git_stack::git::Branches::new(repo.local_branches());
-        let protected_branches = branches.protected(&protected);
+        let mut protected_branches = branches.protected(&protected);
         let head_commit = repo.head_commit();
         let base = args
             .base
@@ -91,6 +91,13 @@ impl State {
             .map(|name| resolve_explicit_base(&repo, name))
             .transpose()
             .with_code(proc_exit::Code::USAGE_ERR)?;
+        if let Some(base) = base.as_ref() {
+            protected_branches.insert(base.clone());
+        }
+        if let Some(onto) = onto.as_ref() {
+            protected_branches.insert(onto.clone());
+        }
+
         let stacks = match (base, onto, repo_config.stack()) {
             (Some(base), None, git_stack::config::Stack::All) => {
                 let onto = base.clone();
