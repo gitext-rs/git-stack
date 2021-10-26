@@ -49,7 +49,7 @@ human-panic = "1"
 yansi = "0.5.0"
 concolor-control = { version = "0.0.7" }
 concolor-clap = { version = "0.0.6", features = ["api_unstable"] }
-termtree = "0.2"
+termtree = "0.2.3"
 env_logger = { version = "0.9", default-features = false, features = ["termcolor"] }
 atty = "0.2"
 humantime = "2"
