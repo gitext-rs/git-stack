@@ -1207,14 +1207,16 @@ impl<'r> RenderNode<'r> {
 }
 
 const GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
-    item_indent: "─ ",
-    skip_indent: "  ",
+    middle_item: "⌽",
+    last_item: "⌽",
+    item_indent: " ",
+    skip_indent: " ",
     ..termtree::GlyphPalette::new()
 };
 
 const JOINT_GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
-    item_indent: "──┐",
-    ..GLYPHS
+    item_indent: "─┐",
+    ..termtree::GlyphPalette::new()
 };
 
 // Shared implementation doesn't mean shared requirements, we want to track according to
