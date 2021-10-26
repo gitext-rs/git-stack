@@ -77,7 +77,7 @@ impl State {
         repo.set_pull_remote(repo_config.pull_remote());
 
         let branches = git_stack::git::Branches::new(repo.local_branches());
-        let mut protected_branches = branches.protected(&protected);
+        let protected_branches = branches.protected(&protected);
         let head_commit = repo.head_commit();
         let base = args
             .base
@@ -91,12 +91,6 @@ impl State {
             .map(|name| resolve_explicit_base(&repo, name))
             .transpose()
             .with_code(proc_exit::Code::USAGE_ERR)?;
-        if let Some(base) = base.as_ref() {
-            protected_branches.insert(base.clone());
-        }
-        if let Some(onto) = onto.as_ref() {
-            protected_branches.insert(onto.clone());
-        }
 
         let stacks = match (base, onto, repo_config.stack()) {
             (Some(base), None, git_stack::config::Stack::All) => {
@@ -416,6 +410,8 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
     git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+    let bases = git_stack::git::Branches::new([stack.base.clone(), stack.onto.clone()]);
+    git_stack::graph::protect_branches(&mut graph, &state.repo, &bases);
     if let Some(protect_commit_count) = state.protect_commit_count {
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
@@ -491,6 +487,8 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
         graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
         git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+        let bases = git_stack::git::Branches::new([stack.base.clone(), stack.onto.clone()]);
+        git_stack::graph::protect_branches(&mut graph, &state.repo, &bases);
         if let Some(protect_commit_count) = state.protect_commit_count {
             let protected =
                 git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);

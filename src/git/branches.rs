@@ -4,7 +4,7 @@ pub struct Branches {
 }
 
 impl Branches {
-    pub fn new(branches: impl Iterator<Item = crate::git::Branch>) -> Self {
+    pub fn new(branches: impl IntoIterator<Item = crate::git::Branch>) -> Self {
         let mut grouped_branches = std::collections::BTreeMap::new();
         for branch in branches {
             grouped_branches
