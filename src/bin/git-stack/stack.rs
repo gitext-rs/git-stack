@@ -204,6 +204,7 @@ impl State {
     }
 }
 
+#[derive(Debug)]
 struct StackState {
     base: git_stack::git::Branch,
     onto: git_stack::git::Branch,
