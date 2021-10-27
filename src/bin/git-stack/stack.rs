@@ -621,6 +621,10 @@ fn git_fetch(
     branches: &[&str],
     dry_run: bool,
 ) -> eyre::Result<()> {
+    if branches.is_empty() {
+        return Ok(());
+    }
+
     let remote = repo.push_remote();
     log::debug!("git fetch {} {}", remote, branches.join(" "));
     if dry_run {
@@ -655,6 +659,10 @@ fn git_fetch(
                 .find_branch(&remote_branch, git2::BranchType::Remote)?;
             branch.delete()?;
         }
+    }
+
+    if remote_branches.is_empty() {
+        return Ok(());
     }
 
     // A little uncertain about some of the weirder authentication needs, just deferring to `git`
