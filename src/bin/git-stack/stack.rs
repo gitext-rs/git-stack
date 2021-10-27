@@ -1048,7 +1048,7 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
             git_stack::config::Format::Debug => unreachable!("No debug view for tree"),
         };
 
-        let mut tree = to_tree(
+        let mut tree = node_to_tree(
             self.repo,
             &head_branch,
             &self.protected_branches,
@@ -1067,7 +1067,7 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
     }
 }
 
-fn to_tree<'r>(
+fn node_to_tree<'r>(
     repo: &'r git_stack::git::GitRepo,
     head_branch: &'r git_stack::git::Branch,
     protected_branches: &'r git_stack::git::Branches,
@@ -1094,7 +1094,7 @@ fn to_tree<'r>(
 
         let mut stacks = Vec::new();
         for child_id in node.children.iter().copied() {
-            let child_tree = to_tree(
+            let child_tree = node_to_tree(
                 repo,
                 head_branch,
                 protected_branches,
