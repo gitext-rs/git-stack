@@ -1,3 +1,4 @@
+use std::collections::BTreeSet;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::io::Write;
@@ -1092,19 +1093,17 @@ fn node_to_tree<'r>(
             Weight::Commit(0)
         };
 
-        let mut stacks = Vec::new();
-        for child_id in node.children.iter().copied() {
-            let child_tree = node_to_tree(
-                repo,
-                head_branch,
-                protected_branches,
-                graph,
-                child_id,
-                palette,
-                is_visible,
-            );
-            weight = weight.max(child_tree.weight);
-            stacks.push(vec![child_tree]);
+        let stacks = children_to_tree(
+            repo,
+            head_branch,
+            protected_branches,
+            graph,
+            &node.children,
+            palette,
+            is_visible,
+        );
+        for stack in stacks.iter() {
+            weight = weight.max(stack[0].weight);
         }
 
         let tree = Tree {
@@ -1120,6 +1119,31 @@ fn node_to_tree<'r>(
         };
         return tree;
     }
+}
+
+fn children_to_tree<'r>(
+    repo: &'r git_stack::git::GitRepo,
+    head_branch: &'r git_stack::git::Branch,
+    protected_branches: &'r git_stack::git::Branches,
+    graph: &'r git_stack::graph::Graph,
+    children: &'r BTreeSet<git2::Oid>,
+    palette: &'r Palette,
+    is_visible: &dyn Fn(&git_stack::graph::Node) -> bool,
+) -> Vec<Vec<Tree<'r>>> {
+    let mut stacks = Vec::new();
+    for child_id in children.iter().copied() {
+        let child_tree = node_to_tree(
+            repo,
+            head_branch,
+            protected_branches,
+            graph,
+            child_id,
+            palette,
+            is_visible,
+        );
+        stacks.push(vec![child_tree]);
+    }
+    stacks
 }
 
 struct Tree<'r> {
