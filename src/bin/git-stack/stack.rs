@@ -1031,7 +1031,7 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
 
         let is_visible: Box<dyn Fn(&git_stack::graph::Node) -> bool> = match self.show {
             git_stack::config::Format::Silent => unreachable!("No silent view for tree"),
-            git_stack::config::Format::Commits => Box::new(|_| false),
+            git_stack::config::Format::Commits => Box::new(|_| true),
             git_stack::config::Format::BranchCommits => Box::new(|node| {
                 let interesting_commit =
                     node.commit.id == head_branch.id || node.commit.id == self.graph.root_id();
