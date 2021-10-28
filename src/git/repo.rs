@@ -595,6 +595,16 @@ impl GitRepo {
     }
 }
 
+impl std::fmt::Debug for GitRepo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        f.debug_struct("GitRepo")
+            .field("repo", &self.repo.workdir())
+            .field("push_remote", &self.push_remote.as_deref())
+            .field("pull_remote", &self.pull_remote.as_deref())
+            .finish()
+    }
+}
+
 impl Repo for GitRepo {
     fn user(&self) -> Option<std::rc::Rc<str>> {
         self.user()
