@@ -1103,7 +1103,7 @@ fn node_to_tree<'r>(
             is_visible,
         );
         for stack in stacks.iter() {
-            weight = weight.max(stack[0].weight);
+            weight = weight.max(stack[0].weight + 1);
         }
 
         let tree = Tree {
@@ -1220,6 +1220,24 @@ impl Weight {
             (_, Self::Head(s)) => Self::Head(s),
             (Self::Commit(s), Self::Commit(o)) => Self::Commit(s.max(o)),
         }
+    }
+}
+
+impl std::ops::Add<usize> for Weight {
+    type Output = Self;
+
+    fn add(self, other: usize) -> Self {
+        match self {
+            Self::Protected(s) => Self::Protected(s + other),
+            Self::Head(s) => Self::Head(s + other),
+            Self::Commit(s) => Self::Commit(s + other),
+        }
+    }
+}
+
+impl std::ops::AddAssign<usize> for Weight {
+    fn add_assign(&mut self, other: usize) {
+        *self = *self + other;
     }
 }
 
