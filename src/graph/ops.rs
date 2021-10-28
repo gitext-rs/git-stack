@@ -392,7 +392,7 @@ pub fn pushable(graph: &mut Graph) {
 ///
 /// This assumes that the Node was rebased onto all of the new potentially squash-merged Nodes and
 /// we extract the potential tree_id's from those protected commits.
-pub fn drop_by_tree_id(graph: &mut Graph) {
+pub fn drop_squashed_by_tree_id(graph: &mut Graph) {
     let mut node_queue: VecDeque<(git2::Oid, HashSet<git2::Oid>)> = VecDeque::new();
     if graph.root().action.is_protected() {
         node_queue.push_back((graph.root_id(), HashSet::new()));

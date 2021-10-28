@@ -431,7 +431,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
 
     if state.rebase {
         git_stack::graph::rebase_branches(&mut graph, stack.onto.pull_id.unwrap_or(stack.onto.id));
-        git_stack::graph::drop_by_tree_id(&mut graph);
+        git_stack::graph::drop_squashed_by_tree_id(&mut graph);
     }
     git_stack::graph::fixup(&mut graph, state.fixup);
 
@@ -542,7 +542,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                     &mut graph,
                     stack.onto.pull_id.unwrap_or(stack.onto.id),
                 );
-                git_stack::graph::drop_by_tree_id(&mut graph);
+                git_stack::graph::drop_squashed_by_tree_id(&mut graph);
             }
             git_stack::graph::fixup(&mut graph, state.fixup);
         }

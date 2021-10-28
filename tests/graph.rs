@@ -356,7 +356,7 @@ fn overflow() {
     git_stack::graph::protect_large_branches(&mut graph, 50);
     git_stack::graph::protect_foreign_branches(&mut graph, "Myself");
 
-    git_stack::graph::drop_by_tree_id(&mut graph);
+    git_stack::graph::drop_squashed_by_tree_id(&mut graph);
     git_stack::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
 
     let script = git_stack::graph::to_script(&graph);
