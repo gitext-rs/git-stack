@@ -1034,15 +1034,17 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
             git_stack::config::Format::Silent => unreachable!("No silent view for tree"),
             git_stack::config::Format::Commits => Box::new(|_| true),
             git_stack::config::Format::BranchCommits => Box::new(|node| {
-                let interesting_commit =
-                    node.commit.id == head_branch.id || node.commit.id == self.graph.root_id();
+                let interesting_commit = node.commit.id == head_branch.id
+                    || node.commit.id == self.graph.root_id()
+                    || node.children.is_empty();
                 let boring_commit = node.branches.is_empty() && node.children.len() == 1;
                 let protected = node.action.is_protected();
                 interesting_commit || !boring_commit || !protected
             }),
             git_stack::config::Format::Branches => Box::new(|node| {
-                let interesting_commit =
-                    node.commit.id == head_branch.id || node.commit.id == self.graph.root_id();
+                let interesting_commit = node.commit.id == head_branch.id
+                    || node.commit.id == self.graph.root_id()
+                    || node.children.is_empty();
                 let boring_commit = node.branches.is_empty() && node.children.len() == 1;
                 interesting_commit || !boring_commit
             }),
