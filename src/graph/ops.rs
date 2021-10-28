@@ -392,55 +392,30 @@ pub fn pushable(graph: &mut Graph) {
 ///
 /// This assumes that the Node was rebased onto all of the new potentially squash-merged Nodes and
 /// we extract the potential tree_id's from those protected commits.
-pub fn drop_squashed_by_tree_id(graph: &mut Graph) {
-    let mut node_queue: VecDeque<(git2::Oid, HashSet<git2::Oid>)> = VecDeque::new();
-    if graph.root().action.is_protected() {
-        node_queue.push_back((graph.root_id(), HashSet::new()));
-    }
-    while let Some((protected_id, mut protected_tree_ids)) = node_queue.pop_front() {
-        protected_tree_ids.insert(
-            graph
-                .get(protected_id)
-                .expect("all children exist")
-                .commit
-                .tree_id,
-        );
+pub fn drop_squashed_by_tree_id(
+    graph: &mut Graph,
+    pulled_tree_ids: impl Iterator<Item = git2::Oid>,
+) {
+    let pulled_tree_ids: HashSet<_> = pulled_tree_ids.collect();
 
-        let protected_children = graph
-            .get(protected_id)
+    let mut protected_queue = VecDeque::new();
+    let root_action = graph.root().action;
+    if root_action.is_protected() {
+        protected_queue.push_back(graph.root_id());
+    }
+    while let Some(current_id) = protected_queue.pop_front() {
+        let current_children = graph
+            .get_mut(current_id)
             .expect("all children exist")
             .children
             .clone();
-        match protected_children.len() {
-            0 => (),
-            1 => {
-                let child_id = protected_children.into_iter().next().unwrap();
-                let child_action = graph.get(child_id).expect("all children exist").action;
-                if child_action.is_protected() {
-                    node_queue.push_back((child_id, protected_tree_ids));
-                } else {
-                    drop_first_branch_by_tree_id(
-                        graph,
-                        child_id,
-                        HashSet::new(),
-                        protected_tree_ids,
-                    );
-                }
-            }
-            _ => {
-                for child_id in protected_children {
-                    let child_action = graph.get(child_id).expect("all children exist").action;
-                    if child_action.is_protected() {
-                        node_queue.push_back((child_id, protected_tree_ids.clone()));
-                    } else {
-                        drop_first_branch_by_tree_id(
-                            graph,
-                            child_id,
-                            HashSet::new(),
-                            protected_tree_ids.clone(),
-                        );
-                    }
-                }
+
+        for child_id in current_children {
+            let child_action = graph.get(child_id).expect("all children exist").action;
+            if child_action.is_protected() || child_action.is_delete() {
+                protected_queue.push_back(child_id);
+            } else {
+                drop_first_branch_by_tree_id(graph, child_id, HashSet::new(), &pulled_tree_ids);
             }
         }
     }
@@ -449,10 +424,9 @@ pub fn drop_squashed_by_tree_id(graph: &mut Graph) {
 fn drop_first_branch_by_tree_id(
     graph: &mut Graph,
     node_id: git2::Oid,
-    mut branch_ids: std::collections::HashSet<git2::Oid>,
-    protected_tree_ids: std::collections::HashSet<git2::Oid>,
+    mut branch_ids: HashSet<git2::Oid>,
+    pulled_tree_ids: &HashSet<git2::Oid>,
 ) {
-    #![allow(clippy::if_same_then_else)]
     branch_ids.insert(node_id);
 
     let node = graph.get(node_id).expect("all children exist");
@@ -467,12 +441,11 @@ fn drop_first_branch_by_tree_id(
     let node_tree_id = node.commit.tree_id;
 
     if is_branch {
-        if protected_tree_ids.contains(&node_tree_id) {
+        if pulled_tree_ids.contains(&node_tree_id) {
             for branch_id in branch_ids {
                 graph.get_mut(branch_id).expect("all children exist").action =
                     crate::graph::Action::Delete;
             }
-        } else {
         }
     } else {
         let node_children = graph
@@ -484,7 +457,7 @@ fn drop_first_branch_by_tree_id(
             0 => {}
             1 => {
                 let child_id = node_children.into_iter().next().unwrap();
-                drop_first_branch_by_tree_id(graph, child_id, branch_ids, protected_tree_ids);
+                drop_first_branch_by_tree_id(graph, child_id, branch_ids, pulled_tree_ids);
             }
             _ => {
                 for child_id in node_children {
@@ -492,7 +465,7 @@ fn drop_first_branch_by_tree_id(
                         graph,
                         child_id,
                         branch_ids.clone(),
-                        protected_tree_ids.clone(),
+                        pulled_tree_ids,
                     );
                 }
             }
