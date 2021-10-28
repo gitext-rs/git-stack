@@ -1146,6 +1146,7 @@ fn children_to_tree<'r>(
     stacks
 }
 
+#[derive(Debug)]
 struct Tree<'r> {
     root: RenderNode<'r>,
     stacks: Vec<Vec<Self>>,
@@ -1241,7 +1242,7 @@ impl std::ops::AddAssign<usize> for Weight {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 struct RenderNode<'r> {
     repo: &'r git_stack::git::GitRepo,
     head_branch: &'r git_stack::git::Branch,
