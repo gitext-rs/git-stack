@@ -306,7 +306,7 @@ fn is_personal_branch(graph: &Graph, node_id: git2::Oid, user: &str, ignore: &[g
 /// # Panics
 ///
 /// - If `new_base_id` doesn't exist
-pub fn rebase_branches(graph: &mut Graph, new_base_id: git2::Oid) {
+pub fn rebase_development_branches(graph: &mut Graph, new_base_id: git2::Oid) {
     debug_assert!(graph.get(new_base_id).is_some());
 
     let mut protected_queue = VecDeque::new();
@@ -342,6 +342,32 @@ pub fn rebase_branches(graph: &mut Graph, new_base_id: git2::Oid) {
                 .extend(rebaseable);
         }
     }
+}
+
+/// Update branches from `pull_start` to `pull_end`
+///
+/// A normal `rebase_development_branches` only looks at development commits.  If `main` is pristine or if the
+/// user has branches on the same commit as `main`, we should also update these to what we pulled.
+pub fn rebase_pulled_branches(graph: &mut Graph, pull_start: git2::Oid, pull_end: git2::Oid) {
+    if pull_start == pull_end {
+        return;
+    }
+
+    let mut branches = Default::default();
+    std::mem::swap(
+        &mut branches,
+        &mut graph
+            .get_mut(pull_start)
+            .expect("all children exist")
+            .branches,
+    );
+    std::mem::swap(
+        &mut branches,
+        &mut graph
+            .get_mut(pull_end)
+            .expect("all children exist")
+            .branches,
+    );
 }
 
 pub fn pushable(graph: &mut Graph) {
@@ -664,8 +690,21 @@ pub fn to_script(graph: &Graph) -> crate::git::Script {
         let current = graph.get(current_id).expect("all children exist");
 
         for child_id in current.children.iter().copied() {
-            let child_action = graph.get(child_id).expect("all children exist").action;
+            let child = graph.get(child_id).expect("all children exist");
+            let child_action = child.action;
             if child_action.is_protected() {
+                if !child.branches.is_empty() {
+                    // We might be updating protected branches as part of a `pull --rebase`,
+                    let stack_mark = child.commit.id;
+                    script
+                        .commands
+                        .push(crate::git::Command::SwitchCommit(stack_mark));
+                    for branch in child.branches.iter() {
+                        script
+                            .commands
+                            .push(crate::git::Command::CreateBranch(branch.name.clone()));
+                    }
+                }
                 protected_queue.push_back(child_id);
             } else if let Some(mut dependent) = node_to_script(graph, child_id) {
                 dependent
@@ -737,11 +776,17 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
                 .copied()
                 .filter_map(|child_id| node_to_script(graph, child_id))
                 .collect();
-            if !node_dependents.is_empty() {
+            if !node_dependents.is_empty() || !node.branches.is_empty() {
                 let stack_mark = node.commit.id;
                 script
                     .commands
                     .push(crate::git::Command::SwitchCommit(stack_mark));
+                // We might be updating protected branches as part of a `pull --rebase`,
+                for branch in node.branches.iter() {
+                    script
+                        .commands
+                        .push(crate::git::Command::CreateBranch(branch.name.clone()));
+                }
 
                 // No transactions needed for protected commits
                 let transaction = false;

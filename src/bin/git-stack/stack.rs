@@ -431,13 +431,15 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
 
     if state.rebase {
         let onto_id = stack.onto.pull_id.unwrap_or(stack.onto.id);
-        git_stack::graph::rebase_branches(&mut graph, onto_id);
-
         let pull_start_id = stack.onto.id;
         let pull_start_id = state
             .repo
             .merge_base(pull_start_id, onto_id)
             .unwrap_or(onto_id);
+
+        git_stack::graph::rebase_development_branches(&mut graph, onto_id);
+        git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
+
         let pull_range: Vec<_> = state
             .repo
             .commits_from(onto_id)
@@ -554,13 +556,15 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             // Show as-if we performed all mutations
             if state.rebase {
                 let onto_id = stack.onto.pull_id.unwrap_or(stack.onto.id);
-                git_stack::graph::rebase_branches(&mut graph, onto_id);
-
                 let pull_start_id = stack.onto.id;
                 let pull_start_id = state
                     .repo
                     .merge_base(pull_start_id, onto_id)
                     .unwrap_or(onto_id);
+
+                git_stack::graph::rebase_development_branches(&mut graph, onto_id);
+                git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
+
                 let pull_range: Vec<_> = state
                     .repo
                     .commits_from(onto_id)
