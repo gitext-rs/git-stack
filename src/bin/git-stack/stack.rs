@@ -409,6 +409,15 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         .expect("base branch is valid");
     let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
+    for branch in state.protected_branches.iter().flat_map(|(_, b)| b) {
+        if let Some(pull_id) = branch.pull_id {
+            let pull_commit = state
+                .repo
+                .find_commit(pull_id)
+                .expect("base branch is valid");
+            graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
+        }
+    }
     git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
     let bases = git_stack::git::Branches::new([stack.base.clone(), stack.onto.clone()]);
     git_stack::graph::protect_branches(&mut graph, &state.repo, &bases);
@@ -421,7 +430,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     }
 
     if state.rebase {
-        git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
+        git_stack::graph::rebase_branches(&mut graph, stack.onto.pull_id.unwrap_or(stack.onto.id));
         git_stack::graph::drop_by_tree_id(&mut graph);
     }
     git_stack::graph::fixup(&mut graph, state.fixup);
@@ -486,6 +495,15 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             .expect("base branch is valid");
         let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
         graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
+        for branch in state.protected_branches.iter().flat_map(|(_, b)| b) {
+            if let Some(pull_id) = branch.pull_id {
+                let pull_commit = state
+                    .repo
+                    .find_commit(pull_id)
+                    .expect("base branch is valid");
+                graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
+            }
+        }
         git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
         let bases = git_stack::git::Branches::new([stack.base.clone(), stack.onto.clone()]);
         git_stack::graph::protect_branches(&mut graph, &state.repo, &bases);
@@ -520,7 +538,10 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         if state.dry_run {
             // Show as-if we performed all mutations
             if state.rebase {
-                git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
+                git_stack::graph::rebase_branches(
+                    &mut graph,
+                    stack.onto.pull_id.unwrap_or(stack.onto.id),
+                );
                 git_stack::graph::drop_by_tree_id(&mut graph);
             }
             git_stack::graph::fixup(&mut graph, state.fixup);
