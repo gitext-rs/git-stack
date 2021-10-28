@@ -322,13 +322,14 @@ impl GitRepo {
         if base_id == head_id {
             return Ok(cherry_id);
         }
-        let base_commit = self.repo.find_annotated_commit(base_id)?;
-        let head_commit = self.repo.find_annotated_commit(head_id)?;
-        let cherry_commit = self.repo.find_annotated_commit(cherry_id)?;
+        let base_ann_commit = self.repo.find_annotated_commit(base_id)?;
+        let head_ann_commit = self.repo.find_annotated_commit(head_id)?;
+        let cherry_ann_commit = self.repo.find_annotated_commit(cherry_id)?;
+        let cherry_commit = self.repo.find_commit(cherry_id)?;
         let mut rebase = self.repo.rebase(
-            Some(&cherry_commit),
-            Some(&base_commit),
-            Some(&head_commit),
+            Some(&cherry_ann_commit),
+            Some(&base_ann_commit),
+            Some(&head_ann_commit),
             Some(git2::RebaseOptions::new().inmemory(true)),
         )?;
 
@@ -361,7 +362,11 @@ impl GitRepo {
                 ));
             }
 
-            let sig = self.repo.signature().unwrap();
+            let mut sig = self.repo.signature()?;
+            if let (Some(name), Some(email)) = (sig.name(), sig.email()) {
+                // For simple rebases, preserve the original commit time
+                sig = git2::Signature::new(name, email, &cherry_commit.time())?.to_owned();
+            }
             let commit_id = match rebase.commit(None, &sig, None).map_err(|e| {
                 let _ = rebase.abort();
                 e
