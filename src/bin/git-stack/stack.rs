@@ -1053,10 +1053,8 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
         let mut tree = node_to_tree(
             self.repo,
             &head_branch,
-            &self.protected_branches,
             self.graph,
             self.graph.root_id(),
-            &self.palette,
             &is_visible,
         );
         if self.stacked {
@@ -1064,7 +1062,12 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
         } else {
             tree.sort();
         }
-        let tree = tree.into_display();
+        let tree = tree.into_display(
+            self.repo,
+            &head_branch,
+            &self.protected_branches,
+            &self.palette,
+        );
         tree.fmt(f)
     }
 }
@@ -1072,10 +1075,8 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
 fn node_to_tree<'r>(
     repo: &'r git_stack::git::GitRepo,
     head_branch: &'r git_stack::git::Branch,
-    protected_branches: &'r git_stack::git::Branches,
     graph: &'r git_stack::graph::Graph,
     mut node_id: git2::Oid,
-    palette: &'r Palette,
     is_visible: &dyn Fn(&git_stack::graph::Node) -> bool,
 ) -> Tree<'r> {
     for ellide_count in 0.. {
@@ -1087,27 +1088,12 @@ fn node_to_tree<'r>(
         }
 
         let mut tree = Tree {
-            root: RenderNode {
-                repo,
-                head_branch,
-                protected_branches,
-                node: Some(node),
-                palette,
-            },
+            root: node,
             weight: default_weight(node, head_branch),
             stacks: Default::default(),
         };
 
-        append_children(
-            &mut tree,
-            repo,
-            head_branch,
-            protected_branches,
-            graph,
-            node,
-            palette,
-            is_visible,
-        );
+        append_children(&mut tree, repo, head_branch, graph, node, is_visible);
 
         tree.weight += ellide_count;
 
@@ -1121,10 +1107,8 @@ fn append_children<'r>(
     tree: &mut Tree<'r>,
     repo: &'r git_stack::git::GitRepo,
     head_branch: &'r git_stack::git::Branch,
-    protected_branches: &'r git_stack::git::Branches,
     graph: &'r git_stack::graph::Graph,
     mut parent_node: &'r git_stack::graph::Node,
-    palette: &'r Palette,
     is_visible: &dyn Fn(&git_stack::graph::Node) -> bool,
 ) {
     match parent_node.children.len() {
@@ -1136,13 +1120,7 @@ fn append_children<'r>(
                 match node.children.len() {
                     0 => {
                         let child_tree = Tree {
-                            root: RenderNode {
-                                repo,
-                                head_branch,
-                                protected_branches,
-                                node: Some(node),
-                                palette,
-                            },
+                            root: node,
                             weight: default_weight(node, head_branch),
                             stacks: Default::default(),
                         };
@@ -1156,13 +1134,7 @@ fn append_children<'r>(
                     1 => {
                         if is_visible(node) {
                             let child_tree = Tree {
-                                root: RenderNode {
-                                    repo,
-                                    head_branch,
-                                    protected_branches,
-                                    node: Some(node),
-                                    palette,
-                                },
+                                root: node,
                                 weight: default_weight(node, head_branch),
                                 stacks: Default::default(),
                             };
@@ -1176,15 +1148,8 @@ fn append_children<'r>(
                         continue;
                     }
                     _ => {
-                        let child_tree = node_to_tree(
-                            repo,
-                            head_branch,
-                            protected_branches,
-                            graph,
-                            node_id,
-                            palette,
-                            is_visible,
-                        );
+                        let child_tree =
+                            node_to_tree(repo, head_branch, graph, node_id, is_visible);
                         tree.weight = tree.weight.max(child_tree.weight + linear_count);
                         if tree.stacks.is_empty() {
                             tree.stacks.push(Vec::new());
@@ -1197,15 +1162,7 @@ fn append_children<'r>(
         }
         _ => {
             for child_id in parent_node.children.iter().copied() {
-                let child_tree = node_to_tree(
-                    repo,
-                    head_branch,
-                    protected_branches,
-                    graph,
-                    child_id,
-                    palette,
-                    is_visible,
-                );
+                let child_tree = node_to_tree(repo, head_branch, graph, child_id, is_visible);
                 tree.weight = tree.weight.max(child_tree.weight + 1);
                 tree.stacks.push(vec![child_tree]);
             }
@@ -1225,7 +1182,7 @@ fn default_weight(node: &git_stack::graph::Node, head_branch: &git_stack::git::B
 
 #[derive(Debug)]
 struct Tree<'r> {
-    root: RenderNode<'r>,
+    root: &'r git_stack::graph::Node,
     stacks: Vec<Vec<Self>>,
     weight: Weight,
 }
@@ -1258,20 +1215,44 @@ impl<'r> Tree<'r> {
         }
     }
 
-    fn into_display(self) -> termtree::Tree<RenderNode<'r>> {
-        let mut tree = termtree::Tree::root(self.root).with_glyphs(GLYPHS);
+    fn into_display(
+        self,
+        repo: &'r git_stack::git::GitRepo,
+        head_branch: &'r git_stack::git::Branch,
+        protected_branches: &'r git_stack::git::Branches,
+        palette: &'r Palette,
+    ) -> termtree::Tree<RenderNode<'r>> {
+        let root = RenderNode {
+            repo,
+            head_branch,
+            protected_branches,
+            node: Some(self.root),
+            palette,
+        };
+        let mut tree = termtree::Tree::root(root).with_glyphs(GLYPHS);
         if self.stacks.len() == 1 {
             for stack in self.stacks.into_iter() {
                 for child in stack.into_iter() {
-                    tree.push(child.into_display());
+                    tree.push(child.into_display(repo, head_branch, protected_branches, palette));
                 }
             }
         } else {
+            let joint = RenderNode {
+                repo,
+                head_branch,
+                protected_branches,
+                node: None,
+                palette,
+            };
             for stack in self.stacks.into_iter() {
-                let mut stack_tree =
-                    termtree::Tree::root(self.root.joint()).with_glyphs(JOINT_GLYPHS);
+                let mut stack_tree = termtree::Tree::root(joint).with_glyphs(JOINT_GLYPHS);
                 for child in stack.into_iter() {
-                    stack_tree.push(child.into_display());
+                    stack_tree.push(child.into_display(
+                        repo,
+                        head_branch,
+                        protected_branches,
+                        palette,
+                    ));
                 }
                 tree.push(stack_tree);
             }
@@ -1326,18 +1307,6 @@ struct RenderNode<'r> {
     protected_branches: &'r git_stack::git::Branches,
     node: Option<&'r git_stack::graph::Node>,
     palette: &'r Palette,
-}
-
-impl<'r> RenderNode<'r> {
-    fn joint(&self) -> Self {
-        Self {
-            repo: self.repo,
-            head_branch: self.head_branch,
-            protected_branches: self.protected_branches,
-            node: None,
-            palette: self.palette,
-        }
-    }
 }
 
 const GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
