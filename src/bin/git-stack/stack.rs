@@ -1241,8 +1241,8 @@ impl<'r> Tree<'r> {
         for (i, stack) in self.stacks.into_iter().enumerate() {
             if i < stacks_len - 1 {
                 let mut stack_tree = termtree::Tree::root(joint).with_glyphs(JOINT_GLYPHS);
-                for child in stack.into_iter() {
-                    stack_tree.push(child.into_display(
+                for child_tree in stack.into_iter() {
+                    stack_tree.push(child_tree.into_display(
                         repo,
                         head_branch,
                         protected_branches,
@@ -1251,8 +1251,27 @@ impl<'r> Tree<'r> {
                 }
                 tree.push(stack_tree);
             } else {
-                for child in stack.into_iter() {
-                    tree.push(child.into_display(repo, head_branch, protected_branches, palette));
+                for child_tree in stack.into_iter() {
+                    let child = RenderNode {
+                        repo,
+                        head_branch,
+                        protected_branches,
+                        node: Some(child_tree.root),
+                        palette,
+                    };
+                    tree.push(termtree::Tree::root(child).with_glyphs(GLYPHS));
+                    for child_stack in child_tree.stacks.into_iter() {
+                        let mut stack_tree = termtree::Tree::root(joint).with_glyphs(JOINT_GLYPHS);
+                        for child_tree in child_stack.into_iter() {
+                            stack_tree.push(child_tree.into_display(
+                                repo,
+                                head_branch,
+                                protected_branches,
+                                palette,
+                            ));
+                        }
+                        tree.push(stack_tree);
+                    }
                 }
             }
         }
