@@ -509,19 +509,18 @@ pub fn drop_merged_branches(
     protected_branches: &crate::git::Branches,
 ) -> Vec<String> {
     let mut removed = Vec::new();
+    let protected_branch_names: HashSet<_> = protected_branches
+        .iter()
+        .flat_map(|(_, b)| b.iter())
+        .map(|b| b.name.as_str())
+        .collect();
 
     for pulled_id in pulled_ids {
         // HACK: Depending on how merges in master worked out, not all commits will be present
         if let Some(node) = graph.get_mut(pulled_id) {
-            let current_protected: HashSet<_> = protected_branches
-                .get(pulled_id)
-                .into_iter()
-                .flatten()
-                .map(|b| b.name.as_str())
-                .collect();
             if !node.branches.is_empty() {
                 for i in (node.branches.len() - 1)..=0 {
-                    if !current_protected.contains(node.branches[i].name.as_str()) {
+                    if !protected_branch_names.contains(node.branches[i].name.as_str()) {
                         let branch = node.branches.remove(i);
                         removed.push(branch.name);
                     }
