@@ -306,7 +306,7 @@ fn is_personal_branch(graph: &Graph, node_id: git2::Oid, user: &str, ignore: &[g
 /// # Panics
 ///
 /// - If `new_base_id` doesn't exist
-pub fn rebase_branches(graph: &mut Graph, new_base_id: git2::Oid) {
+pub fn rebase_development_branches(graph: &mut Graph, new_base_id: git2::Oid) {
     debug_assert!(graph.get(new_base_id).is_some());
 
     let mut protected_queue = VecDeque::new();
@@ -342,6 +342,32 @@ pub fn rebase_branches(graph: &mut Graph, new_base_id: git2::Oid) {
                 .extend(rebaseable);
         }
     }
+}
+
+/// Update branches from `pull_start` to `pull_end`
+///
+/// A normal `rebase_development_branches` only looks at development commits.  If `main` is pristine or if the
+/// user has branches on the same commit as `main`, we should also update these to what we pulled.
+pub fn rebase_pulled_branches(graph: &mut Graph, pull_start: git2::Oid, pull_end: git2::Oid) {
+    if pull_start == pull_end {
+        return;
+    }
+
+    let mut branches = Default::default();
+    std::mem::swap(
+        &mut branches,
+        &mut graph
+            .get_mut(pull_start)
+            .expect("all children exist")
+            .branches,
+    );
+    std::mem::swap(
+        &mut branches,
+        &mut graph
+            .get_mut(pull_end)
+            .expect("all children exist")
+            .branches,
+    );
 }
 
 pub fn pushable(graph: &mut Graph) {
@@ -392,55 +418,30 @@ pub fn pushable(graph: &mut Graph) {
 ///
 /// This assumes that the Node was rebased onto all of the new potentially squash-merged Nodes and
 /// we extract the potential tree_id's from those protected commits.
-pub fn drop_by_tree_id(graph: &mut Graph) {
-    let mut node_queue: VecDeque<(git2::Oid, HashSet<git2::Oid>)> = VecDeque::new();
-    if graph.root().action.is_protected() {
-        node_queue.push_back((graph.root_id(), HashSet::new()));
-    }
-    while let Some((protected_id, mut protected_tree_ids)) = node_queue.pop_front() {
-        protected_tree_ids.insert(
-            graph
-                .get(protected_id)
-                .expect("all children exist")
-                .commit
-                .tree_id,
-        );
+pub fn drop_squashed_by_tree_id(
+    graph: &mut Graph,
+    pulled_tree_ids: impl Iterator<Item = git2::Oid>,
+) {
+    let pulled_tree_ids: HashSet<_> = pulled_tree_ids.collect();
 
-        let protected_children = graph
-            .get(protected_id)
+    let mut protected_queue = VecDeque::new();
+    let root_action = graph.root().action;
+    if root_action.is_protected() {
+        protected_queue.push_back(graph.root_id());
+    }
+    while let Some(current_id) = protected_queue.pop_front() {
+        let current_children = graph
+            .get_mut(current_id)
             .expect("all children exist")
             .children
             .clone();
-        match protected_children.len() {
-            0 => (),
-            1 => {
-                let child_id = protected_children.into_iter().next().unwrap();
-                let child_action = graph.get(child_id).expect("all children exist").action;
-                if child_action.is_protected() {
-                    node_queue.push_back((child_id, protected_tree_ids));
-                } else {
-                    drop_first_branch_by_tree_id(
-                        graph,
-                        child_id,
-                        HashSet::new(),
-                        protected_tree_ids,
-                    );
-                }
-            }
-            _ => {
-                for child_id in protected_children {
-                    let child_action = graph.get(child_id).expect("all children exist").action;
-                    if child_action.is_protected() {
-                        node_queue.push_back((child_id, protected_tree_ids.clone()));
-                    } else {
-                        drop_first_branch_by_tree_id(
-                            graph,
-                            child_id,
-                            HashSet::new(),
-                            protected_tree_ids.clone(),
-                        );
-                    }
-                }
+
+        for child_id in current_children {
+            let child_action = graph.get(child_id).expect("all children exist").action;
+            if child_action.is_protected() || child_action.is_delete() {
+                protected_queue.push_back(child_id);
+            } else {
+                drop_first_branch_by_tree_id(graph, child_id, HashSet::new(), &pulled_tree_ids);
             }
         }
     }
@@ -449,10 +450,9 @@ pub fn drop_by_tree_id(graph: &mut Graph) {
 fn drop_first_branch_by_tree_id(
     graph: &mut Graph,
     node_id: git2::Oid,
-    mut branch_ids: std::collections::HashSet<git2::Oid>,
-    protected_tree_ids: std::collections::HashSet<git2::Oid>,
+    mut branch_ids: HashSet<git2::Oid>,
+    pulled_tree_ids: &HashSet<git2::Oid>,
 ) {
-    #![allow(clippy::if_same_then_else)]
     branch_ids.insert(node_id);
 
     let node = graph.get(node_id).expect("all children exist");
@@ -467,12 +467,11 @@ fn drop_first_branch_by_tree_id(
     let node_tree_id = node.commit.tree_id;
 
     if is_branch {
-        if protected_tree_ids.contains(&node_tree_id) {
+        if pulled_tree_ids.contains(&node_tree_id) {
             for branch_id in branch_ids {
                 graph.get_mut(branch_id).expect("all children exist").action =
                     crate::graph::Action::Delete;
             }
-        } else {
         }
     } else {
         let node_children = graph
@@ -484,7 +483,7 @@ fn drop_first_branch_by_tree_id(
             0 => {}
             1 => {
                 let child_id = node_children.into_iter().next().unwrap();
-                drop_first_branch_by_tree_id(graph, child_id, branch_ids, protected_tree_ids);
+                drop_first_branch_by_tree_id(graph, child_id, branch_ids, pulled_tree_ids);
             }
             _ => {
                 for child_id in node_children {
@@ -492,12 +491,45 @@ fn drop_first_branch_by_tree_id(
                         graph,
                         child_id,
                         branch_ids.clone(),
-                        protected_tree_ids.clone(),
+                        pulled_tree_ids,
                     );
                 }
             }
         }
     }
+}
+
+/// Drop branches merged among the pulled IDs
+///
+/// The removal in `graph` is purely superficial since nothing can act on it.  The returned branch
+/// names is the important part.
+pub fn drop_merged_branches(
+    graph: &mut Graph,
+    pulled_ids: impl Iterator<Item = git2::Oid>,
+    protected_branches: &crate::git::Branches,
+) -> Vec<String> {
+    let mut removed = Vec::new();
+
+    for pulled_id in pulled_ids {
+        let node = graph.get_mut(pulled_id).expect("all children exist");
+
+        let current_protected: HashSet<_> = protected_branches
+            .get(pulled_id)
+            .into_iter()
+            .flatten()
+            .map(|b| b.name.as_str())
+            .collect();
+        if !node.branches.is_empty() {
+            for i in (node.branches.len() - 1)..=0 {
+                if current_protected.contains(node.branches[i].name.as_str()) {
+                    let branch = node.branches.remove(i);
+                    removed.push(branch.name);
+                }
+            }
+        }
+    }
+
+    removed
 }
 
 pub fn fixup(graph: &mut Graph, effect: crate::config::Fixup) {
@@ -691,8 +723,21 @@ pub fn to_script(graph: &Graph) -> crate::git::Script {
         let current = graph.get(current_id).expect("all children exist");
 
         for child_id in current.children.iter().copied() {
-            let child_action = graph.get(child_id).expect("all children exist").action;
+            let child = graph.get(child_id).expect("all children exist");
+            let child_action = child.action;
             if child_action.is_protected() {
+                if !child.branches.is_empty() {
+                    // We might be updating protected branches as part of a `pull --rebase`,
+                    let stack_mark = child.commit.id;
+                    script
+                        .commands
+                        .push(crate::git::Command::SwitchCommit(stack_mark));
+                    for branch in child.branches.iter() {
+                        script
+                            .commands
+                            .push(crate::git::Command::CreateBranch(branch.name.clone()));
+                    }
+                }
                 protected_queue.push_back(child_id);
             } else if let Some(mut dependent) = node_to_script(graph, child_id) {
                 dependent
@@ -764,11 +809,17 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
                 .copied()
                 .filter_map(|child_id| node_to_script(graph, child_id))
                 .collect();
-            if !node_dependents.is_empty() {
+            if !node_dependents.is_empty() || !node.branches.is_empty() {
                 let stack_mark = node.commit.id;
                 script
                     .commands
                     .push(crate::git::Command::SwitchCommit(stack_mark));
+                // We might be updating protected branches as part of a `pull --rebase`,
+                for branch in node.branches.iter() {
+                    script
+                        .commands
+                        .push(crate::git::Command::CreateBranch(branch.name.clone()));
+                }
 
                 // No transactions needed for protected commits
                 let transaction = false;

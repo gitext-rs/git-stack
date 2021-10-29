@@ -1,4 +1,3 @@
-use std::collections::HashSet;
 use std::collections::VecDeque;
 use std::io::Write;
 
@@ -268,7 +267,7 @@ pub fn stack(
             .collect();
         push_branches.sort_unstable();
         if !push_branches.is_empty() {
-            match git_fetch(&mut state.repo, &push_branches, state.dry_run) {
+            match git_fetch_development(&mut state.repo, &push_branches, state.dry_run) {
                 Ok(_) => (),
                 Err(err) => {
                     log::warn!("Skipping fetch of `{}`, {}", state.repo.push_remote(), err);
@@ -276,20 +275,10 @@ pub fn stack(
             }
         }
 
-        let mut pulled_ids = HashSet::new();
         for stack in state.stacks.iter() {
-            let mut stack_pulled_ids = HashSet::new();
             if state.protected_branches.contains_oid(stack.onto.id) {
-                match git_pull(&mut state.repo, stack.onto.name.as_str(), state.dry_run) {
-                    Ok(pull_range) => {
-                        stack_pulled_ids.extend(
-                            state
-                                .repo
-                                .commits_from(pull_range.1)
-                                .take_while(|c| c.id != pull_range.0)
-                                .map(|c| c.id),
-                        );
-                    }
+                match git_fetch_upstream(&mut state.repo, stack.onto.name.as_str()) {
+                    Ok(_) => (),
                     Err(err) => {
                         log::warn!("Skipping pull of `{}`, {}", stack.onto.name, err);
                     }
@@ -300,26 +289,8 @@ pub fn stack(
                     stack.onto.name
                 );
             }
-            if !stack_pulled_ids.is_empty() {
-                match drop_branches(
-                    &mut state.repo,
-                    stack_pulled_ids.difference(&pulled_ids).cloned(),
-                    &stack.onto.name,
-                    &state.branches,
-                    &state.protected_branches,
-                    state.dry_run,
-                ) {
-                    Ok(()) => {}
-                    Err(err) => {
-                        log::warn!("Could not remove branches obsoleted by pull: {}", err);
-                    }
-                }
-                pulled_ids.extend(stack_pulled_ids);
-            }
         }
-        if !pulled_ids.is_empty() {
-            state.update().with_code(proc_exit::Code::FAILURE)?;
-        }
+        state.update().with_code(proc_exit::Code::FAILURE)?;
     }
 
     const STASH_STACK_NAME: &str = "git-stack";
@@ -409,6 +380,15 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         .expect("base branch is valid");
     let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
+    for branch in state.protected_branches.iter().flat_map(|(_, b)| b) {
+        if let Some(pull_id) = branch.pull_id {
+            let pull_commit = state
+                .repo
+                .find_commit(pull_id)
+                .expect("base branch is valid");
+            graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
+        }
+    }
     git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
     let bases = git_stack::git::Branches::new([stack.base.clone(), stack.onto.clone()]);
     git_stack::graph::protect_branches(&mut graph, &state.repo, &bases);
@@ -420,13 +400,42 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         git_stack::graph::protect_foreign_branches(&mut graph, &user);
     }
 
+    let mut dropped_branches = Vec::new();
     if state.rebase {
-        git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
-        git_stack::graph::drop_by_tree_id(&mut graph);
+        let onto_id = stack.onto.pull_id.unwrap_or(stack.onto.id);
+        let pull_start_id = stack.onto.id;
+        let pull_start_id = state
+            .repo
+            .merge_base(pull_start_id, onto_id)
+            .unwrap_or(onto_id);
+
+        git_stack::graph::rebase_development_branches(&mut graph, onto_id);
+        git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
+
+        let pull_range: Vec<_> = state
+            .repo
+            .commits_from(onto_id)
+            .take_while(|c| c.id != pull_start_id)
+            .collect();
+        git_stack::graph::drop_squashed_by_tree_id(
+            &mut graph,
+            pull_range.iter().map(|c| c.tree_id),
+        );
+        dropped_branches.extend(git_stack::graph::drop_merged_branches(
+            &mut graph,
+            pull_range.iter().map(|c| c.id),
+            &state.protected_branches,
+        ));
     }
     git_stack::graph::fixup(&mut graph, state.fixup);
 
-    let script = git_stack::graph::to_script(&graph);
+    let mut script = git_stack::graph::to_script(&graph);
+    script.commands.splice(
+        0..0,
+        dropped_branches
+            .into_iter()
+            .map(git_stack::git::Command::DeleteBranch),
+    );
 
     Ok(script)
 }
@@ -486,6 +495,15 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             .expect("base branch is valid");
         let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
         graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
+        for branch in state.protected_branches.iter().flat_map(|(_, b)| b) {
+            if let Some(pull_id) = branch.pull_id {
+                let pull_commit = state
+                    .repo
+                    .find_commit(pull_id)
+                    .expect("base branch is valid");
+                graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
+            }
+        }
         git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
         let bases = git_stack::git::Branches::new([stack.base.clone(), stack.onto.clone()]);
         git_stack::graph::protect_branches(&mut graph, &state.repo, &bases);
@@ -520,8 +538,30 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         if state.dry_run {
             // Show as-if we performed all mutations
             if state.rebase {
-                git_stack::graph::rebase_branches(&mut graph, stack.onto.id);
-                git_stack::graph::drop_by_tree_id(&mut graph);
+                let onto_id = stack.onto.pull_id.unwrap_or(stack.onto.id);
+                let pull_start_id = stack.onto.id;
+                let pull_start_id = state
+                    .repo
+                    .merge_base(pull_start_id, onto_id)
+                    .unwrap_or(onto_id);
+
+                git_stack::graph::rebase_development_branches(&mut graph, onto_id);
+                git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
+
+                let pull_range: Vec<_> = state
+                    .repo
+                    .commits_from(onto_id)
+                    .take_while(|c| c.id != pull_start_id)
+                    .collect();
+                git_stack::graph::drop_squashed_by_tree_id(
+                    &mut graph,
+                    pull_range.iter().map(|c| c.tree_id),
+                );
+                git_stack::graph::drop_merged_branches(
+                    &mut graph,
+                    pull_range.iter().map(|c| c.id),
+                    &state.protected_branches,
+                );
             }
             git_stack::graph::fixup(&mut graph, state.fixup);
         }
@@ -616,7 +656,7 @@ fn resolve_implicit_base(
     Ok(branch.clone())
 }
 
-fn git_fetch(
+fn git_fetch_development(
     repo: &mut git_stack::git::GitRepo,
     branches: &[&str],
     dry_run: bool,
@@ -626,11 +666,6 @@ fn git_fetch(
     }
 
     let remote = repo.push_remote();
-    log::debug!("git fetch {} {}", remote, branches.join(" "));
-    if dry_run {
-        return Ok(());
-    }
-
     let output = std::process::Command::new("git")
         .arg("ls-remote")
         .arg("--heads")
@@ -654,10 +689,12 @@ fn git_fetch(
         if !remote_branches.contains(branch) {
             let remote_branch = format!("{}/{}", remote, branch);
             log::info!("Pruning {}", remote_branch);
-            let mut branch = repo
-                .raw()
-                .find_branch(&remote_branch, git2::BranchType::Remote)?;
-            branch.delete()?;
+            if !dry_run {
+                let mut branch = repo
+                    .raw()
+                    .find_branch(&remote_branch, git2::BranchType::Remote)?;
+                branch.delete()?;
+            }
         }
     }
 
@@ -665,247 +702,39 @@ fn git_fetch(
         return Ok(());
     }
 
-    // A little uncertain about some of the weirder authentication needs, just deferring to `git`
-    // instead of using `libgit2`
-    let status = std::process::Command::new("git")
-        .arg("fetch")
-        .arg(remote)
-        .args(remote_branches)
-        .status()
-        .wrap_err("Could not run `git fetch`")?;
-    if !status.success() {
-        eyre::bail!("`git fetch {} {}` failed", remote, branches.join(" "));
-    }
-
-    Ok(())
-}
-
-fn git_pull(
-    repo: &mut git_stack::git::GitRepo,
-    branch_name: &str,
-    dry_run: bool,
-) -> eyre::Result<(git2::Oid, git2::Oid)> {
-    let remote = repo.pull_remote();
-    log::debug!("git pull --rebase {} {}", remote, branch_name);
-    let remote_branch_name = format!("{}/{}", remote, branch_name);
-    if dry_run {
-        let branch_id = repo.find_local_branch(branch_name).unwrap().id;
-        return Ok((branch_id, branch_id));
-    }
-
-    let pulled_range;
-    let mut tip_id;
-    {
+    log::debug!("git fetch {} {}", remote, remote_branches.join(" "));
+    if !dry_run {
         // A little uncertain about some of the weirder authentication needs, just deferring to `git`
         // instead of using `libgit2`
         let status = std::process::Command::new("git")
             .arg("fetch")
             .arg(remote)
-            .arg(branch_name)
+            .args(remote_branches)
             .status()
             .wrap_err("Could not run `git fetch`")?;
         if !status.success() {
-            eyre::bail!("`git fetch {} {}` failed", remote, branch_name,);
+            eyre::bail!("`git fetch {} {}` failed", remote, branches.join(" "));
         }
-
-        let local_branch = repo
-            .raw()
-            .find_branch(branch_name, git2::BranchType::Local)
-            .wrap_err_with(|| eyre::eyre!("local branch `{}` doesn't exist", branch_name))?;
-        let local_branch_annotated = {
-            repo.raw()
-                .reference_to_annotated_commit(local_branch.get())?
-        };
-        log::trace!(
-            "rebase local {}={}",
-            branch_name,
-            local_branch_annotated.id()
-        );
-
-        let remote_branch = repo
-            .raw()
-            .find_branch(&remote_branch_name, git2::BranchType::Remote)
-            .wrap_err_with(|| {
-                eyre::eyre!("remote branch `{}` doesn't exist", remote_branch_name)
-            })?;
-        let remote_branch_annotated = repo
-            .raw()
-            .reference_to_annotated_commit(remote_branch.get())?;
-        log::trace!(
-            "rebase remote {}={}",
-            remote_branch_name,
-            remote_branch_annotated.id()
-        );
-        let end_id = remote_branch_annotated.id();
-        tip_id = end_id;
-
-        let base_id = repo
-            .merge_base(local_branch_annotated.id(), remote_branch_annotated.id())
-            .ok_or_else(|| {
-                eyre::eyre!(
-                    "No common base between {} and {}",
-                    branch_name,
-                    remote_branch_name
-                )
-            })?;
-        let base_annotated = repo.raw().find_annotated_commit(base_id).unwrap();
-        log::trace!("rebase base {}", base_annotated.id());
-
-        let merge_base_id =
-            repo.merge_base(local_branch_annotated.id(), remote_branch_annotated.id());
-        if merge_base_id == Some(remote_branch_annotated.id()) {
-            log::debug!("{} is up-to-date with {}", branch_name, remote_branch_name);
-            return Ok((local_branch_annotated.id(), local_branch_annotated.id()));
-        }
-        let start_id = merge_base_id.unwrap_or(end_id);
-        pulled_range = (start_id, end_id);
-
-        let mut rebase = repo
-            .raw()
-            .rebase(
-                Some(&local_branch_annotated),
-                Some(&base_annotated),
-                Some(&remote_branch_annotated),
-                Some(git2::RebaseOptions::new().inmemory(true)),
-            )
-            .wrap_err_with(|| {
-                eyre::eyre!(
-                    "failed to rebase `{}` onto `{}`",
-                    branch_name,
-                    remote_branch_name
-                )
-            })?;
-
-        while let Some(op) = rebase.next() {
-            let op = op
-                .map_err(|e| {
-                    let _ = rebase.abort();
-                    e
-                })
-                .wrap_err_with(|| {
-                    eyre::eyre!(
-                        "failed to rebase `{}` onto `{}`",
-                        branch_name,
-                        remote_branch_name
-                    )
-                })?;
-            log::trace!("Rebase: {:?} {}", op.kind(), op.id());
-            if rebase.inmemory_index().unwrap().has_conflicts() {
-                eyre::bail!(
-                    "conflicts between {} and {}",
-                    branch_name,
-                    remote_branch_name
-                );
-            }
-
-            let sig = repo.raw().signature().unwrap();
-            let commit_id = rebase
-                .commit(None, &sig, None)
-                .map_err(|e| {
-                    let _ = rebase.abort();
-                    e
-                })
-                .wrap_err_with(|| {
-                    eyre::eyre!(
-                        "failed to rebase `{}` onto `{}`",
-                        branch_name,
-                        remote_branch_name
-                    )
-                })?;
-            tip_id = commit_id;
-        }
-
-        rebase.finish(None).wrap_err_with(|| {
-            eyre::eyre!(
-                "failed to rebase `{}` onto `{}`",
-                branch_name,
-                remote_branch_name
-            )
-        })?;
     }
 
-    let head_branch = repo.head_branch();
-    let head_branch_name = head_branch.as_ref().map(|b| b.name.as_str());
-    if head_branch_name == Some(branch_name) {
-        log::trace!("Updating {} (HEAD)", branch_name);
-        repo.detach().wrap_err_with(|| {
-            eyre::eyre!(
-                "failed to update `{}` to `{}`",
-                branch_name,
-                remote_branch_name
-            )
-        })?;
-        repo.branch(branch_name, tip_id).wrap_err_with(|| {
-            eyre::eyre!(
-                "failed to update `{}` to `{}`",
-                branch_name,
-                remote_branch_name
-            )
-        })?;
-        repo.switch(branch_name).wrap_err_with(|| {
-            eyre::eyre!(
-                "failed to update `{}` to `{}`",
-                branch_name,
-                remote_branch_name
-            )
-        })?;
-    } else {
-        log::trace!("Updating {}", branch_name);
-        repo.branch(branch_name, tip_id).wrap_err_with(|| {
-            eyre::eyre!(
-                "failed to update `{}` to `{}`",
-                branch_name,
-                remote_branch_name
-            )
-        })?;
-    }
-
-    Ok(pulled_range)
+    Ok(())
 }
 
-fn drop_branches(
-    repo: &mut git_stack::git::GitRepo,
-    commit_ids: impl Iterator<Item = git2::Oid>,
-    potential_head: &str,
-    branches: &git_stack::git::Branches,
-    protected_branches: &git_stack::git::Branches,
-    dry_run: bool,
-) -> eyre::Result<()> {
-    let head_branch = repo.head_branch();
-    let head_branch_name = head_branch.as_ref().map(|b| b.name.as_str());
-
-    for commit_id in commit_ids {
-        let commit_branches: HashSet<_> = branches.get(commit_id).into_iter().flatten().collect();
-        let commit_protected_branches: HashSet<_> = protected_branches
-            .get(commit_id)
-            .into_iter()
-            .flatten()
-            .collect();
-        let mut commit_unprotected: Vec<_> = commit_branches
-            .difference(&commit_protected_branches)
-            .collect();
-        commit_unprotected.sort_unstable();
-        for branch in commit_unprotected {
-            if branch.name == potential_head {
-                continue;
-            } else if head_branch_name == Some(branch.name.as_str()) {
-                // Don't leave HEAD detached but instead switch to the branch we pulled
-                log::trace!("git switch {}", potential_head);
-                if !dry_run {
-                    repo.switch(potential_head)?;
-                }
-                log::trace!("git branch -D {}", branch.name);
-                if !dry_run {
-                    repo.delete_branch(&branch.name)?;
-                }
-            } else {
-                log::trace!("git branch -D {}", branch.name);
-                if !dry_run {
-                    repo.delete_branch(&branch.name)?;
-                }
-            }
-        }
+fn git_fetch_upstream(repo: &mut git_stack::git::GitRepo, branch_name: &str) -> eyre::Result<()> {
+    let remote = repo.pull_remote();
+    log::debug!("git fetch {} {}", remote, branch_name);
+    // A little uncertain about some of the weirder authentication needs, just deferring to `git`
+    // instead of using `libgit2`
+    let status = std::process::Command::new("git")
+        .arg("fetch")
+        .arg(remote)
+        .arg(branch_name)
+        .status()
+        .wrap_err("Could not run `git fetch`")?;
+    if !status.success() {
+        eyre::bail!("`git fetch {} {}` failed", remote, branch_name,);
     }
+
     Ok(())
 }
 

@@ -27,7 +27,7 @@ mod test_rebase {
 
         let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
         git_stack::graph::protect_branches(&mut graph, &repo, &protected_branches);
-        git_stack::graph::rebase_branches(&mut graph, master_commit.id);
+        git_stack::graph::rebase_development_branches(&mut graph, master_commit.id);
         let script = git_stack::graph::to_script(&graph);
         dbg!(&script);
 
@@ -71,7 +71,7 @@ mod test_rebase {
 
         let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
         git_stack::graph::protect_branches(&mut graph, &repo, &protected_branches);
-        git_stack::graph::rebase_branches(&mut graph, master_commit.id);
+        git_stack::graph::rebase_development_branches(&mut graph, master_commit.id);
         let script = git_stack::graph::to_script(&graph);
         dbg!(&script);
 
@@ -356,7 +356,6 @@ fn overflow() {
     git_stack::graph::protect_large_branches(&mut graph, 50);
     git_stack::graph::protect_foreign_branches(&mut graph, "Myself");
 
-    git_stack::graph::drop_by_tree_id(&mut graph);
     git_stack::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
 
     let script = git_stack::graph::to_script(&graph);
