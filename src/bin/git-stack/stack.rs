@@ -440,8 +440,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     git_stack::graph::fixup(&mut graph, state.fixup);
 
     let mut script = git_stack::graph::to_script(&graph);
-    script.commands.splice(
-        0..0,
+    script.commands.extend(
         dropped_branches
             .into_iter()
             .map(git_stack::git::Command::DeleteBranch),
