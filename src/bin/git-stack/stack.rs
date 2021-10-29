@@ -252,8 +252,13 @@ pub fn stack(
             stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
         }
         if state.repo.is_dirty() {
-            git_stack::git::stash_pop(&mut state.repo, stash_id);
-            return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
+            let message = "Working tree is dirty, aborting";
+            if state.dry_run {
+                log::error!("{}", message);
+            } else {
+                git_stack::git::stash_pop(&mut state.repo, stash_id);
+                return Err(proc_exit::Code::USAGE_ERR.with_message(message));
+            }
         }
 
         // Update status of remote unprotected branches
@@ -301,8 +306,13 @@ pub fn stack(
             stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
         }
         if state.repo.is_dirty() {
-            git_stack::git::stash_pop(&mut state.repo, stash_id);
-            return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
+            let message = "Working tree is dirty, aborting";
+            if state.dry_run {
+                log::error!("{}", message);
+            } else {
+                git_stack::git::stash_pop(&mut state.repo, stash_id);
+                return Err(proc_exit::Code::USAGE_ERR.with_message(message));
+            }
         }
 
         let mut snapshots = git_stack::stash::Stack::new(STASH_STACK_NAME, &state.repo);
