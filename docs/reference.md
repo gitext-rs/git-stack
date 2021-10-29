@@ -128,3 +128,4 @@ Configuration is read from the following (in precedence order):
 | stack.show-format      | --format | "silent", "branches", "branch-commits", "commits", "debug"  | How to show the stacked diffs at the end |
 | stack.show-stacked     | \-       | bool                       | Show branches as stacked on top of each other, where possible |
 | stack.auto-fixup       | --fixup  | "ignore", "move", "squash" | Default fixup operation with `--rebase` |
+| stack.auto-repair      | \-       | bool                       | Perform branch repair with `--rebase` |

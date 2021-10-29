@@ -93,7 +93,7 @@ fn protect_large_branches_recursive(
                 protect_large_branches_recursive(graph, child_id, count + 1, max, large_branches);
         }
         if needs_protection {
-            let mut node = graph.get_mut(node_id).expect("all children exist");
+            let node = graph.get_mut(node_id).expect("all children exist");
             node.action = crate::graph::Action::Protected;
         }
     } else {
@@ -108,7 +108,7 @@ fn mark_branch_protected(graph: &mut Graph, node_id: git2::Oid, branches: &mut V
     let mut protected_queue = VecDeque::new();
     protected_queue.push_back(node_id);
     while let Some(current_id) = protected_queue.pop_front() {
-        let mut current = graph.get_mut(current_id).expect("all children exist");
+        let current = graph.get_mut(current_id).expect("all children exist");
         current.action = crate::graph::Action::Protected;
 
         if current.branches.is_empty() {
@@ -431,7 +431,7 @@ pub fn drop_squashed_by_tree_id(
     }
     while let Some(current_id) = protected_queue.pop_front() {
         let current_children = graph
-            .get_mut(current_id)
+            .get(current_id)
             .expect("all children exist")
             .children
             .clone();
@@ -544,7 +544,7 @@ pub fn fixup(graph: &mut Graph, effect: crate::config::Fixup) {
     }
     while let Some(current_id) = protected_queue.pop_front() {
         let current_children = graph
-            .get_mut(current_id)
+            .get(current_id)
             .expect("all children exist")
             .children
             .clone();
@@ -570,7 +570,7 @@ fn fixup_branch(
 
     let mut outstanding = std::collections::BTreeMap::new();
     let node_children = graph
-        .get_mut(node_id)
+        .get(node_id)
         .expect("all children exist")
         .children
         .clone();
@@ -611,7 +611,7 @@ fn fixup_node(
     debug_assert_ne!(effect, crate::config::Fixup::Ignore);
 
     let node_children = graph
-        .get_mut(node_id)
+        .get(node_id)
         .expect("all children exist")
         .children
         .clone();
@@ -709,6 +709,67 @@ fn splice_after(graph: &mut Graph, node_id: git2::Oid, fixup_ids: Vec<git2::Oid>
         debug_assert!(last.branches.is_empty());
         std::mem::swap(&mut last.children, &mut new_children);
         std::mem::swap(&mut last.branches, &mut new_branches);
+    }
+}
+
+/// When a branch has extra commits, update dependent branches to the latest
+pub fn realign_stacks(graph: &mut Graph) {
+    let mut protected_queue = VecDeque::new();
+    let root_action = graph.root().action;
+    if root_action.is_protected() {
+        protected_queue.push_back(graph.root_id());
+    }
+    while let Some(current_id) = protected_queue.pop_front() {
+        let current_children = graph
+            .get(current_id)
+            .expect("all children exist")
+            .children
+            .clone();
+
+        for child_id in current_children {
+            let child_action = graph.get(child_id).expect("all children exist").action;
+            if child_action.is_protected() || child_action.is_delete() {
+                protected_queue.push_back(child_id);
+            } else {
+                realign_stack(graph, child_id);
+            }
+        }
+    }
+}
+
+fn realign_stack(graph: &mut Graph, node_id: git2::Oid) {
+    let mut children = std::collections::BTreeSet::new();
+
+    let mut current_id = node_id;
+    loop {
+        let current = graph.get_mut(current_id).expect("all children exist");
+        if current.branches.is_empty() {
+            let mut current_children: Vec<_> = current.children.iter().copied().collect();
+            match current_children.len() {
+                0 => {
+                    current.children.extend(children);
+                    return;
+                }
+                1 => {
+                    current_id = current_children.into_iter().next().unwrap();
+                }
+                _ => {
+                    // Assuming the more recent work is a continuation of the existing stack and
+                    // aligning the other stacks to be on top of it
+                    //
+                    // This should be safe in light of our rebases since we don't preserve the time
+                    current_children.sort_unstable_by_key(|id| {
+                        graph.get(*id).expect("all children exist").commit.time
+                    });
+                    let newest = current_children.pop().unwrap();
+                    children.extend(current_children);
+                    current_id = newest;
+                }
+            }
+        } else {
+            current.children.extend(children);
+            return;
+        }
     }
 }
 

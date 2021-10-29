@@ -44,6 +44,12 @@ pub struct Args {
     )]
     pub fixup: Option<git_stack::config::Fixup>,
 
+    /// Repair diverging branches.
+    #[structopt(long, overrides_with("no-repair"))]
+    repair: bool,
+    #[structopt(long, overrides_with("repair"), hidden(true))]
+    no_repair: bool,
+
     #[structopt(short = "n", long)]
     pub dry_run: bool,
 
@@ -85,8 +91,22 @@ impl Args {
             show_format: self.format,
             show_stacked: None,
             auto_fixup: None,
+            auto_repair: None,
 
             capacity: None,
         }
+    }
+
+    pub fn repair(&self) -> Option<bool> {
+        resolve_bool_arg(self.repair, self.no_repair)
+    }
+}
+
+fn resolve_bool_arg(yes: bool, no: bool) -> Option<bool> {
+    match (yes, no) {
+        (true, false) => Some(true),
+        (false, true) => Some(false),
+        (false, false) => None,
+        (_, _) => unreachable!("StructOpt should make this impossible"),
     }
 }

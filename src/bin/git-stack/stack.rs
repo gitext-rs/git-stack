@@ -17,6 +17,7 @@ struct State {
     pull: bool,
     push: bool,
     fixup: git_stack::config::Fixup,
+    repair: bool,
     dry_run: bool,
     snapshot_capacity: Option<usize>,
     protect_commit_count: Option<usize>,
@@ -57,6 +58,20 @@ impl State {
                     );
                 }
                 no_op
+            }
+        };
+        let repair = match (args.repair(), args.rebase) {
+            (Some(repair), _) => repair,
+            (_, true) => repo_config.auto_repair(),
+            _ => {
+                // Assume the user is only wanting to show the tree and not modify it.
+                if repo_config.auto_repair() {
+                    log::trace!(
+                        "Ignoring `auto-repair={}` without an explicit `--rebase`",
+                        repo_config.auto_repair()
+                    );
+                }
+                false
             }
         };
         let push = args.push;
@@ -180,6 +195,7 @@ impl State {
             pull,
             push,
             fixup,
+            repair,
             dry_run,
             snapshot_capacity,
             protect_commit_count,
@@ -288,7 +304,7 @@ pub fn stack(
     let mut success = true;
     let mut backed_up = false;
     let mut stash_id = None;
-    if state.rebase || state.fixup != git_stack::config::Fixup::Ignore {
+    if state.rebase || state.fixup != git_stack::config::Fixup::Ignore || state.repair {
         if stash_id.is_none() && !state.dry_run {
             stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
         }
@@ -425,6 +441,9 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         ));
     }
     git_stack::graph::fixup(&mut graph, state.fixup);
+    if state.repair {
+        git_stack::graph::realign_stacks(&mut graph);
+    }
 
     let mut script = git_stack::graph::to_script(&graph);
     script.commands.extend(
@@ -560,6 +579,9 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 );
             }
             git_stack::graph::fixup(&mut graph, state.fixup);
+            if state.repair {
+                git_stack::graph::realign_stacks(&mut graph);
+            }
         }
 
         git_stack::graph::pushable(&mut graph);
