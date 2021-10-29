@@ -245,22 +245,8 @@ pub fn stack(
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
     let repo = git_stack::git::GitRepo::new(repo);
     let mut state = State::new(repo, args)?;
-    let mut stash_id = None;
 
     if state.pull {
-        if stash_id.is_none() && !state.dry_run {
-            stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
-        }
-        if state.repo.is_dirty() {
-            let message = "Working tree is dirty, aborting";
-            if state.dry_run {
-                log::error!("{}", message);
-            } else {
-                git_stack::git::stash_pop(&mut state.repo, stash_id);
-                return Err(proc_exit::Code::USAGE_ERR.with_message(message));
-            }
-        }
-
         // Update status of remote unprotected branches
         let mut push_branches: Vec<_> = state
             .stacks
@@ -301,6 +287,7 @@ pub fn stack(
     const STASH_STACK_NAME: &str = "git-stack";
     let mut success = true;
     let mut backed_up = false;
+    let mut stash_id = None;
     if state.rebase || state.fixup != git_stack::config::Fixup::Ignore {
         if stash_id.is_none() && !state.dry_run {
             stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
