@@ -248,12 +248,17 @@ pub fn stack(
     let mut stash_id = None;
 
     if state.pull {
-        if stash_id.is_none() {
+        if stash_id.is_none() && !state.dry_run {
             stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
         }
         if state.repo.is_dirty() {
-            git_stack::git::stash_pop(&mut state.repo, stash_id);
-            return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
+            let message = "Working tree is dirty, aborting";
+            if state.dry_run {
+                log::error!("{}", message);
+            } else {
+                git_stack::git::stash_pop(&mut state.repo, stash_id);
+                return Err(proc_exit::Code::USAGE_ERR.with_message(message));
+            }
         }
 
         // Update status of remote unprotected branches
@@ -297,12 +302,17 @@ pub fn stack(
     let mut success = true;
     let mut backed_up = false;
     if state.rebase || state.fixup != git_stack::config::Fixup::Ignore {
-        if stash_id.is_none() {
+        if stash_id.is_none() && !state.dry_run {
             stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
         }
         if state.repo.is_dirty() {
-            git_stack::git::stash_pop(&mut state.repo, stash_id);
-            return Err(proc_exit::Code::USAGE_ERR.with_message("Working tree is dirty, aborting"));
+            let message = "Working tree is dirty, aborting";
+            if state.dry_run {
+                log::error!("{}", message);
+            } else {
+                git_stack::git::stash_pop(&mut state.repo, stash_id);
+                return Err(proc_exit::Code::USAGE_ERR.with_message(message));
+            }
         }
 
         let mut snapshots = git_stack::stash::Stack::new(STASH_STACK_NAME, &state.repo);
@@ -430,8 +440,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     git_stack::graph::fixup(&mut graph, state.fixup);
 
     let mut script = git_stack::graph::to_script(&graph);
-    script.commands.splice(
-        0..0,
+    script.commands.extend(
         dropped_branches
             .into_iter()
             .map(git_stack::git::Command::DeleteBranch),

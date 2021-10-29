@@ -521,7 +521,7 @@ pub fn drop_merged_branches(
             .collect();
         if !node.branches.is_empty() {
             for i in (node.branches.len() - 1)..=0 {
-                if current_protected.contains(node.branches[i].name.as_str()) {
+                if !current_protected.contains(node.branches[i].name.as_str()) {
                     let branch = node.branches.remove(i);
                     removed.push(branch.name);
                 }
