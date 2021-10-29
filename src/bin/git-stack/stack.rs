@@ -695,11 +695,6 @@ fn git_fetch(
     }
 
     let remote = repo.push_remote();
-    log::debug!("git fetch {} {}", remote, branches.join(" "));
-    if dry_run {
-        return Ok(());
-    }
-
     let output = std::process::Command::new("git")
         .arg("ls-remote")
         .arg("--heads")
@@ -723,10 +718,12 @@ fn git_fetch(
         if !remote_branches.contains(branch) {
             let remote_branch = format!("{}/{}", remote, branch);
             log::info!("Pruning {}", remote_branch);
-            let mut branch = repo
-                .raw()
-                .find_branch(&remote_branch, git2::BranchType::Remote)?;
-            branch.delete()?;
+            if !dry_run {
+                let mut branch = repo
+                    .raw()
+                    .find_branch(&remote_branch, git2::BranchType::Remote)?;
+                branch.delete()?;
+            }
         }
     }
 
@@ -734,16 +731,19 @@ fn git_fetch(
         return Ok(());
     }
 
-    // A little uncertain about some of the weirder authentication needs, just deferring to `git`
-    // instead of using `libgit2`
-    let status = std::process::Command::new("git")
-        .arg("fetch")
-        .arg(remote)
-        .args(remote_branches)
-        .status()
-        .wrap_err("Could not run `git fetch`")?;
-    if !status.success() {
-        eyre::bail!("`git fetch {} {}` failed", remote, branches.join(" "));
+    log::debug!("git fetch {} {}", remote, remote_branches.join(" "));
+    if !dry_run {
+        // A little uncertain about some of the weirder authentication needs, just deferring to `git`
+        // instead of using `libgit2`
+        let status = std::process::Command::new("git")
+            .arg("fetch")
+            .arg(remote)
+            .args(remote_branches)
+            .status()
+            .wrap_err("Could not run `git fetch`")?;
+        if !status.success() {
+            eyre::bail!("`git fetch {} {}` failed", remote, branches.join(" "));
+        }
     }
 
     Ok(())
