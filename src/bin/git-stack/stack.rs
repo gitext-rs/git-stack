@@ -277,7 +277,7 @@ pub fn stack(
 
         for stack in state.stacks.iter() {
             if state.protected_branches.contains_oid(stack.onto.id) {
-                match git_fetch_upstream(&mut state.repo, stack.onto.name.as_str(), state.dry_run) {
+                match git_fetch_upstream(&mut state.repo, stack.onto.name.as_str()) {
                     Ok(_) => (),
                     Err(err) => {
                         log::warn!("Skipping pull of `{}`, {}", stack.onto.name, err);
@@ -720,17 +720,9 @@ fn git_fetch_development(
     Ok(())
 }
 
-fn git_fetch_upstream(
-    repo: &mut git_stack::git::GitRepo,
-    branch_name: &str,
-    dry_run: bool,
-) -> eyre::Result<()> {
+fn git_fetch_upstream(repo: &mut git_stack::git::GitRepo, branch_name: &str) -> eyre::Result<()> {
     let remote = repo.pull_remote();
     log::debug!("git fetch {} {}", remote, branch_name);
-    if dry_run {
-        return Ok(());
-    }
-
     // A little uncertain about some of the weirder authentication needs, just deferring to `git`
     // instead of using `libgit2`
     let status = std::process::Command::new("git")
