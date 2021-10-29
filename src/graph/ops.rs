@@ -511,19 +511,20 @@ pub fn drop_merged_branches(
     let mut removed = Vec::new();
 
     for pulled_id in pulled_ids {
-        let node = graph.get_mut(pulled_id).expect("all children exist");
-
-        let current_protected: HashSet<_> = protected_branches
-            .get(pulled_id)
-            .into_iter()
-            .flatten()
-            .map(|b| b.name.as_str())
-            .collect();
-        if !node.branches.is_empty() {
-            for i in (node.branches.len() - 1)..=0 {
-                if !current_protected.contains(node.branches[i].name.as_str()) {
-                    let branch = node.branches.remove(i);
-                    removed.push(branch.name);
+        // HACK: Depending on how merges in master worked out, not all commits will be present
+        if let Some(node) = graph.get_mut(pulled_id) {
+            let current_protected: HashSet<_> = protected_branches
+                .get(pulled_id)
+                .into_iter()
+                .flatten()
+                .map(|b| b.name.as_str())
+                .collect();
+            if !node.branches.is_empty() {
+                for i in (node.branches.len() - 1)..=0 {
+                    if !current_protected.contains(node.branches[i].name.as_str()) {
+                        let branch = node.branches.remove(i);
+                        removed.push(branch.name);
+                    }
                 }
             }
         }
