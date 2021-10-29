@@ -246,6 +246,7 @@ impl GitRepo {
     ) -> impl Iterator<Item = std::rc::Rc<Commit>> + '_ {
         let mut revwalk = self.repo.revwalk().unwrap();
         revwalk.push(head_id).unwrap();
+        revwalk.set_sorting(git2::Sort::TOPOLOGICAL).unwrap();
 
         revwalk
             .filter_map(Result::ok)
