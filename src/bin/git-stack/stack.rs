@@ -248,7 +248,7 @@ pub fn stack(
     let mut stash_id = None;
 
     if state.pull {
-        if stash_id.is_none() {
+        if stash_id.is_none() && !state.dry_run {
             stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
         }
         if state.repo.is_dirty() {
@@ -297,7 +297,7 @@ pub fn stack(
     let mut success = true;
     let mut backed_up = false;
     if state.rebase || state.fixup != git_stack::config::Fixup::Ignore {
-        if stash_id.is_none() {
+        if stash_id.is_none() && !state.dry_run {
             stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
         }
         if state.repo.is_dirty() {
