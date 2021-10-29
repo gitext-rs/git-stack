@@ -499,6 +499,39 @@ fn drop_first_branch_by_tree_id(
     }
 }
 
+/// Drop branches merged among the pulled IDs
+///
+/// The removal in `graph` is purely superficial since nothing can act on it.  The returned branch
+/// names is the important part.
+pub fn drop_merged_branches(
+    graph: &mut Graph,
+    pulled_ids: impl Iterator<Item = git2::Oid>,
+    protected_branches: &crate::git::Branches,
+) -> Vec<String> {
+    let mut removed = Vec::new();
+
+    for pulled_id in pulled_ids {
+        let node = graph.get_mut(pulled_id).expect("all children exist");
+
+        let current_protected: HashSet<_> = protected_branches
+            .get(pulled_id)
+            .into_iter()
+            .flatten()
+            .map(|b| b.name.as_str())
+            .collect();
+        if !node.branches.is_empty() {
+            for i in (node.branches.len() - 1)..=0 {
+                if current_protected.contains(node.branches[i].name.as_str()) {
+                    let branch = node.branches.remove(i);
+                    removed.push(branch.name);
+                }
+            }
+        }
+    }
+
+    removed
+}
+
 pub fn fixup(graph: &mut Graph, effect: crate::config::Fixup) {
     if effect == crate::config::Fixup::Ignore {
         return;

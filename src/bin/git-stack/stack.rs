@@ -429,6 +429,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         git_stack::graph::protect_foreign_branches(&mut graph, &user);
     }
 
+    let mut dropped_branches = Vec::new();
     if state.rebase {
         let onto_id = stack.onto.pull_id.unwrap_or(stack.onto.id);
         let pull_start_id = stack.onto.id;
@@ -449,10 +450,21 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
             &mut graph,
             pull_range.iter().map(|c| c.tree_id),
         );
+        dropped_branches.extend(git_stack::graph::drop_merged_branches(
+            &mut graph,
+            pull_range.iter().map(|c| c.id),
+            &state.protected_branches,
+        ));
     }
     git_stack::graph::fixup(&mut graph, state.fixup);
 
-    let script = git_stack::graph::to_script(&graph);
+    let mut script = git_stack::graph::to_script(&graph);
+    script.commands.splice(
+        0..0,
+        dropped_branches
+            .into_iter()
+            .map(git_stack::git::Command::DeleteBranch),
+    );
 
     Ok(script)
 }
@@ -573,6 +585,11 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 git_stack::graph::drop_squashed_by_tree_id(
                     &mut graph,
                     pull_range.iter().map(|c| c.tree_id),
+                );
+                git_stack::graph::drop_merged_branches(
+                    &mut graph,
+                    pull_range.iter().map(|c| c.id),
+                    &state.protected_branches,
                 );
             }
             git_stack::graph::fixup(&mut graph, state.fixup);
