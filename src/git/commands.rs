@@ -61,8 +61,8 @@ pub enum Command {
     SwitchMark(git2::Oid),
     /// Cherry-pick an existing commit
     CherryPick(git2::Oid),
-    /// Squash a commit into prior commit.
-    Squash(git2::Oid),
+    /// Squash a commit into prior commit, keeping the parent commits identity
+    Fixup(git2::Oid),
     /// Mark a branch for creation at the current commit
     CreateBranch(String),
     /// Mark a branch for deletion
@@ -175,7 +175,7 @@ impl Executor {
                     self.head_oid = repo.cherry_pick(self.head_oid, *cherry_oid)?;
                 }
             }
-            Command::Squash(squash_oid) => {
+            Command::Fixup(squash_oid) => {
                 let cherry_commit = repo.find_commit(*squash_oid).ok_or_else(|| {
                     git2::Error::new(
                         git2::ErrorCode::NotFound,

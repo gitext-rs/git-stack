@@ -1,7 +1,7 @@
 #[derive(Copy, Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Action {
     Pick,
-    Squash,
+    Fixup,
     Protected,
     Delete,
 }
@@ -11,8 +11,8 @@ impl Action {
         matches!(self, Action::Pick)
     }
 
-    pub fn is_squash(&self) -> bool {
-        matches!(self, Action::Squash)
+    pub fn is_fixup(&self) -> bool {
+        matches!(self, Action::Fixup)
     }
 
     pub fn is_protected(&self) -> bool {
