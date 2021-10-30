@@ -40,9 +40,8 @@ Pros:
   - Fixes when a commit is rewritten but dependents weren't updated
 
 Cons:
-- Relies on creating an event log via git hooks
-  - Only as reliable as tools calling the hooks (incompatible with `git-revise` and others)
-  - Nothing is documented on how to be compatible with other commit hooks, like [pre-commit](https://pre-commit.com/)
+- Only as reliable as information it can gather through hooks (incompatible with `git-revise` and others)
+- Assumes hook installs will append to existing hooks
 
 ## `ghstack`
 
