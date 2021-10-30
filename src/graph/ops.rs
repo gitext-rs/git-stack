@@ -584,7 +584,7 @@ fn fixup_branch(
                 for fixup_id in fixup_ids.iter().copied() {
                     let fixup = graph.get_mut(fixup_id).expect("all children exist");
                     assert!(fixup.action == crate::graph::Action::Pick);
-                    fixup.action = crate::graph::Action::Squash;
+                    fixup.action = crate::graph::Action::Fixup;
                 }
             }
             splice_after(graph, node_id, fixup_ids);
@@ -655,7 +655,7 @@ fn fixup_node(
             for fixup_id in fixup_ids.iter().copied() {
                 let fixup = graph.get_mut(fixup_id).expect("all children exist");
                 assert!(fixup.action == crate::graph::Action::Pick);
-                fixup.action = crate::graph::Action::Squash;
+                fixup.action = crate::graph::Action::Fixup;
             }
         }
         splice_after(graph, node_id, fixup_ids);
@@ -839,12 +839,12 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
                 extend_dependents(node, &mut script, node_dependents, transaction);
             }
         }
-        crate::graph::Action::Squash => {
+        crate::graph::Action::Fixup => {
             script
                 .commands
-                .push(crate::git::Command::Squash(node.commit.id));
+                .push(crate::git::Command::Fixup(node.commit.id));
             // We can't re-target the branches of the commit we are squashing into, so the ops that
-            // creates a `Squash` option has to handle that.
+            // creates a `Fixup` option has to handle that.
             for branch in node.branches.iter() {
                 script
                     .commands
