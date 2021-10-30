@@ -343,11 +343,11 @@ impl RepoConfig {
     }
 
     pub fn stack(&self) -> Stack {
-        self.stack.unwrap_or_else(Default::default)
+        self.stack.unwrap_or_default()
     }
 
     pub fn show_format(&self) -> Format {
-        self.show_format.unwrap_or_else(Default::default)
+        self.show_format.unwrap_or_default()
     }
 
     pub fn show_stacked(&self) -> bool {
@@ -355,7 +355,7 @@ impl RepoConfig {
     }
 
     pub fn auto_fixup(&self) -> Fixup {
-        self.auto_fixup.unwrap_or_else(Default::default)
+        self.auto_fixup.unwrap_or_default()
     }
 
     pub fn auto_repair(&self) -> bool {
