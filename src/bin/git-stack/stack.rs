@@ -274,7 +274,7 @@ pub fn stack(
             .collect();
         push_branches.sort_unstable();
         if !push_branches.is_empty() {
-            match git_fetch_development(&mut state.repo, &push_branches, state.dry_run) {
+            match git_prune_development(&mut state.repo, &push_branches, state.dry_run) {
                 Ok(_) => (),
                 Err(err) => {
                     log::warn!("Skipping fetch of `{}`, {}", state.repo.push_remote(), err);
@@ -674,7 +674,7 @@ fn resolve_implicit_base(
     Ok(branch.clone())
 }
 
-fn git_fetch_development(
+fn git_prune_development(
     repo: &mut git_stack::git::GitRepo,
     branches: &[&str],
     dry_run: bool,
@@ -713,25 +713,6 @@ fn git_fetch_development(
                     .find_branch(&remote_branch, git2::BranchType::Remote)?;
                 branch.delete()?;
             }
-        }
-    }
-
-    if remote_branches.is_empty() {
-        return Ok(());
-    }
-
-    log::debug!("git fetch {} {}", remote, remote_branches.join(" "));
-    if !dry_run {
-        // A little uncertain about some of the weirder authentication needs, just deferring to `git`
-        // instead of using `libgit2`
-        let status = std::process::Command::new("git")
-            .arg("fetch")
-            .arg(remote)
-            .args(remote_branches)
-            .status()
-            .wrap_err("Could not run `git fetch`")?;
-        if !status.success() {
-            eyre::bail!("`git fetch {} {}` failed", remote, branches.join(" "));
         }
     }
 
