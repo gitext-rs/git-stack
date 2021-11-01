@@ -762,12 +762,20 @@ fn realign_stack(graph: &mut Graph, node_id: git2::Oid) {
                         graph.get(*id).expect("all children exist").commit.time
                     });
                     let newest = current_children.pop().unwrap();
+                    {
+                        let current = graph.get_mut(current_id).expect("all children exist");
+                        for child_id in &current_children {
+                            current.children.remove(child_id);
+                        }
+                    }
                     children.extend(current_children);
                     current_id = newest;
                 }
             }
         } else {
-            current.children.extend(children);
+            if !children.is_empty() {
+                current.children.extend(children);
+            }
             return;
         }
     }
