@@ -447,6 +447,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     git_stack::graph::fixup(&mut graph, state.fixup);
     if state.repair {
         log::trace!("Repairing");
+        git_stack::graph::merge_stacks(&mut graph);
         git_stack::graph::realign_stacks(&mut graph);
     }
 
@@ -590,6 +591,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             git_stack::graph::fixup(&mut graph, state.fixup);
             if state.repair {
                 log::trace!("Repairing");
+                git_stack::graph::merge_stacks(&mut graph);
                 git_stack::graph::realign_stacks(&mut graph);
             }
         }

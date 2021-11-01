@@ -1,3 +1,4 @@
+use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
@@ -778,6 +779,104 @@ fn realign_stack(graph: &mut Graph, node_id: git2::Oid) {
             }
             return;
         }
+    }
+}
+
+/// When a rebase has split stack, re-combine them
+pub fn merge_stacks(graph: &mut Graph) {
+    let mut protected_queue = VecDeque::new();
+    let root_action = graph.root().action;
+    if root_action.is_protected() {
+        protected_queue.push_back(graph.root_id());
+    }
+    while let Some(current_id) = protected_queue.pop_front() {
+        let current_children = graph
+            .get(current_id)
+            .expect("all children exist")
+            .children
+            .clone();
+
+        let mut unprotected_children = CommitTimesByTreeId::new();
+        for child_id in current_children {
+            let child_action = graph.get(child_id).expect("all children exist").action;
+            if child_action.is_protected() || child_action.is_delete() {
+                protected_queue.push_back(child_id);
+            } else {
+                let child = graph.get(child_id).expect("all children exist");
+
+                unprotected_children
+                    .entry(child.commit.tree_id)
+                    .or_insert_with(Vec::new)
+                    .push((child.commit.time, child_id));
+            }
+        }
+        if !unprotected_children.is_empty() {
+            merge_child_stacks(graph, current_id, unprotected_children);
+        }
+    }
+}
+
+type CommitTimesByTreeId = BTreeMap<git2::Oid, Vec<(std::time::SystemTime, git2::Oid)>>;
+
+fn merge_child_stacks(graph: &mut Graph, node_id: git2::Oid, children: CommitTimesByTreeId) {
+    let mut queue = VecDeque::new();
+    queue.push_back((node_id, children));
+    while let Some((current_id, children)) = queue.pop_front() {
+        for (_, mut children) in children {
+            match children.len() {
+                0 => unreachable!("each entry has at least one commit"),
+                1 => {
+                    enqueue_merge_stack(&mut queue, graph, children[0].1);
+                }
+                _ => {
+                    children.sort_unstable();
+                    let last_index = children.len() - 1;
+                    let last_child_id = children[last_index].1;
+
+                    for (_, child_id) in &children[0..last_index] {
+                        let mut grandchildren = Default::default();
+                        let mut branches = Default::default();
+
+                        let child = graph.get_mut(*child_id).expect("all children exist");
+                        std::mem::swap(&mut child.branches, &mut branches);
+                        std::mem::swap(&mut child.children, &mut grandchildren);
+
+                        let last_child = graph.get_mut(last_child_id).expect("all children exist");
+                        last_child.branches.extend(branches);
+                        last_child.children.extend(grandchildren);
+
+                        graph.remove_child(current_id, *child_id);
+                    }
+
+                    enqueue_merge_stack(&mut queue, graph, last_child_id);
+                }
+            }
+        }
+    }
+}
+
+fn enqueue_merge_stack(
+    queue: &mut VecDeque<(git2::Oid, CommitTimesByTreeId)>,
+    graph: &Graph,
+    node_id: git2::Oid,
+) {
+    let mut unprotected_children = CommitTimesByTreeId::new();
+    for child_id in graph
+        .get(node_id)
+        .expect("all children exist")
+        .children
+        .iter()
+        .copied()
+    {
+        let child = graph.get(child_id).expect("all children exist");
+
+        unprotected_children
+            .entry(child.commit.tree_id)
+            .or_insert_with(Vec::new)
+            .push((child.commit.time, child_id));
+    }
+    if !unprotected_children.is_empty() {
+        queue.push_back((node_id, unprotected_children));
     }
 }
 
