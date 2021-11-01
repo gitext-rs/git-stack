@@ -386,6 +386,7 @@ pub fn stack(
 }
 
 fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
+    log::trace!("Planning stack changes with base={}", stack.base.name,);
     let graphed_branches = stack.graphed_branches();
     let base_commit = state
         .repo
@@ -395,11 +396,13 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
     for branch in state.protected_branches.iter().flat_map(|(_, b)| b) {
         if let Some(pull_id) = branch.pull_id {
-            let pull_commit = state
-                .repo
-                .find_commit(pull_id)
-                .expect("base branch is valid");
-            graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
+            if state.repo.merge_base(pull_id, graph.root_id()) == Some(graph.root_id()) {
+                let pull_commit = state
+                    .repo
+                    .find_commit(pull_id)
+                    .expect("base branch is valid");
+                graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
+            }
         }
     }
     git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
@@ -415,6 +418,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
 
     let mut dropped_branches = Vec::new();
     if state.rebase {
+        log::trace!("Rebasing onto {}", stack.onto.name);
         let onto_id = stack.onto.pull_id.unwrap_or(stack.onto.id);
         let pull_start_id = stack.onto.id;
         let pull_start_id = state
@@ -442,6 +446,8 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     }
     git_stack::graph::fixup(&mut graph, state.fixup);
     if state.repair {
+        log::trace!("Repairing");
+        git_stack::graph::merge_stacks(&mut graph);
         git_stack::graph::realign_stacks(&mut graph);
     }
 
@@ -504,6 +510,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             }
         }
 
+        log::trace!("Rendering stack base={}", stack.base.name,);
         let base_commit = state
             .repo
             .find_commit(stack.base.id)
@@ -512,11 +519,13 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
         for branch in state.protected_branches.iter().flat_map(|(_, b)| b) {
             if let Some(pull_id) = branch.pull_id {
-                let pull_commit = state
-                    .repo
-                    .find_commit(pull_id)
-                    .expect("base branch is valid");
-                graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
+                if state.repo.merge_base(pull_id, graph.root_id()) == Some(graph.root_id()) {
+                    let pull_commit = state
+                        .repo
+                        .find_commit(pull_id)
+                        .expect("base branch is valid");
+                    graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
+                }
             }
         }
         git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
@@ -553,6 +562,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         if state.dry_run {
             // Show as-if we performed all mutations
             if state.rebase {
+                log::trace!("Rebasing onto {}", stack.onto.name);
                 let onto_id = stack.onto.pull_id.unwrap_or(stack.onto.id);
                 let pull_start_id = stack.onto.id;
                 let pull_start_id = state
@@ -580,6 +590,8 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             }
             git_stack::graph::fixup(&mut graph, state.fixup);
             if state.repair {
+                log::trace!("Repairing");
+                git_stack::graph::merge_stacks(&mut graph);
                 git_stack::graph::realign_stacks(&mut graph);
             }
         }
@@ -589,6 +601,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         graphs.push(graph);
     }
     if graphs.is_empty() {
+        log::trace!("Rendering empty stack base={}", state.head_commit.id);
         let graph =
             git_stack::graph::Graph::new(git_stack::graph::Node::new(state.head_commit.clone()));
         graphs.push(graph);
