@@ -101,7 +101,6 @@ impl Graph {
         let mut removed = Self::new(child);
         while let Some(current_id) = node_queue.pop_front() {
             let current = self.nodes.remove(&current_id).expect("all children exist");
-            //branches.extend(current.branches.into_iter().map(|b| b.name));
             node_queue.extend(current.children.iter().copied());
             removed.nodes.insert(current_id, current);
         }
