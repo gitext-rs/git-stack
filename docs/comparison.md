@@ -43,6 +43,27 @@ Cons:
 - Only as reliable as information it can gather through hooks (incompatible with `git-revise` and others)
 - Assumes hook installs will append to existing hooks
 
+## Graphite
+
+[Website](https://github.com/screenplaydev/graphite-cli)
+
+Uses refs to track what branches make up a stack
+
+Supports creating PRs for multiple branches in a stack but they don't describe how they do this
+
+Pros:
+- Has web dashboard
+- Interactive branch checkout
+- Direct support for Github PRs
+- Has "max days behind trunk"
+- Can run a command on each branch in a stack
+
+Cons:
+- Has you replace `git` with `gt` with a slightly different interface
+- Requires giving access to a third party
+- Only supports Github
+- Sounds like they require user-prefixes for branches
+
 ## `ghstack`
 
 [Website](https://github.com/ezyang/ghstack)
