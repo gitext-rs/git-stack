@@ -375,7 +375,18 @@ pub fn stack(
     git_stack::git::stash_pop(&mut state.repo, stash_id);
 
     if backed_up {
-        log::info!("To undo, run `git branch-stash pop {}`", STASH_STACK_NAME);
+        let palette_stderr = if colored_stderr {
+            Palette::colored()
+        } else {
+            Palette::plain()
+        };
+        log::info!(
+            "{}",
+            palette_stderr.hint.paint(format_args!(
+                "To undo, run `git branch-stash pop {}`",
+                STASH_STACK_NAME
+            ))
+        );
     }
 
     if !success {
