@@ -14,17 +14,12 @@ readme = "README.md"
 categories = ["command-line-interface", "development-tools"]
 keywords = ["git", "cli"]
 edition = "2018"
-exclude = [
-    ".gitignore",
-    "CHANGELOG.md",
-    "CONTRIBUTING.md",
-    "release.toml",
-    "typos.toml",
-    "committed.toml",
-    "docs/**",
-    ".github/**",
-    "tests/**",
-    "benches/**",
+include = [
+  "src/**/*",
+  "Cargo.toml",
+  "LICENSE*",
+  "README.md",
+  "examples/**/*"
 ]
 
 [package.metadata.release]
