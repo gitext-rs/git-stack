@@ -77,6 +77,12 @@ Process [fixup!](https://git-scm.com/docs/git-commit#Documentation/git-commit.tx
 Note:
 - This can be used to override `stack.auto-fixup` during a `--rebase`.
 
+### `git stack --repair`
+
+This attempts to clean up stacks
+- If you commit directly on a parent stack, this will update the dependent stacks to be on top of that new commit
+- If you used `git rebase`, then the stack will be split in two.  This will merge them.
+
 ### `git stack --push`
 
 Push all "ready" development branches to your `stack.push-remote`.
