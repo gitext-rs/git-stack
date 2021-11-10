@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.5.0] - 2021-11-09
+
 ### Breaking Changes
 
 #### Features
@@ -241,7 +243,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.4.8...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/epage/git-stack/compare/v0.4.8...v0.5.0
 [0.4.8]: https://github.com/epage/git-stack/compare/v0.4.7...v0.4.8
 [0.4.7]: https://github.com/epage/git-stack/compare/v0.4.6...v0.4.7
 [0.4.6]: https://github.com/epage/git-stack/compare/v0.4.5...v0.4.6
