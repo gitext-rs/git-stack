@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Breaking Changes
+
+#### Features
+
+- New `--repair` flag
+  - Re-stacks branches on top of each other
+  - Tries to merge branches that have diverged
+
+#### Fixes
+
+- Stack visualization
+  - Made it more compact
+  - Change the commit glyph
+  - Made it more consistently linear
+  - Fix sorting so the longest branches are last
+  - Always show leaf commits
+- Refined stack visualization
+- Don't lose tranbhes with `--onto`
+- Don't treat base/onto as protected branches
+- Don't pull all when there is nothing to pull
+- Respect `--format=commits`
+- Preserve old commit time on `--rebase`
+- Branch backup now includes the rebase during `--pull`
+- Show `--pull`s behavior on dry-run
+- Allow dirty tree on dry-run
+
+#### Performance
+
+- Reduce the amount of data we process
+- Reduce stack usage when rendering
+
 ## [0.4.8] - 2021-10-25
 
 #### Fixes
