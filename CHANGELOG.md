@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Do not auto-protect (by age or user) HEAD
+
 ## [0.5.1] - 2021-11-11
 
 #### Fixes
