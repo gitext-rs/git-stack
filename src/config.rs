@@ -229,7 +229,7 @@ impl RepoConfig {
             .ok()
             .map(|i| i.max(0) as usize);
         let protect_commit_age = config
-            .get_string(AUTO_FIXUP_FIELD)
+            .get_string(PROTECT_COMMIT_AGE)
             .ok()
             .and_then(|s| humantime::parse_duration(&s).ok());
 
