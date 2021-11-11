@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.5.2] - 2021-11-11
+
 #### Fixes
 
 - Do not auto-protect (by age or user) HEAD
@@ -253,7 +255,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.5.1...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.5.2...HEAD
+[0.5.2]: https://github.com/epage/git-stack/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/epage/git-stack/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/epage/git-stack/compare/v0.4.8...v0.5.0
 [0.4.8]: https://github.com/epage/git-stack/compare/v0.4.7...v0.4.8
