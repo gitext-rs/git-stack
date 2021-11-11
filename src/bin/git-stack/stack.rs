@@ -420,9 +420,13 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     if let Some(protect_commit_count) = state.protect_commit_count {
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
-    git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_time);
+    git_stack::graph::protect_old_branches(
+        &mut graph,
+        state.protect_commit_time,
+        &[state.head_commit.id],
+    );
     if let Some(user) = state.repo.user() {
-        git_stack::graph::protect_foreign_branches(&mut graph, &user);
+        git_stack::graph::protect_foreign_branches(&mut graph, &user, &[state.head_commit.id]);
     }
 
     let mut dropped_branches = Vec::new();
@@ -486,9 +490,13 @@ fn push(state: &mut State) -> eyre::Result<()> {
     if let Some(protect_commit_count) = state.protect_commit_count {
         git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
-    git_stack::graph::protect_old_branches(&mut graph, state.protect_commit_time);
+    git_stack::graph::protect_old_branches(
+        &mut graph,
+        state.protect_commit_time,
+        &[state.head_commit.id],
+    );
     if let Some(user) = state.repo.user() {
-        git_stack::graph::protect_foreign_branches(&mut graph, &user);
+        git_stack::graph::protect_foreign_branches(&mut graph, &user, &[state.head_commit.id]);
     }
 
     git_stack::graph::pushable(&mut graph);

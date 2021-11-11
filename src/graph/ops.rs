@@ -120,7 +120,11 @@ fn mark_branch_protected(graph: &mut Graph, node_id: git2::Oid, branches: &mut V
     }
 }
 
-pub fn protect_old_branches(graph: &mut Graph, earlier_than: std::time::SystemTime) -> Vec<String> {
+pub fn protect_old_branches(
+    graph: &mut Graph,
+    earlier_than: std::time::SystemTime,
+    ignore: &[git2::Oid],
+) -> Vec<String> {
     let mut old_branches = Vec::new();
 
     let mut protected_queue = VecDeque::new();
@@ -139,7 +143,7 @@ pub fn protect_old_branches(graph: &mut Graph, earlier_than: std::time::SystemTi
             if child_action.is_protected() {
                 protected_queue.push_back(child_id);
             } else {
-                if is_branch_old(graph, child_id, earlier_than, &[]) {
+                if is_branch_old(graph, child_id, earlier_than, ignore) {
                     mark_branch_protected(graph, child_id, &mut old_branches);
                 }
             }
@@ -214,7 +218,11 @@ fn is_branch_old(
     true
 }
 
-pub fn protect_foreign_branches(graph: &mut Graph, user: &str) -> Vec<String> {
+pub fn protect_foreign_branches(
+    graph: &mut Graph,
+    user: &str,
+    ignore: &[git2::Oid],
+) -> Vec<String> {
     let mut foreign_branches = Vec::new();
 
     let mut protected_queue = VecDeque::new();
@@ -233,7 +241,7 @@ pub fn protect_foreign_branches(graph: &mut Graph, user: &str) -> Vec<String> {
             if child_action.is_protected() {
                 protected_queue.push_back(child_id);
             } else {
-                if !is_personal_branch(graph, child_id, user, &[]) {
+                if !is_personal_branch(graph, child_id, user, ignore) {
                     mark_branch_protected(graph, child_id, &mut foreign_branches);
                 }
             }

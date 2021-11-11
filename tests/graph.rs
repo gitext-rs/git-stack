@@ -354,7 +354,7 @@ fn overflow() {
     let mut graph = git_stack::graph::Graph::from_branches(&repo, graphed_branches).unwrap();
     git_stack::graph::protect_branches(&mut graph, &repo, &protected_branches);
     git_stack::graph::protect_large_branches(&mut graph, 50);
-    git_stack::graph::protect_foreign_branches(&mut graph, "Myself");
+    git_stack::graph::protect_foreign_branches(&mut graph, "Myself", &[]);
 
     git_stack::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
 
