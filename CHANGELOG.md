@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Read `protect-commit-age` from gitconfig
+
 ## [0.5.0] - 2021-11-09
 
 ### Breaking Changes
