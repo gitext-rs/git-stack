@@ -730,8 +730,8 @@ fn git_prune_development(
     #[allow(clippy::needless_collect)]
     let remote_branches: Vec<_> = stdout
         .lines()
-        .filter_map(|l| l.rsplit_once('/'))
-        .map(|s| s.1)
+        .filter_map(|l| l.split_once('\t').map(|s| s.1))
+        .filter_map(|l| l.strip_prefix("refs/heads/"))
         .collect();
 
     for branch in branches {
