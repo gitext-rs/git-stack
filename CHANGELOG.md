@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.5.3] - 2021-11-13
+
 #### Fixes
 
 - Only prune branches when they don't exist on the server, rather than also if they have a `/`
@@ -259,7 +261,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.5.2...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.5.3...HEAD
+[0.5.3]: https://github.com/epage/git-stack/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/epage/git-stack/compare/v0.5.1...v0.5.2
 [0.5.1]: https://github.com/epage/git-stack/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/epage/git-stack/compare/v0.4.8...v0.5.0
