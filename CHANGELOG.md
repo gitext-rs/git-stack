@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+#### Fixes
+
+- Only prune branches when they don't exist on the server, rather than also if they have a `/`
+
 ## [0.5.2] - 2021-11-11
 
 #### Fixes
