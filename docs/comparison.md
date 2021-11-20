@@ -102,6 +102,29 @@ Cons:
 - Blackbox: no explanation for how they manage the patch/PR relationship
 - Dependent on Swift support for your platform
 
+## Jujutsu
+
+[Website](https://github.com/martinvonz/jj)
+
+Pros:
+- When a commit is rewritten, descendants are automatically rebased
+- Supports undo, including undo of a past operation
+- Simpler CLI than `git` (e.g. no "index")
+- Powerful history-editing features, such as for splitting and squashing
+  commits, for moving parts of a commit to or from its parent, and for
+  editing the contents or commit message of any commit
+- First-class conflicts means that conflicts won't prevent rebase, and
+  existing conflicts can be rebased or rolled back
+- Merge commits are correctly rebased, edited, split, etc.
+
+Cons:
+- The working copy cannot be used with `git`, you have to use `jj` instead
+- Missing functionality such as `git blame`, `git log <path>`, `git apply`
+  - Can work around it by running the `git` commands on the underlying Git
+    repository
+- Working with multiple remotes requires many manual steps to manage
+  branches
+
 ## Stacked Git
 
 [Website](https://stacked-git.github.io/)
