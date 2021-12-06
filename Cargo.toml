@@ -35,15 +35,14 @@ pre-release-replacements = [
 git2 = { version = "0.13", default-features = false, features = ["vendored-libgit2"] }
 git-config-env = "0.1"
 log = "0.4"
-structopt = "0.3"
-clap = "2"
-clap-verbosity-flag = "0.3"
+clap = "3.0"
+clap-verbosity-flag = "0.4"
 proc-exit = "1"
 eyre = "0.6"
 human-panic = "1"
 yansi = "0.5.0"
-concolor-control = { version = "0.0.7" }
-concolor-clap = { version = "0.0.6", features = ["api_unstable"] }
+concolor-control = "0.0.7"
+concolor-clap = { version = "0.0.7", features = ["api_unstable"] }
 termtree = "0.2.3"
 env_logger = { version = "0.9", default-features = false, features = ["termcolor"] }
 atty = "0.2"

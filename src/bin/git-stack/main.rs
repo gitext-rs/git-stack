@@ -2,9 +2,7 @@
 #![allow(clippy::let_and_return)]
 #![allow(clippy::if_same_then_else)]
 
-use std::io::Write;
-
-use structopt::StructOpt;
+use clap::Parser;
 
 mod args;
 mod config;
@@ -18,13 +16,14 @@ fn main() {
 
 fn run() -> proc_exit::ExitResult {
     // clap's `get_matches` uses Failure rather than Usage, so bypass it for `get_matches_safe`.
-    let args = match args::Args::from_args_safe() {
+    let args = match args::Args::try_parse() {
         Ok(args) => args,
         Err(e) if e.use_stderr() => {
-            return Err(proc_exit::Code::USAGE_ERR.with_message(e));
+            let _ = e.print();
+            return proc_exit::Code::USAGE_ERR.ok();
         }
         Err(e) => {
-            writeln!(std::io::stdout(), "{}", e)?;
+            let _ = e.print();
             return proc_exit::Code::SUCCESS.ok();
         }
     };
