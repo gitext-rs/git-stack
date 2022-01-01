@@ -1,81 +1,81 @@
-#[derive(structopt::StructOpt)]
-#[structopt(
-        setting = structopt::clap::AppSettings::UnifiedHelpMessage,
-        setting = structopt::clap::AppSettings::DeriveDisplayOrder,
-        setting = structopt::clap::AppSettings::DontCollapseArgsInUsage,
-        setting = concolor_clap::color_choice(),
+#[derive(clap::Parser)]
+#[clap(about, author, version)]
+#[clap(
+        setting = clap::AppSettings::DeriveDisplayOrder,
+        setting = clap::AppSettings::DontCollapseArgsInUsage,
+        color = concolor_clap::color_choice(),
     )]
-#[structopt(group = structopt::clap::ArgGroup::with_name("mode").multiple(false))]
+#[clap(group = clap::ArgGroup::new("mode").multiple(false))]
 pub struct Args {
     /// Rebase the selected stacks
-    #[structopt(short, long, group = "mode")]
+    #[clap(short, long, group = "mode")]
     pub rebase: bool,
 
     /// Pull the parent branch and rebase onto it.
-    #[structopt(long)]
+    #[clap(long)]
     pub pull: bool,
 
     /// Push all ready branches
-    #[structopt(long)]
+    #[clap(long)]
     pub push: bool,
 
     /// Which branch stacks to include
-    #[structopt(
+    #[clap(
         short,
         long,
-        possible_values(&git_stack::config::Stack::variants()),
-        case_insensitive(true),
+        possible_values(git_stack::config::Stack::variants()),
+        ignore_case = true
     )]
     pub stack: Option<git_stack::config::Stack>,
 
     /// Branch to evaluate from (default: most-recent protected branch)
-    #[structopt(long)]
+    #[clap(long)]
     pub base: Option<String>,
 
     /// Branch to rebase onto (default: base)
-    #[structopt(long)]
+    #[clap(long)]
     pub onto: Option<String>,
 
     /// Action to perform with fixup-commits
-    #[structopt(
+    #[clap(
         long,
-        possible_values(&git_stack::config::Fixup::variants()),
-        case_insensitive(true),
+        possible_values(git_stack::config::Fixup::variants()),
+        ignore_case = true
     )]
     pub fixup: Option<git_stack::config::Fixup>,
 
     /// Repair diverging branches.
-    #[structopt(long, overrides_with("no-repair"))]
+    #[clap(long, overrides_with("no-repair"))]
     repair: bool,
-    #[structopt(long, overrides_with("repair"), hidden(true))]
+    #[clap(long, overrides_with("repair"), hide = true)]
     no_repair: bool,
 
-    #[structopt(short = "n", long)]
+    #[clap(short = 'n', long)]
     pub dry_run: bool,
 
-    #[structopt(
+    #[clap(
         long,
-        possible_values(&git_stack::config::Format::variants()),
-        case_insensitive(true),
+        possible_values(git_stack::config::Format::variants()),
+        ignore_case = true
     )]
     pub format: Option<git_stack::config::Format>,
 
     /// See what branches are protected
-    #[structopt(long, group = "mode")]
+    #[clap(long, group = "mode")]
     pub protected: bool,
 
     /// Append a protected branch to the repository's config (gitignore syntax)
-    #[structopt(long, group = "mode")]
+    #[clap(long, group = "mode")]
     pub protect: Option<String>,
 
     /// Write the current configuration to file with `-` for stdout
-    #[structopt(long, group = "mode")]
+    #[clap(long, parse(from_os_str), group = "mode")]
     pub dump_config: Option<std::path::PathBuf>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub(crate) color: concolor_clap::Color,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub verbose: clap_verbosity_flag::Verbosity,
 }
 
@@ -107,6 +107,17 @@ fn resolve_bool_arg(yes: bool, no: bool) -> Option<bool> {
         (true, false) => Some(true),
         (false, true) => Some(false),
         (false, false) => None,
-        (_, _) => unreachable!("StructOpt should make this impossible"),
+        (_, _) => unreachable!("clap should make this impossible"),
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn verify_app() {
+        use clap::IntoApp;
+        Args::into_app().debug_assert()
     }
 }

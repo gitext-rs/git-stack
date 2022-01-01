@@ -1,25 +1,25 @@
-#[derive(structopt::StructOpt)]
-#[structopt(
-        setting = structopt::clap::AppSettings::UnifiedHelpMessage,
-        setting = structopt::clap::AppSettings::DeriveDisplayOrder,
-        setting = structopt::clap::AppSettings::DontCollapseArgsInUsage,
-        setting = concolor_clap::color_choice(),
+#[derive(clap::Parser)]
+#[clap(about, author, version)]
+#[clap(
+        setting = clap::AppSettings::DeriveDisplayOrder,
+        setting = clap::AppSettings::DontCollapseArgsInUsage,
+        color = concolor_clap::color_choice(),
     )]
 pub struct Args {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     pub subcommand: Option<Subcommand>,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub push: PushArgs,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub(crate) color: concolor_clap::Color,
 
-    #[structopt(flatten)]
+    #[clap(flatten)]
     pub verbose: clap_verbosity_flag::Verbosity,
 }
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Subcommand)]
 pub enum Subcommand {
     /// Stash all branches
     Push(PushArgs),
@@ -37,44 +37,55 @@ pub enum Subcommand {
     Stacks(StacksArgs),
 }
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Args)]
 pub struct PushArgs {
     /// Specify which stash stack to use
-    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
+    #[clap(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 
     /// Annotate the snapshot with the given message
-    #[structopt(short, long)]
+    #[clap(short, long)]
     pub message: Option<String>,
 }
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Args)]
 pub struct ListArgs {
     /// Specify which stash stack to use
-    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
+    #[clap(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 }
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Args)]
 pub struct ClearArgs {
     /// Specify which stash stack to use
-    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
+    #[clap(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 }
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Args)]
 pub struct DropArgs {
     /// Specify which stash stack to use
-    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
+    #[clap(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 }
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Args)]
 pub struct ApplyArgs {
     /// Specify which stash stack to use
-    #[structopt(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
+    #[clap(default_value = git_stack::stash::Stack::DEFAULT_STACK)]
     pub stack: String,
 }
 
-#[derive(structopt::StructOpt)]
+#[derive(clap::Args)]
 pub struct StacksArgs {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn verify_app() {
+        use clap::IntoApp;
+        Args::into_app().debug_assert()
+    }
+}

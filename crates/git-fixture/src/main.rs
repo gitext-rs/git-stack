@@ -1,20 +1,21 @@
 use std::io::Write;
 
+use clap::Parser;
 use proc_exit::WithCodeResultExt;
-use structopt::StructOpt;
 
-#[derive(StructOpt)]
-#[structopt(group = structopt::clap::ArgGroup::with_name("mode").multiple(false))]
+#[derive(Parser)]
+#[clap(about, author, version)]
+#[clap(group = clap::ArgGroup::new("mode").multiple(false))]
 struct Args {
-    #[structopt(short, long, group = "mode")]
+    #[clap(short, long, parse(from_os_str), group = "mode")]
     input: Option<std::path::PathBuf>,
-    #[structopt(short, long)]
+    #[clap(short, long, parse(from_os_str))]
     output: Option<std::path::PathBuf>,
     /// Sleep between commits
-    #[structopt(long, parse(try_from_str))]
+    #[clap(long, parse(try_from_str))]
     sleep: Option<humantime::Duration>,
 
-    #[structopt(short, long, group = "mode")]
+    #[clap(short, long, parse(from_os_str), group = "mode")]
     schema: Option<std::path::PathBuf>,
 }
 
@@ -24,7 +25,7 @@ fn main() {
 }
 
 fn run() -> proc_exit::ExitResult {
-    let args = Args::from_args();
+    let args = Args::parse();
     let output = args
         .output
         .clone()
@@ -45,4 +46,15 @@ fn run() -> proc_exit::ExitResult {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn verify_app() {
+        use clap::IntoApp;
+        Args::into_app().debug_assert()
+    }
 }
