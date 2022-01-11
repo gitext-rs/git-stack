@@ -29,8 +29,8 @@ fn run() -> proc_exit::ExitResult {
     };
 
     args.color.apply();
-    let colored_stdout = concolor_control::get(concolor_control::Stream::Stdout).ansi_color();
-    let colored_stderr = concolor_control::get(concolor_control::Stream::Stderr).ansi_color();
+    let colored_stdout = concolor::get(concolor::Stream::Stdout).ansi_color();
+    let colored_stderr = concolor::get(concolor::Stream::Stderr).ansi_color();
 
     git_stack::log::init_logging(args.verbose.clone(), colored_stderr);
 
