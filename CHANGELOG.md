@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.5.5] - 2022-01-26
+
 ### Fixes
 
 - Don't panic on `--base --onto --stack all`
@@ -267,7 +269,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.5.4...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.5.5...HEAD
+[0.5.5]: https://github.com/epage/git-stack/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/epage/git-stack/compare/v0.5.3...v0.5.4
 [0.5.3]: https://github.com/epage/git-stack/compare/v0.5.2...v0.5.3
 [0.5.2]: https://github.com/epage/git-stack/compare/v0.5.1...v0.5.2
