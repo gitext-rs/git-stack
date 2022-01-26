@@ -107,6 +107,13 @@ impl State {
             .with_code(proc_exit::Code::USAGE_ERR)?;
 
         let stacks = match (base, onto, repo_config.stack()) {
+            (Some(base), Some(onto), git_stack::config::Stack::All) => {
+                vec![StackState {
+                    base,
+                    onto,
+                    branches: branches.all(),
+                }]
+            }
             (Some(base), None, git_stack::config::Stack::All) => {
                 let onto = base.clone();
                 vec![StackState {
