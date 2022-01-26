@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Don't panic on `--base --onto --stack all`
+
 ## [0.5.4] - 2022-01-11
 
 ## [0.5.3] - 2021-11-13
