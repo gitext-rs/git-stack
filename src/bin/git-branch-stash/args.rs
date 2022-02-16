@@ -2,7 +2,7 @@
 #[clap(about, author, version)]
 #[clap(
         setting = clap::AppSettings::DeriveDisplayOrder,
-        setting = clap::AppSettings::DontCollapseArgsInUsage,
+        dont_collapse_args_in_usage = true,
         color = concolor_clap::color_choice(),
     )]
 pub struct Args {
