@@ -64,6 +64,13 @@ Cons:
 - Only supports Github
 - Sounds like they require user-prefixes for branches
 
+## `git spr`
+
+[Website](https://github.com/ejoffe/spr)
+
+Cons:
+- Blackbox: no explanation for how the PRs are stacked or if any relationship data is shown to the user
+
 ## `ghstack`
 
 [Website](https://github.com/ezyang/ghstack)
