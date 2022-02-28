@@ -16,7 +16,7 @@ pub struct Args {
     pub(crate) color: concolor_clap::Color,
 
     #[clap(flatten)]
-    pub verbose: clap_verbosity_flag::Verbosity,
+    pub verbose: clap_verbosity_flag::Verbosity<clap_verbosity_flag::InfoLevel>,
 }
 
 #[derive(clap::Subcommand)]
@@ -85,7 +85,7 @@ mod test {
 
     #[test]
     fn verify_app() {
-        use clap::IntoApp;
-        Args::into_app().debug_assert()
+        use clap::CommandFactory;
+        Args::command().debug_assert()
     }
 }
