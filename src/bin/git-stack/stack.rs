@@ -809,20 +809,22 @@ fn git_push_node(
     let mut failed = Vec::new();
     for branch in node.branches.iter() {
         if node.pushable {
+            let raw_branch = repo
+                .raw()
+                .find_branch(&branch.name, git2::BranchType::Local)
+                .expect("all referenced branches exist");
+            let upstream_set = raw_branch.upstream().is_ok();
+
             let remote = repo.push_remote();
-            log::trace!(
-                "git push --force-with-lease --set-upstream {} {}",
-                remote,
-                branch.name
-            );
+            let mut args = vec!["push", "--force-with-lease"];
+            if !upstream_set {
+                args.push("--set-upstream");
+            }
+            args.push(remote);
+            args.push(&branch.name);
+            log::trace!("git {}", args.join(" "),);
             if !dry_run {
-                let status = std::process::Command::new("git")
-                    .arg("push")
-                    .arg("--force-with-lease")
-                    .arg("--set-upstream")
-                    .arg(repo.push_remote())
-                    .arg(&branch.name)
-                    .status();
+                let status = std::process::Command::new("git").args(&args).status();
                 match status {
                     Ok(status) => {
                         if !status.success() {
