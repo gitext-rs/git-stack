@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Respect existing upstream configured for current branch
+- Respect `remote.pushDefault`
+
 ## [0.5.5] - 2022-01-26
 
 ### Fixes
