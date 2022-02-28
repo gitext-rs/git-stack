@@ -32,11 +32,11 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-git2 = { version = "0.13", default-features = false, features = ["vendored-libgit2"] }
+git2 = { version = "0.14", default-features = false, features = ["vendored-libgit2"] }
 git-config-env = "0.1"
 log = "0.4"
 clap = "3.1"
-clap-verbosity-flag = "0.4"
+clap-verbosity-flag = "1.0"
 proc-exit = "1"
 eyre = "0.6"
 human-panic = "1"
