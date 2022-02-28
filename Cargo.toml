@@ -6,7 +6,7 @@ members = [
 [package]
 name = "git-stack"
 description = "Stacked branch management for Git"
-version = "0.5.5"
+version = "0.5.6"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/epage/git-stack.git"
 documentation = "https://github.com/epage/git-stack.git"
