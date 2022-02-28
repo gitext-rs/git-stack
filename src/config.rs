@@ -233,7 +233,10 @@ impl RepoConfig {
             .ok()
             .and_then(|s| humantime::parse_duration(&s).ok());
 
-        let push_remote = config.get_string(PUSH_REMOTE_FIELD).ok();
+        let push_remote = config
+            .get_string(PUSH_REMOTE_FIELD)
+            .ok()
+            .or_else(|| config.get_string("remote.pushDefault").ok());
         let pull_remote = config.get_string(PULL_REMOTE_FIELD).ok();
 
         let stack = config
