@@ -457,10 +457,12 @@ fn default_branch(config: &git2::Config) -> &str {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ArgEnum)]
 pub enum Format {
+    /// No output
     Silent,
     Branches,
     BranchCommits,
     Commits,
+    /// Internal data for debugging
     Debug,
 }
 
@@ -496,9 +498,13 @@ impl Default for Format {
 
 #[derive(clap::ArgEnum, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Stack {
+    /// Branches in BASE..HEAD
     Current,
+    /// Branches in BASE..HEAD..
     Dependents,
+    /// Branches in BASE..
     Descendants,
+    /// Show all branches
     All,
 }
 
@@ -534,8 +540,11 @@ impl Default for Stack {
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ArgEnum)]
 pub enum Fixup {
+    /// No special processing
     Ignore,
+    /// Move them to after the commit they fix
     Move,
+    /// Squash into the commit they fix
     Squash,
 }
 
