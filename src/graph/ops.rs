@@ -388,8 +388,16 @@ pub fn pushable(graph: &mut Graph) {
     }
     while let Some((current_id, mut cause)) = node_queue.pop_front() {
         let current = graph.get_mut(current_id).expect("all children exist");
-        if !current.action.is_protected() {
-            if !current.branches.is_empty()
+        if current.action.is_protected() {
+            if !current.branches.is_empty() {
+                let branch = &current.branches[0];
+                log::debug!("{} isn't pushable, branch is protected", branch.name);
+                // Don't set `cause` as that will block descendants
+            }
+        } else {
+            if cause.is_some() {
+                // Preserve existing cause
+            } else if !current.branches.is_empty()
                 && current.branches.iter().all(|b| Some(b.id) == b.push_id)
             {
                 cause = Some("already pushed");
@@ -399,14 +407,14 @@ pub fn pushable(graph: &mut Graph) {
 
             if !current.branches.is_empty() {
                 let branch = &current.branches[0];
-                if let Some(cause) = cause {
-                    log::debug!("{} isn't pushable, {}", branch.name, cause);
+                if let Some(c) = cause {
+                    log::debug!("{} isn't pushable, {}", branch.name, c);
+                    cause = Some("parent isn't pushable");
                 } else {
                     log::debug!("{} is pushable", branch.name);
                     current.pushable = true;
+                    cause = Some("parent is pushable");
                 }
-                // Bail out, only the first branch of a stack is up for consideration
-                continue;
             }
         }
 
