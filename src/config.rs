@@ -455,7 +455,7 @@ fn default_branch(config: &git2::Config) -> &str {
     config.get_str("init.defaultBranch").ok().unwrap_or("main")
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ArgEnum)]
 pub enum Format {
     Silent,
     Branches,
@@ -464,35 +464,27 @@ pub enum Format {
     Debug,
 }
 
-impl Format {
-    pub fn variants() -> [&'static str; 5] {
-        ["silent", "branches", "branch-commits", "commits", "debug"]
+impl std::fmt::Display for Format {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use clap::ArgEnum;
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
     }
 }
 
 impl std::str::FromStr for Format {
     type Err = String;
-    fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
-        match s {
-            "silent" => Ok(Format::Silent),
-            "branches" => Ok(Format::Branches),
-            "branch-commits" => Ok(Format::BranchCommits),
-            "commits" => Ok(Format::Commits),
-            "debug" => Ok(Format::Debug),
-            _ => Err(format!("valid values: {}", Self::variants().join(", "))),
-        }
-    }
-}
 
-impl std::fmt::Display for Format {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        match self {
-            Format::Silent => "silent".fmt(f),
-            Format::Branches => "branches".fmt(f),
-            Format::BranchCommits => "branch-commits".fmt(f),
-            Format::Commits => "commits".fmt(f),
-            Format::Debug => "debug".fmt(f),
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use clap::ArgEnum;
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
         }
+        Err(format!("Invalid variant: {}", s))
     }
 }
 
@@ -502,7 +494,7 @@ impl Default for Format {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(clap::ArgEnum, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Stack {
     Current,
     Dependents,
@@ -510,33 +502,27 @@ pub enum Stack {
     All,
 }
 
-impl Stack {
-    pub fn variants() -> [&'static str; 4] {
-        ["current", "dependents", "descendants", "all"]
+impl std::fmt::Display for Stack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use clap::ArgEnum;
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
     }
 }
 
 impl std::str::FromStr for Stack {
     type Err = String;
-    fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
-        match s {
-            "current" => Ok(Stack::Current),
-            "dependents" => Ok(Stack::Dependents),
-            "descendants" => Ok(Stack::Descendants),
-            "all" => Ok(Stack::All),
-            _ => Err(format!("valid values: {}", Self::variants().join(", "))),
-        }
-    }
-}
 
-impl std::fmt::Display for Stack {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        match self {
-            Stack::Current => "current".fmt(f),
-            Stack::Dependents => "dependents".fmt(f),
-            Stack::Descendants => "descendants".fmt(f),
-            Stack::All => "all".fmt(f),
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use clap::ArgEnum;
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
         }
+        Err(format!("Invalid variant: {}", s))
     }
 }
 
@@ -546,7 +532,7 @@ impl Default for Stack {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ArgEnum)]
 pub enum Fixup {
     Ignore,
     Move,
@@ -559,25 +545,27 @@ impl Fixup {
     }
 }
 
-impl std::str::FromStr for Fixup {
-    type Err = String;
-    fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
-        match s {
-            "ignore" => Ok(Fixup::Ignore),
-            "move" => Ok(Fixup::Move),
-            "squash" => Ok(Fixup::Squash),
-            _ => Err(format!("valid values: {}", Self::variants().join(", "))),
-        }
+impl std::fmt::Display for Fixup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use clap::ArgEnum;
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
     }
 }
 
-impl std::fmt::Display for Fixup {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        match self {
-            Fixup::Ignore => "ignore".fmt(f),
-            Fixup::Move => "move".fmt(f),
-            Fixup::Squash => "squash".fmt(f),
+impl std::str::FromStr for Fixup {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use clap::ArgEnum;
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
         }
+        Err(format!("Invalid variant: {}", s))
     }
 }
 
