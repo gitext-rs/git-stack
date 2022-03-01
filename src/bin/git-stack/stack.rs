@@ -526,10 +526,17 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
     let mut old_stacks = Vec::new();
     let mut foreign_stacks = Vec::new();
 
+    let abbrev_graph = match state.show_format {
+        git_stack::config::Format::Silent => false,
+        git_stack::config::Format::List => false,
+        git_stack::config::Format::Graph => true,
+        git_stack::config::Format::Debug => true,
+    };
+
     let mut graphs = Vec::with_capacity(state.stacks.len());
     for stack in state.stacks.iter() {
         let graphed_branches = stack.graphed_branches();
-        if graphed_branches.len() == 1 {
+        if graphed_branches.len() == 1 && abbrev_graph {
             let branches = graphed_branches.iter().next().unwrap().1;
             if branches.len() == 1 && branches[0].id != state.head_commit.id {
                 empty_stacks.push(format!("{}", palette_stderr.info.paint(&branches[0].name)));
@@ -569,21 +576,27 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 );
             }
         }
-        old_stacks.extend(
-            git_stack::graph::trim_old_branches(
-                &mut graph,
-                state.protect_commit_time,
-                &[state.head_commit.id],
-            )
-            .into_iter()
-            .map(|b| format!("{}", palette_stderr.warn.paint(b))),
-        );
-        if let Some(user) = state.repo.user() {
-            foreign_stacks.extend(
-                git_stack::graph::trim_foreign_branches(&mut graph, &user, &[state.head_commit.id])
+        if abbrev_graph {
+            old_stacks.extend(
+                git_stack::graph::trim_old_branches(
+                    &mut graph,
+                    state.protect_commit_time,
+                    &[state.head_commit.id],
+                )
+                .into_iter()
+                .map(|b| format!("{}", palette_stderr.warn.paint(b))),
+            );
+            if let Some(user) = state.repo.user() {
+                foreign_stacks.extend(
+                    git_stack::graph::trim_foreign_branches(
+                        &mut graph,
+                        &user,
+                        &[state.head_commit.id],
+                    )
                     .into_iter()
                     .map(|b| format!("{}", palette_stderr.warn.paint(b))),
-            );
+                );
+            }
         }
 
         if state.dry_run {
@@ -643,7 +656,21 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
 
     for graph in graphs {
         match state.show_format {
-            git_stack::config::Format::Silent => (),
+            git_stack::config::Format::Silent => {}
+            git_stack::config::Format::List => {
+                let palette = if colored_stdout {
+                    Palette::colored()
+                } else {
+                    Palette::plain()
+                };
+                list(
+                    &mut std::io::stdout(),
+                    &state.repo,
+                    &graph,
+                    &state.protected_branches,
+                    &palette,
+                )?;
+            }
             git_stack::config::Format::Graph => {
                 write!(
                     std::io::stdout(),
@@ -846,6 +873,35 @@ fn git_push_node(
     }
 
     failed
+}
+
+fn list(
+    writer: &mut dyn std::io::Write,
+    repo: &git_stack::git::GitRepo,
+    graph: &git_stack::graph::Graph,
+    protected_branches: &git_stack::git::Branches,
+    palette: &Palette,
+) -> Result<(), std::io::Error> {
+    let head_branch = repo.head_branch().unwrap();
+    for node in graph.breadth_first_iter() {
+        let protected = protected_branches.get(node.commit.id);
+        let mut branches: Vec<_> = node.branches.iter().collect();
+        branches.sort();
+        for b in branches {
+            if protected.into_iter().flatten().contains(&b) {
+                // Base / protected branches are just show for context, they aren't part of the
+                // stack, so skip them here
+                continue;
+            }
+            writeln!(
+                writer,
+                "{}",
+                format_branch_name(&b, node, &head_branch, protected_branches, palette)
+            )?;
+        }
+    }
+
+    Ok(())
 }
 
 struct DisplayTree<'r> {

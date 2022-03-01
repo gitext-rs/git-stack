@@ -483,6 +483,8 @@ fn default_branch(config: &git2::Config) -> &str {
 pub enum Format {
     /// No output
     Silent,
+    /// List branches in selected stacks
+    List,
     /// Render a branch branch
     Graph,
     /// Internal data for debugging
