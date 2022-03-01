@@ -47,6 +47,9 @@ pub struct Args {
     #[clap(long, arg_enum)]
     pub format: Option<git_stack::config::Format>,
 
+    #[clap(long, arg_enum)]
+    pub show_commits: Option<git_stack::config::ShowCommits>,
+
     /// See what branches are protected
     #[clap(long, group = "mode")]
     pub protected: bool,
@@ -76,6 +79,7 @@ impl Args {
             push_remote: None,
             pull_remote: None,
             show_format: self.format,
+            show_commits: self.show_commits,
             show_stacked: None,
             auto_fixup: None,
             auto_repair: None,

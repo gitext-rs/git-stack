@@ -25,6 +25,7 @@ struct State {
     protect_commit_time: std::time::SystemTime,
 
     show_format: git_stack::config::Format,
+    show_commits: git_stack::config::ShowCommits,
     show_stacked: bool,
 }
 
@@ -85,6 +86,7 @@ impl State {
         let protect_commit_age = repo_config.protect_commit_age();
         let protect_commit_time = std::time::SystemTime::now() - protect_commit_age;
         let show_format = repo_config.show_format();
+        let show_commits = repo_config.show_commits();
         let show_stacked = repo_config.show_stacked();
 
         repo.set_push_remote(repo_config.push_remote());
@@ -210,6 +212,7 @@ impl State {
             protect_commit_time,
 
             show_format,
+            show_commits,
             show_stacked,
         })
     }
@@ -641,15 +644,13 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
     for graph in graphs {
         match state.show_format {
             git_stack::config::Format::Silent => (),
-            git_stack::config::Format::Branches
-            | git_stack::config::Format::BranchCommits
-            | git_stack::config::Format::Commits => {
+            git_stack::config::Format::Graph => {
                 write!(
                     std::io::stdout(),
                     "{}",
                     DisplayTree::new(&state.repo, &graph)
                         .colored(colored_stdout)
-                        .show(state.show_format)
+                        .show(state.show_commits)
                         .stacked(state.show_stacked)
                         .protected_branches(&state.protected_branches)
                 )?;
@@ -852,7 +853,7 @@ struct DisplayTree<'r> {
     graph: &'r git_stack::graph::Graph,
     protected_branches: git_stack::git::Branches,
     palette: Palette,
-    show: git_stack::config::Format,
+    show: git_stack::config::ShowCommits,
     stacked: bool,
 }
 
@@ -877,7 +878,7 @@ impl<'r> DisplayTree<'r> {
         self
     }
 
-    pub fn show(mut self, show: git_stack::config::Format) -> Self {
+    pub fn show(mut self, show: git_stack::config::ShowCommits) -> Self {
         self.show = show;
         self
     }
@@ -898,9 +899,8 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
         let head_branch = self.repo.head_branch().unwrap();
 
         let is_visible: Box<dyn Fn(&git_stack::graph::Node) -> bool> = match self.show {
-            git_stack::config::Format::Silent => unreachable!("No silent view for tree"),
-            git_stack::config::Format::Commits => Box::new(|_| true),
-            git_stack::config::Format::BranchCommits => Box::new(|node| {
+            git_stack::config::ShowCommits::All => Box::new(|_| true),
+            git_stack::config::ShowCommits::Unprotected => Box::new(|node| {
                 let interesting_commit = node.commit.id == head_branch.id
                     || node.commit.id == self.graph.root_id()
                     || node.children.is_empty();
@@ -908,14 +908,13 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
                 let protected = node.action.is_protected();
                 interesting_commit || !boring_commit || !protected
             }),
-            git_stack::config::Format::Branches => Box::new(|node| {
+            git_stack::config::ShowCommits::None => Box::new(|node| {
                 let interesting_commit = node.commit.id == head_branch.id
                     || node.commit.id == self.graph.root_id()
                     || node.children.is_empty();
                 let boring_commit = node.branches.is_empty() && node.children.len() == 1;
                 interesting_commit || !boring_commit
             }),
-            git_stack::config::Format::Debug => unreachable!("No debug view for tree"),
         };
 
         let mut tree = node_to_tree(
