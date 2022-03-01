@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.6.0] - 2022-03-01
+
 ### Breaking Changes
 
 - `--stack`, `--format`, `--fixup` are now case sensitive
@@ -290,7 +292,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/epage/git-stack/compare/v0.5.6...HEAD
+[Unreleased]: https://github.com/epage/git-stack/compare/v0.6.0...HEAD
+[0.6.0]: https://github.com/epage/git-stack/compare/v0.5.6...v0.6.0
 [0.5.6]: https://github.com/epage/git-stack/compare/v0.5.5...v0.5.6
 [0.5.5]: https://github.com/epage/git-stack/compare/v0.5.4...v0.5.5
 [0.5.4]: https://github.com/epage/git-stack/compare/v0.5.3...v0.5.4
