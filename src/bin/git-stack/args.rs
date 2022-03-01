@@ -20,7 +20,7 @@ pub struct Args {
     pub push: bool,
 
     /// Which branch stacks to include
-    #[clap(short, long, arg_enum, ignore_case = true)]
+    #[clap(short, long, arg_enum)]
     pub stack: Option<git_stack::config::Stack>,
 
     /// Branch to evaluate from (default: most-recent protected branch)
@@ -32,7 +32,7 @@ pub struct Args {
     pub onto: Option<String>,
 
     /// Action to perform with fixup-commits
-    #[clap(long, arg_enum, ignore_case = true)]
+    #[clap(long, arg_enum)]
     pub fixup: Option<git_stack::config::Fixup>,
 
     /// Repair diverging branches.
@@ -44,7 +44,7 @@ pub struct Args {
     #[clap(short = 'n', long)]
     pub dry_run: bool,
 
-    #[clap(long, arg_enum, ignore_case = true)]
+    #[clap(long, arg_enum)]
     pub format: Option<git_stack::config::Format>,
 
     /// See what branches are protected
