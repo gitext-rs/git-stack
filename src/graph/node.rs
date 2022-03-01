@@ -23,9 +23,7 @@ impl Node {
     }
 
     pub fn with_branches(mut self, possible_branches: &mut crate::git::Branches) -> Self {
-        self.branches = possible_branches
-            .remove(self.commit.id)
-            .unwrap_or_else(Vec::new);
+        self.branches = possible_branches.remove(self.commit.id).unwrap_or_default();
         self
     }
 

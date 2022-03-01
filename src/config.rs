@@ -9,6 +9,7 @@ pub struct RepoConfig {
     pub push_remote: Option<String>,
     pub pull_remote: Option<String>,
     pub show_format: Option<Format>,
+    pub show_commits: Option<ShowCommits>,
     pub show_stacked: Option<bool>,
     pub auto_fixup: Option<Fixup>,
     pub auto_repair: Option<bool>,
@@ -23,6 +24,7 @@ static STACK_FIELD: &str = "stack.stack";
 static PUSH_REMOTE_FIELD: &str = "stack.push-remote";
 static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
 static FORMAT_FIELD: &str = "stack.show-format";
+static SHOW_COMMITS_FIELD: &str = "stack.show-commits";
 static STACKED_FIELD: &str = "stack.show-stacked";
 static AUTO_FIXUP_FIELD: &str = "stack.auto-fixup";
 static AUTO_REPAIR_FIELD: &str = "stack.auto-repair";
@@ -146,6 +148,10 @@ impl RepoConfig {
                 if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
                     config.show_format = Some(value);
                 }
+            } else if key == SHOW_COMMITS_FIELD {
+                if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
+                    config.show_commits = Some(value);
+                }
             } else if key == STACKED_FIELD {
                 config.show_stacked = Some(value.as_ref().map(|v| v == "true").unwrap_or(true));
             } else if key == AUTO_FIXUP_FIELD {
@@ -188,6 +194,7 @@ impl RepoConfig {
         conf.push_remote = Some(conf.push_remote().to_owned());
         conf.pull_remote = Some(conf.pull_remote().to_owned());
         conf.show_format = Some(conf.show_format());
+        conf.show_commits = Some(conf.show_commits());
         conf.show_stacked = Some(conf.show_stacked());
         conf.auto_fixup = Some(conf.auto_fixup());
         conf.capacity = Some(DEFAULT_CAPACITY);
@@ -249,6 +256,11 @@ impl RepoConfig {
             .ok()
             .and_then(|s| FromStr::from_str(&s).ok());
 
+        let show_commits = config
+            .get_string(SHOW_COMMITS_FIELD)
+            .ok()
+            .and_then(|s| FromStr::from_str(&s).ok());
+
         let show_stacked = config.get_bool(STACKED_FIELD).ok();
 
         let auto_fixup = config
@@ -271,6 +283,7 @@ impl RepoConfig {
             pull_remote,
             stack,
             show_format,
+            show_commits,
             show_stacked,
             auto_fixup,
             auto_repair,
@@ -311,6 +324,7 @@ impl RepoConfig {
         self.pull_remote = other.pull_remote.or(self.pull_remote);
         self.stack = other.stack.or(self.stack);
         self.show_format = other.show_format.or(self.show_format);
+        self.show_commits = other.show_commits.or(self.show_commits);
         self.show_stacked = other.show_stacked.or(self.show_stacked);
         self.auto_fixup = other.auto_fixup.or(self.auto_fixup);
         self.auto_repair = other.auto_repair.or(self.auto_repair);
@@ -353,6 +367,10 @@ impl RepoConfig {
         self.show_format.unwrap_or_default()
     }
 
+    pub fn show_commits(&self) -> ShowCommits {
+        self.show_commits.unwrap_or_default()
+    }
+
     pub fn show_stacked(&self) -> bool {
         self.show_stacked.unwrap_or(true)
     }
@@ -373,74 +391,80 @@ impl RepoConfig {
 
 impl std::fmt::Display for RepoConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "[{}]", STACK_FIELD.split_once(".").unwrap().0)?;
+        writeln!(f, "[{}]", STACK_FIELD.split_once('.').unwrap().0)?;
         for branch in self.protected_branches() {
             writeln!(
                 f,
                 "\t{}={}",
-                PROTECTED_STACK_FIELD.split_once(".").unwrap().1,
+                PROTECTED_STACK_FIELD.split_once('.').unwrap().1,
                 branch
             )?;
         }
         writeln!(
             f,
             "\t{}={}",
-            PROTECT_COMMIT_COUNT.split_once(".").unwrap().1,
+            PROTECT_COMMIT_COUNT.split_once('.').unwrap().1,
             self.protect_commit_count().unwrap_or(0)
         )?;
         writeln!(
             f,
             "\t{}={}",
-            PROTECT_COMMIT_AGE.split_once(".").unwrap().1,
+            PROTECT_COMMIT_AGE.split_once('.').unwrap().1,
             humantime::format_duration(self.protect_commit_age())
         )?;
         writeln!(
             f,
             "\t{}={}",
-            STACK_FIELD.split_once(".").unwrap().1,
+            STACK_FIELD.split_once('.').unwrap().1,
             self.stack()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            PUSH_REMOTE_FIELD.split_once(".").unwrap().1,
+            PUSH_REMOTE_FIELD.split_once('.').unwrap().1,
             self.push_remote()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            PULL_REMOTE_FIELD.split_once(".").unwrap().1,
+            PULL_REMOTE_FIELD.split_once('.').unwrap().1,
             self.pull_remote()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            FORMAT_FIELD.split_once(".").unwrap().1,
+            FORMAT_FIELD.split_once('.').unwrap().1,
             self.show_format()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            STACKED_FIELD.split_once(".").unwrap().1,
+            SHOW_COMMITS_FIELD.split_once('.').unwrap().1,
+            self.show_commits()
+        )?;
+        writeln!(
+            f,
+            "\t{}={}",
+            STACKED_FIELD.split_once('.').unwrap().1,
             self.show_stacked()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            AUTO_FIXUP_FIELD.split_once(".").unwrap().1,
+            AUTO_FIXUP_FIELD.split_once('.').unwrap().1,
             self.auto_fixup()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            AUTO_REPAIR_FIELD.split_once(".").unwrap().1,
+            AUTO_REPAIR_FIELD.split_once('.').unwrap().1,
             self.auto_repair()
         )?;
-        writeln!(f, "[{}]", BACKUP_CAPACITY_FIELD.split_once(".").unwrap().0)?;
+        writeln!(f, "[{}]", BACKUP_CAPACITY_FIELD.split_once('.').unwrap().0)?;
         writeln!(
             f,
             "\t{}={}",
-            BACKUP_CAPACITY_FIELD.split_once(".").unwrap().1,
+            BACKUP_CAPACITY_FIELD.split_once('.').unwrap().1,
             self.capacity().unwrap_or(0)
         )?;
         Ok(())
@@ -455,101 +479,134 @@ fn default_branch(config: &git2::Config) -> &str {
     config.get_str("init.defaultBranch").ok().unwrap_or("main")
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ArgEnum)]
 pub enum Format {
+    /// No output
     Silent,
-    Branches,
-    BranchCommits,
-    Commits,
+    /// List branches in selected stacks
+    List,
+    /// Render a branch branch
+    Graph,
+    /// Internal data for debugging
     Debug,
 }
 
-impl Format {
-    pub fn variants() -> [&'static str; 5] {
-        ["silent", "branches", "branch-commits", "commits", "debug"]
+impl std::fmt::Display for Format {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use clap::ArgEnum;
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
     }
 }
 
 impl std::str::FromStr for Format {
     type Err = String;
-    fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
-        match s {
-            "silent" => Ok(Format::Silent),
-            "branches" => Ok(Format::Branches),
-            "branch-commits" => Ok(Format::BranchCommits),
-            "commits" => Ok(Format::Commits),
-            "debug" => Ok(Format::Debug),
-            _ => Err(format!("valid values: {}", Self::variants().join(", "))),
-        }
-    }
-}
 
-impl std::fmt::Display for Format {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        match self {
-            Format::Silent => "silent".fmt(f),
-            Format::Branches => "branches".fmt(f),
-            Format::BranchCommits => "branch-commits".fmt(f),
-            Format::Commits => "commits".fmt(f),
-            Format::Debug => "debug".fmt(f),
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use clap::ArgEnum;
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
         }
+        Err(format!("Invalid variant: {}", s))
     }
 }
 
 impl Default for Format {
     fn default() -> Self {
-        Format::BranchCommits
+        Self::Graph
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub enum Stack {
-    Current,
-    Dependents,
-    Descendants,
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ArgEnum)]
+pub enum ShowCommits {
+    None,
+    Unprotected,
     All,
 }
 
-impl Stack {
-    pub fn variants() -> [&'static str; 4] {
-        ["current", "dependents", "descendants", "all"]
+impl std::fmt::Display for ShowCommits {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use clap::ArgEnum;
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
+    }
+}
+
+impl std::str::FromStr for ShowCommits {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use clap::ArgEnum;
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
+        }
+        Err(format!("Invalid variant: {}", s))
+    }
+}
+
+impl Default for ShowCommits {
+    fn default() -> Self {
+        Self::Unprotected
+    }
+}
+
+#[derive(clap::ArgEnum, Debug, Copy, Clone, PartialEq, Eq)]
+pub enum Stack {
+    /// Branches in BASE..HEAD
+    Current,
+    /// Branches in BASE..HEAD..
+    Dependents,
+    /// Branches in BASE..
+    Descendants,
+    /// Show all branches
+    All,
+}
+
+impl std::fmt::Display for Stack {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use clap::ArgEnum;
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
     }
 }
 
 impl std::str::FromStr for Stack {
     type Err = String;
-    fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
-        match s {
-            "current" => Ok(Stack::Current),
-            "dependents" => Ok(Stack::Dependents),
-            "descendants" => Ok(Stack::Descendants),
-            "all" => Ok(Stack::All),
-            _ => Err(format!("valid values: {}", Self::variants().join(", "))),
-        }
-    }
-}
 
-impl std::fmt::Display for Stack {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        match self {
-            Stack::Current => "current".fmt(f),
-            Stack::Dependents => "dependents".fmt(f),
-            Stack::Descendants => "descendants".fmt(f),
-            Stack::All => "all".fmt(f),
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use clap::ArgEnum;
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
         }
+        Err(format!("Invalid variant: {}", s))
     }
 }
 
 impl Default for Stack {
     fn default() -> Self {
-        Stack::All
+        Self::All
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ArgEnum)]
 pub enum Fixup {
+    /// No special processing
     Ignore,
+    /// Move them to after the commit they fix
     Move,
+    /// Squash into the commit they fix
     Squash,
 }
 
@@ -559,30 +616,32 @@ impl Fixup {
     }
 }
 
-impl std::str::FromStr for Fixup {
-    type Err = String;
-    fn from_str(s: &str) -> ::std::result::Result<Self, Self::Err> {
-        match s {
-            "ignore" => Ok(Fixup::Ignore),
-            "move" => Ok(Fixup::Move),
-            "squash" => Ok(Fixup::Squash),
-            _ => Err(format!("valid values: {}", Self::variants().join(", "))),
-        }
+impl std::fmt::Display for Fixup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use clap::ArgEnum;
+        self.to_possible_value()
+            .expect("no values are skipped")
+            .get_name()
+            .fmt(f)
     }
 }
 
-impl std::fmt::Display for Fixup {
-    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
-        match self {
-            Fixup::Ignore => "ignore".fmt(f),
-            Fixup::Move => "move".fmt(f),
-            Fixup::Squash => "squash".fmt(f),
+impl std::str::FromStr for Fixup {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        use clap::ArgEnum;
+        for variant in Self::value_variants() {
+            if variant.to_possible_value().unwrap().matches(s, false) {
+                return Ok(*variant);
+            }
         }
+        Err(format!("Invalid variant: {}", s))
     }
 }
 
 impl Default for Fixup {
     fn default() -> Self {
-        Fixup::Move
+        Self::Move
     }
 }

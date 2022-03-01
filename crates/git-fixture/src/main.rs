@@ -54,7 +54,7 @@ mod test {
 
     #[test]
     fn verify_app() {
-        use clap::IntoApp;
-        Args::into_app().debug_assert()
+        use clap::CommandFactory;
+        Args::command().debug_assert()
     }
 }

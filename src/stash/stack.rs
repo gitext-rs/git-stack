@@ -82,7 +82,7 @@ impl Stack {
             }
             None => 0,
         };
-        let last = last_path.as_deref().and_then(|p| Snapshot::load(p).ok());
+        let last = last_path.and_then(|p| Snapshot::load(p).ok());
         if last.as_ref() == Some(&snapshot) {
             let last_path = last_path.unwrap().to_owned();
             log::trace!("Reusing snapshot {}", last_path.display());

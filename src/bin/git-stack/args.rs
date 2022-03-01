@@ -20,12 +20,7 @@ pub struct Args {
     pub push: bool,
 
     /// Which branch stacks to include
-    #[clap(
-        short,
-        long,
-        possible_values(git_stack::config::Stack::variants()),
-        ignore_case = true
-    )]
+    #[clap(short, long, arg_enum)]
     pub stack: Option<git_stack::config::Stack>,
 
     /// Branch to evaluate from (default: most-recent protected branch)
@@ -37,11 +32,7 @@ pub struct Args {
     pub onto: Option<String>,
 
     /// Action to perform with fixup-commits
-    #[clap(
-        long,
-        possible_values(git_stack::config::Fixup::variants()),
-        ignore_case = true
-    )]
+    #[clap(long, arg_enum)]
     pub fixup: Option<git_stack::config::Fixup>,
 
     /// Repair diverging branches.
@@ -53,12 +44,11 @@ pub struct Args {
     #[clap(short = 'n', long)]
     pub dry_run: bool,
 
-    #[clap(
-        long,
-        possible_values(git_stack::config::Format::variants()),
-        ignore_case = true
-    )]
+    #[clap(long, arg_enum)]
     pub format: Option<git_stack::config::Format>,
+
+    #[clap(long, arg_enum)]
+    pub show_commits: Option<git_stack::config::ShowCommits>,
 
     /// See what branches are protected
     #[clap(long, group = "mode")]
@@ -89,6 +79,7 @@ impl Args {
             push_remote: None,
             pull_remote: None,
             show_format: self.format,
+            show_commits: self.show_commits,
             show_stacked: None,
             auto_fixup: None,
             auto_repair: None,
