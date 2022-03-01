@@ -391,80 +391,80 @@ impl RepoConfig {
 
 impl std::fmt::Display for RepoConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "[{}]", STACK_FIELD.split_once(".").unwrap().0)?;
+        writeln!(f, "[{}]", STACK_FIELD.split_once('.').unwrap().0)?;
         for branch in self.protected_branches() {
             writeln!(
                 f,
                 "\t{}={}",
-                PROTECTED_STACK_FIELD.split_once(".").unwrap().1,
+                PROTECTED_STACK_FIELD.split_once('.').unwrap().1,
                 branch
             )?;
         }
         writeln!(
             f,
             "\t{}={}",
-            PROTECT_COMMIT_COUNT.split_once(".").unwrap().1,
+            PROTECT_COMMIT_COUNT.split_once('.').unwrap().1,
             self.protect_commit_count().unwrap_or(0)
         )?;
         writeln!(
             f,
             "\t{}={}",
-            PROTECT_COMMIT_AGE.split_once(".").unwrap().1,
+            PROTECT_COMMIT_AGE.split_once('.').unwrap().1,
             humantime::format_duration(self.protect_commit_age())
         )?;
         writeln!(
             f,
             "\t{}={}",
-            STACK_FIELD.split_once(".").unwrap().1,
+            STACK_FIELD.split_once('.').unwrap().1,
             self.stack()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            PUSH_REMOTE_FIELD.split_once(".").unwrap().1,
+            PUSH_REMOTE_FIELD.split_once('.').unwrap().1,
             self.push_remote()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            PULL_REMOTE_FIELD.split_once(".").unwrap().1,
+            PULL_REMOTE_FIELD.split_once('.').unwrap().1,
             self.pull_remote()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            FORMAT_FIELD.split_once(".").unwrap().1,
+            FORMAT_FIELD.split_once('.').unwrap().1,
             self.show_format()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            SHOW_COMMITS_FIELD.split_once(".").unwrap().1,
+            SHOW_COMMITS_FIELD.split_once('.').unwrap().1,
             self.show_commits()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            STACKED_FIELD.split_once(".").unwrap().1,
+            STACKED_FIELD.split_once('.').unwrap().1,
             self.show_stacked()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            AUTO_FIXUP_FIELD.split_once(".").unwrap().1,
+            AUTO_FIXUP_FIELD.split_once('.').unwrap().1,
             self.auto_fixup()
         )?;
         writeln!(
             f,
             "\t{}={}",
-            AUTO_REPAIR_FIELD.split_once(".").unwrap().1,
+            AUTO_REPAIR_FIELD.split_once('.').unwrap().1,
             self.auto_repair()
         )?;
-        writeln!(f, "[{}]", BACKUP_CAPACITY_FIELD.split_once(".").unwrap().0)?;
+        writeln!(f, "[{}]", BACKUP_CAPACITY_FIELD.split_once('.').unwrap().0)?;
         writeln!(
             f,
             "\t{}={}",
-            BACKUP_CAPACITY_FIELD.split_once(".").unwrap().1,
+            BACKUP_CAPACITY_FIELD.split_once('.').unwrap().1,
             self.capacity().unwrap_or(0)
         )?;
         Ok(())

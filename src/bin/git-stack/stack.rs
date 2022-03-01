@@ -896,7 +896,7 @@ fn list(
             writeln!(
                 writer,
                 "{}",
-                format_branch_name(&b, node, &head_branch, protected_branches, palette)
+                format_branch_name(b, node, &head_branch, protected_branches, palette)
             )?;
         }
     }
@@ -1371,7 +1371,7 @@ fn format_branch_status<'d>(
     // See format_commit_status
     if node.action.is_protected() {
         match commit_relation(repo, branch.id, branch.pull_id) {
-            Some((0, 0)) => format!(""),
+            Some((0, 0)) => String::new(),
             Some((local, 0)) => {
                 format!(" {}", palette.warn.paint(format!("({} ahead)", local)))
             }
@@ -1391,17 +1391,17 @@ fn format_branch_status<'d>(
             }
         }
     } else if node.action.is_delete() {
-        format!("")
+        String::new()
     } else if 1 < repo
         .raw()
         .find_commit(node.commit.id)
         .unwrap()
         .parent_count()
     {
-        format!("")
+        String::new()
     } else {
         if node.branches.is_empty() {
-            format!("")
+            String::new()
         } else {
             let branch = &node.branches[0];
             match commit_relation(repo, branch.id, branch.push_id) {
@@ -1426,7 +1426,7 @@ fn format_branch_status<'d>(
                     if node.pushable {
                         format!(" {}", palette.info.paint("(ready)"))
                     } else {
-                        format!("")
+                        String::new()
                     }
                 }
             }
@@ -1441,7 +1441,7 @@ fn format_commit_status<'d>(
 ) -> String {
     // See format_branch_status
     if node.action.is_protected() {
-        format!("")
+        String::new()
     } else if node.action.is_delete() {
         format!(" {}", palette.error.paint("(drop)"))
     } else if 1 < repo
@@ -1452,7 +1452,7 @@ fn format_commit_status<'d>(
     {
         format!(" {}", palette.error.paint("(merge commit)"))
     } else {
-        format!("")
+        String::new()
     }
 }
 

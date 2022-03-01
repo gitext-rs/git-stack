@@ -47,7 +47,7 @@ impl From<Tree> for Event {
     }
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Default, Clone, Debug, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "snake_case")]
 #[serde(deny_unknown_fields)]
 pub struct Tree {
@@ -63,19 +63,6 @@ pub struct Tree {
     pub branch: Option<Branch>,
     #[serde(default)]
     pub mark: Option<Mark>,
-}
-
-impl Default for Tree {
-    fn default() -> Self {
-        Self {
-            tracked: Default::default(),
-            state: Default::default(),
-            message: Default::default(),
-            author: Default::default(),
-            branch: Default::default(),
-            mark: Default::default(),
-        }
-    }
 }
 
 #[derive(

@@ -341,8 +341,8 @@ pub fn rebase_development_branches(graph: &mut Graph, new_base_id: git2::Oid) {
 
         if !rebaseable.is_empty() {
             let current = graph.get_mut(current_id).expect("all children exist");
-            for child_id in rebaseable.iter().copied() {
-                current.children.remove(&child_id);
+            for child_id in rebaseable.iter() {
+                current.children.remove(child_id);
             }
             graph
                 .get_mut(new_base_id)
