@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Breaking Changes
+
+- `--stack`, `--format`, `--fixup` are now case sensitive
+- Most `--format` options are replaced with `--format graph --show-commits ...`
+
+### Features
+
+- `--format list` to list branches that are part of the selected stacks (`--stack`).
+
+### Fixes
+
+- Be more explicit in why a push didn't happen
+- Decouple showing of commits from `--format`
+
 ## [0.5.6] - 2022-02-28
 
 ### Fixes
@@ -24,19 +38,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.5.3] - 2021-11-13
 
-#### Fixes
+### Fixes
 
 - Only prune branches when they don't exist on the server, rather than also if they have a `/`
 
 ## [0.5.2] - 2021-11-11
 
-#### Fixes
+### Fixes
 
 - Do not auto-protect (by age or user) HEAD
 
 ## [0.5.1] - 2021-11-11
 
-#### Fixes
+### Fixes
 
 - Read `protect-commit-age` from gitconfig
 
@@ -44,13 +58,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ### Breaking Changes
 
-#### Features
+### Features
 
 - New `--repair` flag
   - Re-stacks branches on top of each other
   - Tries to merge branches that have diverged
 
-#### Fixes
+### Fixes
 
 - Stack visualization
   - Made it more compact
@@ -68,39 +82,39 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Show `--pull`s behavior on dry-run
 - Allow dirty tree on dry-run
 
-#### Performance
+### Performance
 
 - Reduce the amount of data we process
 - Reduce stack usage when rendering
 
 ## [0.4.8] - 2021-10-25
 
-#### Fixes
+### Fixes
 
 - We should only squash the fixup and not the ones before it
 
 ## [0.4.7] - 2021-10-23
 
-#### Fixes
+### Fixes
 
 - Detect multi-commit branches are pushable
 
 ## [0.4.6] - 2021-10-22
 
-#### Fixes
+### Fixes
 
 - Further reduce the chance for stackoverflows
 
 ## [0.4.5] - 2021-10-22
 
-#### Fixes
+### Fixes
 
 - Summarize other people's branches to unclutter visualization
 - Avoid summarizing a branch with HEAD
 
 ## [0.4.4] - 2021-10-22
 
-#### Fixes
+### Fixes
 
 - Always prune from the push-remote, not just when configured
 - Speed up fetching large push-remotes by only fetching what is needed
@@ -109,13 +123,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.4.3] - 2021-10-22
 
-#### Fixes
+### Fixes
 
 - Color log level, regardless of min log level
 
 ## [0.4.2] - 2021-10-22
 
-#### Fixes
+### Fixes
 
 - Clean up stack visualization
   - Remove nesting by not showing merge-bases of protected branches
@@ -126,7 +140,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.4.1] - 2021-10-21
 
-#### Fixes
+### Fixes
 
 - Read all values from `.gitconfig`, rather than just some
 
@@ -136,7 +150,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 - Renamed config `stack.fixp` to `stack.auto-fixup` to clarify role
 
-#### Fixes
+### Fixes
 
 - Changed `--pull` to not perform `stack.auto-fixup`
 - Allow `--fixup` to run without `--rebase`
@@ -148,11 +162,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 - Command line argument values have changed
 - Renamed `git-branch-backup` to `git-branch-stash`
 
-#### Features
+### Features
 
 - Auto-stash support
 
-#### Fixes
+### Fixes
 
 - Switched command line arguments to match config file
 - Vendor libgit2
@@ -166,11 +180,11 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.9] - 2021-10-07
 
-#### Features
+### Features
 
 - `git stack --pull` will also fetch the push-remote, ensuring we show the latest status relative to it.
 
-#### Fixes
+### Fixes
 
 - Highlight detached HEAD
 - Changed branch status precedence
@@ -179,7 +193,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.8] - 2021-09-10
 
-#### Fixes
+### Fixes
 
 - Stack View:
   - Make highlights stand out more by using less color
@@ -189,24 +203,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.7] - 2021-09-01
 
-#### Fixes
+### Fixes
 
 - Stack View:
   - Ensure protected commits are hidden when showing multiple protected branches
 
 ## [0.2.6] - 2021-09-01
 
-#### Fixes
+### Fixes
 
 - Crash on merge of parent branch into child branch
 
 ## [0.2.5] - 2021-08-31
 
-#### Fixes
+### Fixes
 
 - Don't stack unrelated branches (broken in 0.2.3)
 
-#### Features
+### Features
 
 - Stack View
   - List HEAD branch after all dev branches to make it easier to spot
@@ -214,7 +228,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.4] - 2021-08-31
 
-#### Fixes
+### Fixes
 
 - Resolved some more stack construction corner cases
 - Stack View
@@ -224,7 +238,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.3] - 2021-08-30
 
-#### Fixes
+### Fixes
 
 - Don't crash with multiple protected branches
 - `--dump-config` now dumps in `gitconfig` format
@@ -232,7 +246,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.2] - 2021-08-27
 
-#### Fixes
+### Fixes
 
 - Rebase
   - Don't backup during dry-run
@@ -245,13 +259,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 
 ## [0.2.1] - 2021-08-25
 
-#### Fixes
+### Fixes
 
 - Close a quote in the undo message
 
 ## [0.2.0] - 2021-08-25
 
-#### Features
+### Features
 
 - Undo option
   - Built on new `git branch-backup` command which is like `git stash` for branch state
@@ -263,13 +277,13 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - Show per-branch status, separating from commit status
 - Auto-delete branches on `--pull` that were merged into a protected branch
 
-#### Fixes
+### Fixes
 
 - Reduced conflicts during `--rebase`
 - Load config when in a worktree
 - Restore correct HEAD when multiple branches on the same commit
 
-#### Breaking Chanages
+### Breaking Chanages
 
 - Renamed `--format` options:
   - `brief` -> `branches`
