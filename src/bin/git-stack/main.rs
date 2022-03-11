@@ -6,6 +6,7 @@ use clap::Parser;
 
 mod args;
 mod config;
+mod logger;
 mod stack;
 
 fn main() {
@@ -32,7 +33,7 @@ fn run() -> proc_exit::ExitResult {
     let colored_stdout = concolor::get(concolor::Stream::Stdout).ansi_color();
     let colored_stderr = concolor::get(concolor::Stream::Stderr).ansi_color();
 
-    git_stack::log::init_logging(args.verbose.clone(), colored_stderr);
+    logger::init_logging(args.verbose.clone(), colored_stderr);
 
     if let Some(output_path) = args.dump_config.as_deref() {
         config::dump_config(&args, output_path)?;
