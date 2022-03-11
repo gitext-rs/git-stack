@@ -326,6 +326,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78cc372d058dcf6d5ecd98510e7fbc9e5aec4d21de70f65fea8fecebcd881bd4"
 
 [[package]]
+name = "git-branch-stash"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c1f312a3b3dde9efe91823265e1ee9d3797e747a7bdd358e0364e154a35d30eb"
+dependencies = [
+ "bstr",
+ "eyre",
+ "git-config-env",
+ "git2",
+ "ignore",
+ "itertools",
+ "log",
+ "maplit",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "git-config-env"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -337,7 +355,9 @@ dependencies = [
 
 [[package]]
 name = "git-fixture"
-version = "0.2.1"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d7efa8da8147e89834e192adaa7f1481784c3db880c57dd4e3bbdbbf9551fbeb"
 dependencies = [
  "assert_cmd",
  "bstr",
@@ -359,7 +379,6 @@ name = "git-stack"
 version = "0.6.0"
 dependencies = [
  "assert_fs",
- "atty",
  "bstr",
  "clap",
  "clap-verbosity-flag",
@@ -367,6 +386,7 @@ dependencies = [
  "concolor-clap",
  "env_logger",
  "eyre",
+ "git-branch-stash",
  "git-config-env",
  "git-fixture",
  "git2",
@@ -377,8 +397,6 @@ dependencies = [
  "log",
  "maplit",
  "proc-exit",
- "serde",
- "serde_json",
  "termtree",
  "yansi",
 ]

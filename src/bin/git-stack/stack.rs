@@ -328,14 +328,18 @@ pub fn stack(
             }
         }
 
-        let mut snapshots = git_stack::stash::Stack::new(STASH_STACK_NAME, &state.repo);
-        snapshots.capacity(state.snapshot_capacity);
-        let mut snapshot = git_stack::stash::Snapshot::from_repo(&state.repo)
-            .with_code(proc_exit::Code::FAILURE)?;
-        snapshot.insert_parent(&state.repo, &state.branches, &state.protected_branches);
-        if !state.dry_run {
-            snapshots.push(snapshot)?;
-            backed_up = true;
+        {
+            let stash_repo =
+                git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
+            let stash_repo = git_branch_stash::git::GitRepo::new(stash_repo);
+            let mut snapshots = git_branch_stash::Stack::new(STASH_STACK_NAME, &stash_repo);
+            snapshots.capacity(state.snapshot_capacity);
+            let snapshot = git_branch_stash::Snapshot::from_repo(&stash_repo)
+                .with_code(proc_exit::Code::FAILURE)?;
+            if !state.dry_run {
+                snapshots.push(snapshot)?;
+                backed_up = true;
+            }
         }
 
         let mut head_branch = state
