@@ -67,6 +67,9 @@ pub struct Args {
 
     #[clap(flatten)]
     pub verbose: clap_verbosity_flag::Verbosity<clap_verbosity_flag::InfoLevel>,
+
+    #[clap(long)]
+    pub working_directory: Option<std::path::PathBuf>,
 }
 
 impl Args {
