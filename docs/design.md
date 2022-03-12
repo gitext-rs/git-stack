@@ -34,5 +34,5 @@ provides some operations, like `--rebase` and `--fixup`, to modify the tree of s
 without losing relationships.  For when the stack gets messed up outside of
 `--rebase` and `--fixup`, a `--repair` will be provided that assumes that
 `HEAD` is the core of the stack and fixes what it can (see
-[Issue #6](https://github.com/epage/git-stack/issues/6)).  Outside of that, it
+[Issue #6](https://github.com/gitext-rs/git-stack/issues/6)).  Outside of that, it
 is left to the user to fix the stacks.
