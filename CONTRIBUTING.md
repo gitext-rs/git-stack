@@ -69,7 +69,7 @@ When we're ready to release, a project owner should do the following
 - `git push upstream master --tag v<X>.<Y>.<Z>`
 - Run `cargo publish` (run `cargo login` first if needed)
 
-[issues]: https://github.com/epage/git-stack/issues
-[new issue]: https://github.com/epage/git-stack/issues/new
-[all issues]: https://github.com/epage/git-stack/issues?utf8=%E2%9C%93&q=is%3Aissue
-[travis]: https://github.com/epage/git-stack/blob/master/.travis.yml
+[issues]: https://github.com/gitext-rs/git-stack/issues
+[new issue]: https://github.com/gitext-rs/git-stack/issues/new
+[all issues]: https://github.com/gitext-rs/git-stack/issues?utf8=%E2%9C%93&q=is%3Aissue
+[travis]: https://github.com/gitext-rs/git-stack/blob/master/.travis.yml

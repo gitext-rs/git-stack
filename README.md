@@ -4,7 +4,7 @@
 
 ![Screenshot](./docs/screenshot.png)
 
-[![codecov](https://codecov.io/gh/epage/git-stack/branch/master/graph/badge.svg)](https://codecov.io/gh/epage/git-stack)
+[![codecov](https://codecov.io/gh/gitext-rs/git-stack/branch/master/graph/badge.svg)](https://codecov.io/gh/gitext-rs/git-stack)
 [![Documentation](https://img.shields.io/badge/docs-master-blue.svg)][Documentation]
 ![License](https://img.shields.io/crates/l/git-stack.svg)
 [![Crates Status](https://img.shields.io/crates/v/git-stack.svg)](https://crates.io/crates/git-stack)
@@ -84,7 +84,7 @@ branches.*
 
 ## Install
 
-[Download](https://github.com/epage/git-stack/releases) a pre-built binary
+[Download](https://github.com/gitext-rs/git-stack/releases) a pre-built binary
 (installable via [gh-install](https://github.com/crate-ci/gh-install)).
 
 Or use rust to install:
@@ -188,7 +188,7 @@ If a commit summary is only `WIP` or is prefixed by:
 
 ### Why don't you just ...?
 
-Have an idea, we'd love to [hear it](https://github.com/epage/git-stack/discussions)!
+Have an idea, we'd love to [hear it](https://github.com/gitext-rs/git-stack/discussions)!
 There are probably `git` operations or workflows we haven't heard of and would
 welcome the opportunity to learn more.
 

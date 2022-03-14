@@ -3,8 +3,8 @@ name = "git-stack"
 description = "Stacked branch management for Git"
 version = "0.6.0"
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/epage/git-stack.git"
-documentation = "https://github.com/epage/git-stack.git"
+repository = "https://github.com/gitext-rs/git-stack.git"
+documentation = "https://github.com/gitext-rs/git-stack.git"
 readme = "README.md"
 categories = ["command-line-interface", "development-tools"]
 keywords = ["git", "cli"]
@@ -23,7 +23,7 @@ pre-release-replacements = [
   {file="CHANGELOG.md", search="\\.\\.\\.HEAD", replace="...{{tag_name}}", exactly=1},
   {file="CHANGELOG.md", search="ReleaseDate", replace="{{date}}", min=1},
   {file="CHANGELOG.md", search="<!-- next-header -->", replace="<!-- next-header -->\n## [Unreleased] - ReleaseDate\n", exactly=1},
-  {file="CHANGELOG.md", search="<!-- next-url -->", replace="<!-- next-url -->\n[Unreleased]: https://github.com/epage/git-stack/compare/{{tag_name}}...HEAD", exactly=1},
+  {file="CHANGELOG.md", search="<!-- next-url -->", replace="<!-- next-url -->\n[Unreleased]: https://github.com/gitext-rs/git-stack/compare/{{tag_name}}...HEAD", exactly=1},
 ]
 
 [dependencies]
