@@ -3,6 +3,7 @@
 #![allow(clippy::if_same_then_else)]
 
 use clap::Parser;
+use proc_exit::WithCodeResultExt;
 
 mod args;
 mod config;
@@ -34,6 +35,16 @@ fn run() -> proc_exit::ExitResult {
     let colored_stderr = concolor::get(concolor::Stream::Stderr).ansi_color();
 
     logger::init_logging(args.verbose.clone(), colored_stderr);
+
+    if let Some(current_dir) = args.current_dir.as_deref() {
+        let current_dir = current_dir
+            .iter()
+            .fold(std::path::PathBuf::new(), |current, next| {
+                current.join(next)
+            });
+        log::trace!("CWD={}", current_dir.display());
+        std::env::set_current_dir(current_dir).with_code(proc_exit::Code::USAGE_ERR)?;
+    }
 
     if let Some(output_path) = args.dump_config.as_deref() {
         config::dump_config(&args, output_path)?;
