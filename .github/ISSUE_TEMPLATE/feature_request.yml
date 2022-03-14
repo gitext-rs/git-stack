@@ -2,6 +2,11 @@ name: "Feature request"
 description: "Suggest an idea for this project"
 labels: ['question']
 body:
+  - type: "checkboxes"
+    attributes:
+      options:
+        - label: "I have searched the discussions"
+        - label: "I have searched the existing issues"
   - type: "input"
     attributes:
       label: "Version"
