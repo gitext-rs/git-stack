@@ -4,7 +4,7 @@ labels: ['question']
 body:
   - type: "checkboxes"
     attributes:
-      label: Please complete the following tasks
+      label: "Please complete the following tasks"
       options:
         - label: "I have searched the [discussions](https://github.com/gitext-rs/git-stack/discussions)"
         - label: "I have searched the existing issues"
