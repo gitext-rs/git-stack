@@ -2,11 +2,12 @@ name: "Bug report"
 description: "Things not quite working right"
 labels: ['bug']
 body:
-  - type: "textarea"
+  - type: "checkboxes"
     attributes:
-      label: "Description"
-    validations:
-      required: "true"
+      label: "Please complete the following tasks"
+      options:
+        - label: "I have searched the [discussions](https://github.com/gitext-rs/git-stack/discussions)"
+        - label: "I have searched the existing issues"
   - type: "input"
     attributes:
       label: "Version"
