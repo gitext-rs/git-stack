@@ -327,14 +327,15 @@ checksum = "78cc372d058dcf6d5ecd98510e7fbc9e5aec4d21de70f65fea8fecebcd881bd4"
 
 [[package]]
 name = "git-branch-stash"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1f312a3b3dde9efe91823265e1ee9d3797e747a7bdd358e0364e154a35d30eb"
+checksum = "d7fb0a5783c1e8bf4af092fb1aa238e9fb280fc189210974c8faac331d3a47de"
 dependencies = [
  "bstr",
  "eyre",
  "git-config-env",
  "git2",
+ "git2-ext",
  "ignore",
  "itertools",
  "log",
@@ -390,6 +391,7 @@ dependencies = [
  "git-config-env",
  "git-fixture",
  "git2",
+ "git2-ext",
  "human-panic",
  "humantime",
  "ignore",
@@ -412,6 +414,18 @@ dependencies = [
  "libgit2-sys",
  "log",
  "url",
+]
+
+[[package]]
+name = "git2-ext"
+version = "0.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d31ed46308950b167d18a47ff5ddee812b0d2ac62acfdee55f0cec717f751625"
+dependencies = [
+ "git2",
+ "itertools",
+ "log",
+ "which",
 ]
 
 [[package]]
@@ -1132,6 +1146,17 @@ name = "wasi"
 version = "0.10.2+wasi-snapshot-preview1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd6fbd9a79829dd1ad0cc20627bf1ed606756a7f77edff7b66b7064f9cb327c6"
+
+[[package]]
+name = "which"
+version = "4.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a5a7e487e921cf220206864a94a89b6c6905bfc19f1057fa26a4cb360e5c1d2"
+dependencies = [
+ "either",
+ "lazy_static",
+ "libc",
+]
 
 [[package]]
 name = "winapi"
