@@ -273,20 +273,3 @@ pub fn find_protected_base<'b>(
         })
         .next()
 }
-
-pub fn find_base<'b>(
-    repo: &dyn crate::git::Repo,
-    branches: &'b Branches,
-    head_oid: git2::Oid,
-) -> Option<&'b crate::git::Branch> {
-    repo.commits_from(head_oid)
-        .filter(|c| c.id != head_oid)
-        .filter_map(|commit| {
-            branches.get(commit.id).map(|branches| {
-                branches
-                    .first()
-                    .expect("there should always be at least one")
-            })
-        })
-        .next()
-}
