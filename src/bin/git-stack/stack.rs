@@ -331,7 +331,7 @@ pub fn stack(
         {
             let stash_repo =
                 git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
-            let stash_repo = git_branch_stash::git::GitRepo::new(stash_repo);
+            let stash_repo = git_branch_stash::GitRepo::new(stash_repo);
             let mut snapshots = git_branch_stash::Stack::new(STASH_STACK_NAME, &stash_repo);
             snapshots.capacity(state.snapshot_capacity);
             let snapshot = git_branch_stash::Snapshot::from_repo(&stash_repo)
