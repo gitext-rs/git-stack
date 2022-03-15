@@ -391,6 +391,7 @@ dependencies = [
  "git-config-env",
  "git-fixture",
  "git2",
+ "git2-ext",
  "human-panic",
  "humantime",
  "ignore",

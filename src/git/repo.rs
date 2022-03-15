@@ -314,79 +314,7 @@ impl GitRepo {
         head_id: git2::Oid,
         cherry_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error> {
-        let base_id = self
-            .commits_from(cherry_id)
-            .filter(|c| c.id != cherry_id)
-            .map(|c| c.id)
-            .next()
-            .unwrap_or(cherry_id);
-        if base_id == head_id {
-            return Ok(cherry_id);
-        }
-        let base_ann_commit = self.repo.find_annotated_commit(base_id)?;
-        let head_ann_commit = self.repo.find_annotated_commit(head_id)?;
-        let cherry_ann_commit = self.repo.find_annotated_commit(cherry_id)?;
-        let cherry_commit = self.repo.find_commit(cherry_id)?;
-        let mut rebase = self.repo.rebase(
-            Some(&cherry_ann_commit),
-            Some(&base_ann_commit),
-            Some(&head_ann_commit),
-            Some(git2::RebaseOptions::new().inmemory(true)),
-        )?;
-
-        let mut tip_id = head_id;
-        while let Some(op) = rebase.next() {
-            op.map_err(|e| {
-                let _ = rebase.abort();
-                e
-            })?;
-            let inmemory_index = rebase.inmemory_index().unwrap();
-            if inmemory_index.has_conflicts() {
-                let conflicts = inmemory_index
-                    .conflicts()?
-                    .map(|conflict| {
-                        let conflict = conflict.unwrap();
-                        let our_path = conflict
-                            .our
-                            .as_ref()
-                            .map(|c| bytes2path(&c.path))
-                            .or_else(|| conflict.their.as_ref().map(|c| bytes2path(&c.path)))
-                            .or_else(|| conflict.ancestor.as_ref().map(|c| bytes2path(&c.path)))
-                            .unwrap_or_else(|| std::path::Path::new("<unknown>"));
-                        format!("{}", our_path.display())
-                    })
-                    .join("\n  ");
-                return Err(git2::Error::new(
-                    git2::ErrorCode::Unmerged,
-                    git2::ErrorClass::Index,
-                    format!("cherry-pick conflicts:\n  {}\n", conflicts),
-                ));
-            }
-
-            let mut sig = self.repo.signature()?;
-            if let (Some(name), Some(email)) = (sig.name(), sig.email()) {
-                // For simple rebases, preserve the original commit time
-                sig = git2::Signature::new(name, email, &cherry_commit.time())?.to_owned();
-            }
-            let commit_id = match rebase.commit(None, &sig, None).map_err(|e| {
-                let _ = rebase.abort();
-                e
-            }) {
-                Ok(commit_id) => Ok(commit_id),
-                Err(err) => {
-                    if err.class() == git2::ErrorClass::Rebase
-                        && err.code() == git2::ErrorCode::Applied
-                    {
-                        log::trace!("Skipping {}, already applied to {}", cherry_id, head_id);
-                        return Ok(tip_id);
-                    }
-                    Err(err)
-                }
-            }?;
-            tip_id = commit_id;
-        }
-        rebase.finish(None)?;
-        Ok(tip_id)
+        git2_ext::ops::cherry_pick(&self.repo, head_id, cherry_id)
     }
 
     pub fn squash(
@@ -394,65 +322,7 @@ impl GitRepo {
         head_id: git2::Oid,
         into_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error> {
-        // Based on https://www.pygit2.org/recipes/git-cherry-pick.html
-        let head_commit = self.repo.find_commit(head_id)?;
-        let head_tree = self.repo.find_tree(head_commit.tree_id())?;
-
-        let base_commit = if 0 < head_commit.parent_count() {
-            head_commit.parent(0)?
-        } else {
-            head_commit.clone()
-        };
-        let base_tree = self.repo.find_tree(base_commit.tree_id())?;
-
-        let into_commit = self.repo.find_commit(into_id)?;
-        let into_tree = self.repo.find_tree(into_commit.tree_id())?;
-
-        let onto_commit;
-        let onto_commits;
-        let onto_commits: &[&git2::Commit] = if 0 < into_commit.parent_count() {
-            onto_commit = into_commit.parent(0)?;
-            onto_commits = [&onto_commit];
-            &onto_commits
-        } else {
-            &[]
-        };
-
-        let mut result_index = self
-            .repo
-            .merge_trees(&base_tree, &into_tree, &head_tree, None)?;
-        if result_index.has_conflicts() {
-            let conflicts = result_index
-                .conflicts()?
-                .map(|conflict| {
-                    let conflict = conflict.unwrap();
-                    let our_path = conflict
-                        .our
-                        .as_ref()
-                        .map(|c| bytes2path(&c.path))
-                        .or_else(|| conflict.their.as_ref().map(|c| bytes2path(&c.path)))
-                        .or_else(|| conflict.ancestor.as_ref().map(|c| bytes2path(&c.path)))
-                        .unwrap_or_else(|| std::path::Path::new("<unknown>"));
-                    format!("{}", our_path.display())
-                })
-                .join("\n  ");
-            return Err(git2::Error::new(
-                git2::ErrorCode::Unmerged,
-                git2::ErrorClass::Index,
-                format!("squash conflicts:\n  {}\n", conflicts),
-            ));
-        }
-        let result_id = result_index.write_tree_to(&self.repo)?;
-        let result_tree = self.repo.find_tree(result_id)?;
-        let new_id = self.repo.commit(
-            None,
-            &into_commit.author(),
-            &into_commit.committer(),
-            into_commit.message().unwrap(),
-            &result_tree,
-            onto_commits,
-        )?;
-        Ok(new_id)
+        git2_ext::ops::squash(&self.repo, head_id, into_id)
     }
 
     pub fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid, git2::Error> {
@@ -1044,20 +914,6 @@ impl Repo for InMemoryRepo {
     fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
         self.switch(name)
     }
-}
-
-// From git2 crate
-#[cfg(unix)]
-fn bytes2path(b: &[u8]) -> &std::path::Path {
-    use std::os::unix::prelude::*;
-    std::path::Path::new(std::ffi::OsStr::from_bytes(b))
-}
-
-// From git2 crate
-#[cfg(windows)]
-fn bytes2path(b: &[u8]) -> &std::path::Path {
-    use std::str;
-    std::path::Path::new(str::from_utf8(b).unwrap())
 }
 
 pub fn stash_push(repo: &mut dyn Repo, context: &str) -> Option<git2::Oid> {
