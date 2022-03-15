@@ -15,6 +15,7 @@ pub trait Repo {
         &self,
         head_id: git2::Oid,
     ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_>;
+    fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize>;
     fn contains_commit(
         &self,
         haystack_id: git2::Oid,
@@ -251,6 +252,17 @@ impl GitRepo {
         revwalk
             .filter_map(Result::ok)
             .filter_map(move |oid| self.find_commit(oid))
+    }
+
+    pub fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
+        let merge_base_id = self.merge_base(base_id, head_id)?;
+        if merge_base_id != base_id {
+            return None;
+        }
+        let mut revwalk = self.repo.revwalk().unwrap();
+        revwalk.push(head_id).unwrap();
+        revwalk.hide(base_id).unwrap();
+        Some(revwalk.count())
     }
 
     pub fn contains_commit(
@@ -517,6 +529,10 @@ impl Repo for GitRepo {
         Box::new(self.commits_from(head_id))
     }
 
+    fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
+        self.commit_count(base_id, head_id)
+    }
+
     fn contains_commit(
         &self,
         haystack_id: git2::Oid,
@@ -669,6 +685,15 @@ impl InMemoryRepo {
             commits: &self.commits,
             next,
         }
+    }
+
+    pub fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
+        let merge_base_id = self.merge_base(base_id, head_id)?;
+        let count = self
+            .commits_from(head_id)
+            .take_while(move |cur_id| cur_id.id != merge_base_id)
+            .count();
+        Some(count)
     }
 
     pub fn contains_commit(
@@ -857,6 +882,10 @@ impl Repo for InMemoryRepo {
         head_id: git2::Oid,
     ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_> {
         Box::new(self.commits_from(head_id))
+    }
+
+    fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
+        self.commit_count(base_id, head_id)
     }
 
     fn contains_commit(

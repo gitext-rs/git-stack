@@ -1471,14 +1471,8 @@ fn commit_relation(
     }
 
     let base = repo.merge_base(local, remote)?;
-    let local_count = repo
-        .commits_from(local)
-        .take_while(|c| c.id != base)
-        .count();
-    let remote_count = repo
-        .commits_from(remote)
-        .take_while(|c| c.id != base)
-        .count();
+    let local_count = repo.commit_count(base, local)?;
+    let remote_count = repo.commit_count(base, remote)?;
     Some((local_count, remote_count))
 }
 
