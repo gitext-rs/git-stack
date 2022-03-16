@@ -1051,8 +1051,9 @@ pub fn commit_range_inner(
             }
             continue;
         }
-        results.insert(next_id);
-        enqueue_parents(&mut queue, repo, base_id, next_id)?;
+        if results.insert(next_id) {
+            enqueue_parents(&mut queue, repo, base_id, next_id)?;
+        }
     }
 
     Ok(results)
