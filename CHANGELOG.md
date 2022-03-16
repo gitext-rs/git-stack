@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- `-C <path>` support for changing the current directory
+
+### Fixes
+
+- Be smarter about picking the protected branch for a given feature branch
+
+### Performance
+
+- Speed up operations on large, complex commit histories like `gecko-dev`
+
 ## [0.6.0] - 2022-03-01
 
 ### Breaking Changes
