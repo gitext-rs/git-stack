@@ -1010,3 +1010,38 @@ pub fn stash_pop(repo: &mut dyn Repo, stash_id: Option<git2::Oid>) {
         }
     }
 }
+
+pub fn commits_since(
+    repo: &dyn Repo,
+    base_id: git2::Oid,
+    head_id: git2::Oid,
+) -> Result<Vec<git2::Oid>, git2::Error> {
+    debug_assert_eq!(repo.merge_base(base_id, head_id), Some(base_id));
+    let mut results = Vec::new();
+
+    let mut queue = std::collections::VecDeque::new();
+    queue.push_back((Some(base_id), head_id));
+    while let Some((base_id, next_id)) = queue.pop_front() {
+        if base_id == Some(next_id) {
+            continue;
+        }
+        results.push(next_id);
+
+        let parent_ids = repo.parent_ids(next_id)?;
+        match parent_ids.len() {
+            0 => {}
+            1 => {
+                let parent_id = parent_ids[0];
+                queue.push_back((base_id, parent_id));
+            }
+            _ => {
+                for parent_id in parent_ids {
+                    let base_id = base_id.and_then(|base_id| repo.merge_base(base_id, next_id));
+                    queue.push_back((base_id, parent_id));
+                }
+            }
+        }
+    }
+
+    Ok(results)
+}

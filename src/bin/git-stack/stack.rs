@@ -456,11 +456,11 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         git_stack::graph::rebase_development_branches(&mut graph, onto_id);
         git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
 
-        let pull_range: Vec<_> = state
-            .repo
-            .commits_from(onto_id)
-            .take_while(|c| c.id != pull_start_id)
-            .collect();
+        let pull_range: Vec<_> =
+            git_stack::git::commits_since(&state.repo, pull_start_id, onto_id)?
+                .into_iter()
+                .map(|id| state.repo.find_commit(id).unwrap())
+                .collect();
         git_stack::graph::drop_squashed_by_tree_id(
             &mut graph,
             pull_range.iter().map(|c| c.tree_id),
@@ -617,11 +617,11 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 git_stack::graph::rebase_development_branches(&mut graph, onto_id);
                 git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
 
-                let pull_range: Vec<_> = state
-                    .repo
-                    .commits_from(onto_id)
-                    .take_while(|c| c.id != pull_start_id)
-                    .collect();
+                let pull_range: Vec<_> =
+                    git_stack::git::commits_since(&state.repo, pull_start_id, onto_id)?
+                        .into_iter()
+                        .map(|id| state.repo.find_commit(id).unwrap())
+                        .collect();
                 git_stack::graph::drop_squashed_by_tree_id(
                     &mut graph,
                     pull_range.iter().map(|c| c.tree_id),
