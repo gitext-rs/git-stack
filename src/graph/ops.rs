@@ -22,7 +22,12 @@ pub fn protect_branches(
             .map(|merge_base_oid| merge_base_oid == root_id)
             .unwrap_or(false)
     }) {
-        for commit in repo.commits_from(protected_oid) {
+        for commit_id in
+            crate::git::commit_range(repo, protected_oid..=root_id).expect("IDs already validated")
+        {
+            let commit = repo
+                .find_commit(commit_id)
+                .expect("commit_range returns valid commits");
             if let Some(node) = graph.get_mut(commit.id) {
                 if node.action.is_protected() {
                     break;

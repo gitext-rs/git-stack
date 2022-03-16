@@ -40,6 +40,7 @@ proc-exit = "1"
 eyre = "0.6"
 human-panic = "1"
 termtree = "0.2.4"
+indexmap = "1"
 
 git2-ext = "0.0.5"
 git-branch-stash = "0.8"

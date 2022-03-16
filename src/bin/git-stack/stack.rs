@@ -456,10 +456,9 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         git_stack::graph::rebase_development_branches(&mut graph, onto_id);
         git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
 
-        let pull_range: Vec<_> = state
-            .repo
-            .commits_from(onto_id)
-            .take_while(|c| c.id != pull_start_id)
+        let pull_range: Vec<_> = git_stack::git::commit_range(&state.repo, onto_id..pull_start_id)?
+            .into_iter()
+            .map(|id| state.repo.find_commit(id).unwrap())
             .collect();
         git_stack::graph::drop_squashed_by_tree_id(
             &mut graph,
@@ -617,11 +616,11 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 git_stack::graph::rebase_development_branches(&mut graph, onto_id);
                 git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
 
-                let pull_range: Vec<_> = state
-                    .repo
-                    .commits_from(onto_id)
-                    .take_while(|c| c.id != pull_start_id)
-                    .collect();
+                let pull_range: Vec<_> =
+                    git_stack::git::commit_range(&state.repo, onto_id..pull_start_id)?
+                        .into_iter()
+                        .map(|id| state.repo.find_commit(id).unwrap())
+                        .collect();
                 git_stack::graph::drop_squashed_by_tree_id(
                     &mut graph,
                     pull_range.iter().map(|c| c.tree_id),
@@ -1471,14 +1470,8 @@ fn commit_relation(
     }
 
     let base = repo.merge_base(local, remote)?;
-    let local_count = repo
-        .commits_from(local)
-        .take_while(|c| c.id != base)
-        .count();
-    let remote_count = repo
-        .commits_from(remote)
-        .take_while(|c| c.id != base)
-        .count();
+    let local_count = repo.commit_count(base, local)?;
+    let remote_count = repo.commit_count(base, remote)?;
     Some((local_count, remote_count))
 }
 
