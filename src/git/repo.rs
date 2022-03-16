@@ -12,11 +12,12 @@ pub trait Repo {
     fn head_branch(&self) -> Option<Branch>;
     fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>>;
     fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error>;
-    fn commits_from(
-        &self,
-        head_id: git2::Oid,
-    ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_>;
     fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize>;
+    fn commit_range(
+        &self,
+        base_bound: std::ops::Bound<&git2::Oid>,
+        head_bound: std::ops::Bound<&git2::Oid>,
+    ) -> Result<Vec<git2::Oid>, git2::Error>;
     fn contains_commit(
         &self,
         haystack_id: git2::Oid,
@@ -251,19 +252,6 @@ impl GitRepo {
         Ok(commit.parent_ids().collect())
     }
 
-    pub fn commits_from(
-        &self,
-        head_id: git2::Oid,
-    ) -> impl Iterator<Item = std::rc::Rc<Commit>> + '_ {
-        let mut revwalk = self.repo.revwalk().unwrap();
-        revwalk.push(head_id).unwrap();
-        revwalk.set_sorting(git2::Sort::TOPOLOGICAL).unwrap();
-
-        revwalk
-            .filter_map(Result::ok)
-            .filter_map(move |oid| self.find_commit(oid))
-    }
-
     pub fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
         if base_id == head_id {
             return Some(0);
@@ -277,6 +265,46 @@ impl GitRepo {
         revwalk.push(head_id).unwrap();
         revwalk.hide(base_id).unwrap();
         Some(revwalk.count())
+    }
+
+    pub fn commit_range(
+        &self,
+        base_bound: std::ops::Bound<&git2::Oid>,
+        head_bound: std::ops::Bound<&git2::Oid>,
+    ) -> Result<Vec<git2::Oid>, git2::Error> {
+        let head_id = match head_bound {
+            std::ops::Bound::Included(head_id) | std::ops::Bound::Excluded(head_id) => *head_id,
+            std::ops::Bound::Unbounded => panic!("commit_range's HEAD cannot be unbounded"),
+        };
+        let skip = if matches!(head_bound, std::ops::Bound::Included(_)) {
+            0
+        } else {
+            1
+        };
+
+        let base_id = match base_bound {
+            std::ops::Bound::Included(base_id) | std::ops::Bound::Excluded(base_id) => {
+                debug_assert_eq!(self.merge_base(*base_id, head_id), Some(*base_id));
+                Some(*base_id)
+            }
+            std::ops::Bound::Unbounded => None,
+        };
+
+        let mut revwalk = self.repo.revwalk()?;
+        revwalk.push(head_id)?;
+        if let Some(base_id) = base_id {
+            revwalk.hide(base_id)?;
+        }
+        revwalk.set_sorting(git2::Sort::TOPOLOGICAL)?;
+        let mut result = revwalk
+            .filter_map(Result::ok)
+            .skip(skip)
+            .take_while(|id| Some(*id) != base_id)
+            .collect::<Vec<_>>();
+        if let std::ops::Bound::Included(base_id) = base_bound {
+            result.push(*base_id);
+        }
+        Ok(result)
     }
 
     pub fn contains_commit(
@@ -540,15 +568,16 @@ impl Repo for GitRepo {
         self.parent_ids(head_id)
     }
 
-    fn commits_from(
-        &self,
-        head_id: git2::Oid,
-    ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_> {
-        Box::new(self.commits_from(head_id))
-    }
-
     fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
         self.commit_count(base_id, head_id)
+    }
+
+    fn commit_range(
+        &self,
+        base_bound: std::ops::Bound<&git2::Oid>,
+        head_bound: std::ops::Bound<&git2::Oid>,
+    ) -> Result<Vec<git2::Oid>, git2::Error> {
+        self.commit_range(base_bound, head_bound)
     }
 
     fn contains_commit(
@@ -702,10 +731,7 @@ impl InMemoryRepo {
         Ok(next.into_iter().collect())
     }
 
-    pub fn commits_from(
-        &self,
-        head_id: git2::Oid,
-    ) -> impl Iterator<Item = std::rc::Rc<Commit>> + '_ {
+    fn commits_from(&self, head_id: git2::Oid) -> impl Iterator<Item = std::rc::Rc<Commit>> + '_ {
         let next = self.commits.get(&head_id).cloned();
         CommitsFrom {
             commits: &self.commits,
@@ -720,6 +746,41 @@ impl InMemoryRepo {
             .take_while(move |cur_id| cur_id.id != merge_base_id)
             .count();
         Some(count)
+    }
+
+    pub fn commit_range(
+        &self,
+        base_bound: std::ops::Bound<&git2::Oid>,
+        head_bound: std::ops::Bound<&git2::Oid>,
+    ) -> Result<Vec<git2::Oid>, git2::Error> {
+        let head_id = match head_bound {
+            std::ops::Bound::Included(head_id) | std::ops::Bound::Excluded(head_id) => *head_id,
+            std::ops::Bound::Unbounded => panic!("commit_range's HEAD cannot be unbounded"),
+        };
+        let skip = if matches!(head_bound, std::ops::Bound::Included(_)) {
+            0
+        } else {
+            1
+        };
+
+        let base_id = match base_bound {
+            std::ops::Bound::Included(base_id) | std::ops::Bound::Excluded(base_id) => {
+                debug_assert_eq!(self.merge_base(*base_id, head_id), Some(*base_id));
+                Some(*base_id)
+            }
+            std::ops::Bound::Unbounded => None,
+        };
+
+        let mut result = self
+            .commits_from(head_id)
+            .skip(skip)
+            .map(|commit| commit.id)
+            .take_while(|id| Some(*id) != base_id)
+            .collect::<Vec<_>>();
+        if let std::ops::Bound::Included(base_id) = base_bound {
+            result.push(*base_id);
+        }
+        Ok(result)
     }
 
     pub fn contains_commit(
@@ -907,15 +968,16 @@ impl Repo for InMemoryRepo {
         self.parent_ids(head_id)
     }
 
-    fn commits_from(
-        &self,
-        head_id: git2::Oid,
-    ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_> {
-        Box::new(self.commits_from(head_id))
-    }
-
     fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
         self.commit_count(base_id, head_id)
+    }
+
+    fn commit_range(
+        &self,
+        base_bound: std::ops::Bound<&git2::Oid>,
+        head_bound: std::ops::Bound<&git2::Oid>,
+    ) -> Result<Vec<git2::Oid>, git2::Error> {
+        self.commit_range(base_bound, head_bound)
     }
 
     fn contains_commit(
@@ -1014,71 +1076,8 @@ pub fn stash_pop(repo: &mut dyn Repo, stash_id: Option<git2::Oid>) {
 pub fn commit_range(
     repo: &dyn Repo,
     head_to_base: impl std::ops::RangeBounds<git2::Oid>,
-) -> Result<indexmap::IndexSet<git2::Oid>, git2::Error> {
+) -> Result<Vec<git2::Oid>, git2::Error> {
     let head_bound = head_to_base.start_bound();
     let base_bound = head_to_base.end_bound();
-    commit_range_inner(repo, base_bound, head_bound)
-}
-
-pub fn commit_range_inner(
-    repo: &dyn Repo,
-    base_bound: std::ops::Bound<&git2::Oid>,
-    head_bound: std::ops::Bound<&git2::Oid>,
-) -> Result<indexmap::IndexSet<git2::Oid>, git2::Error> {
-    let head_id = match head_bound {
-        std::ops::Bound::Included(head_id) | std::ops::Bound::Excluded(head_id) => *head_id,
-        std::ops::Bound::Unbounded => panic!("commit_range's HEAD cannot be unbounded"),
-    };
-    let base_id = match base_bound {
-        std::ops::Bound::Included(base_id) | std::ops::Bound::Excluded(base_id) => {
-            debug_assert_eq!(repo.merge_base(*base_id, head_id), Some(*base_id));
-            Some(*base_id)
-        }
-        std::ops::Bound::Unbounded => None,
-    };
-
-    let mut results = indexmap::IndexSet::new();
-    let mut queue = std::collections::VecDeque::new();
-    if matches!(head_bound, std::ops::Bound::Included(_)) {
-        queue.push_back((base_id, head_id));
-    } else {
-        enqueue_parents(&mut queue, repo, base_id, head_id)?;
-    }
-    while let Some((base_id, next_id)) = queue.pop_front() {
-        if base_id == Some(next_id) {
-            if matches!(base_bound, std::ops::Bound::Included(_)) {
-                results.insert(base_id.unwrap());
-            }
-            continue;
-        }
-        if results.insert(next_id) {
-            enqueue_parents(&mut queue, repo, base_id, next_id)?;
-        }
-    }
-
-    Ok(results)
-}
-
-fn enqueue_parents(
-    queue: &mut std::collections::VecDeque<(Option<git2::Oid>, git2::Oid)>,
-    repo: &dyn Repo,
-    base_id: Option<git2::Oid>,
-    next_id: git2::Oid,
-) -> Result<(), git2::Error> {
-    let parent_ids = repo.parent_ids(next_id)?;
-    match parent_ids.len() {
-        0 => {}
-        1 => {
-            let parent_id = parent_ids[0];
-            queue.push_back((base_id, parent_id));
-        }
-        _ => {
-            for parent_id in parent_ids {
-                let base_id = base_id.and_then(|base_id| repo.merge_base(base_id, next_id));
-                queue.push_back((base_id, parent_id));
-            }
-        }
-    }
-
-    Ok(())
+    repo.commit_range(base_bound, head_bound)
 }
