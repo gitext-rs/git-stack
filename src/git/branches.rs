@@ -252,24 +252,67 @@ pub fn find_protected_base<'b>(
     protected_branches: &'b Branches,
     head_oid: git2::Oid,
 ) -> Option<&'b crate::git::Branch> {
-    let protected_base_oids: std::collections::HashMap<_, _> = protected_branches
+    // We're being asked about a protected branch
+    if let Some(head_branches) = protected_branches.get(head_oid) {
+        return head_branches.first();
+    }
+
+    let protected_base_oids = protected_branches
         .oids()
         .filter_map(|oid| {
-            repo.merge_base(head_oid, oid).map(|merge_oid| {
-                (
-                    merge_oid,
-                    protected_branches.get(oid).expect("oid is known to exist"),
-                )
-            })
+            let merge_oid = repo.merge_base(head_oid, oid)?;
+            Some((merge_oid, oid))
         })
-        .collect();
-    repo.commits_from(head_oid)
-        .filter_map(|commit| {
-            protected_base_oids.get(&commit.id).map(|branches| {
-                branches
-                    .first()
-                    .expect("there should always be at least one")
-            })
-        })
+        .collect::<Vec<_>>();
+
+    // Not much choice for applicable base
+    match protected_base_oids.len() {
+        0 => {
+            return None;
+        }
+        1 => {
+            let (_, protected_oid) = protected_base_oids[0];
+            return protected_branches
+                .get(protected_oid)
+                .expect("protected_oid came from protected_branches")
+                .first();
+        }
+        _ => {}
+    }
+
+    // Prefer protected branch from first parent
+    let mut child_oid = head_oid;
+    while let Some(parent_oid) = repo
+        .parent_ids(child_oid)
+        .expect("child_oid came from verified source")
         .next()
+    {
+        if let Some((_, closest_common_oid)) = protected_base_oids
+            .iter()
+            .filter(|(base, _)| *base == parent_oid)
+            .min_by_key(|(base, _)| repo.commit_count(*base, head_oid))
+        {
+            return protected_branches
+                .get(*closest_common_oid)
+                .expect("protected_oid came from protected_branches")
+                .first();
+        }
+        child_oid = parent_oid;
+    }
+
+    // Prefer most direct ancestors
+    if let Some((_, closest_common_oid)) =
+        protected_base_oids.iter().min_by_key(|(base, protected)| {
+            let to_protected = repo.commit_count(*base, *protected);
+            let to_head = repo.commit_count(*base, head_oid);
+            (to_protected, to_head)
+        })
+    {
+        return protected_branches
+            .get(*closest_common_oid)
+            .expect("protected_oid came from protected_branches")
+            .first();
+    }
+
+    None
 }

@@ -11,6 +11,10 @@ pub trait Repo {
     fn head_commit(&self) -> std::rc::Rc<Commit>;
     fn head_branch(&self) -> Option<Branch>;
     fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>>;
+    fn parent_ids(
+        &self,
+        head_id: git2::Oid,
+    ) -> Result<Box<dyn Iterator<Item = git2::Oid> + '_>, git2::Error>;
     fn commits_from(
         &self,
         head_id: git2::Oid,
@@ -166,6 +170,10 @@ impl GitRepo {
     }
 
     pub fn merge_base(&self, one: git2::Oid, two: git2::Oid) -> Option<git2::Oid> {
+        if one == two {
+            return Some(one);
+        }
+
         self.repo.merge_base(one, two).ok()
     }
 
@@ -241,6 +249,14 @@ impl GitRepo {
         self.find_commit(id)
     }
 
+    pub fn parent_ids(
+        &self,
+        head_id: git2::Oid,
+    ) -> Result<impl Iterator<Item = git2::Oid> + '_, git2::Error> {
+        let commit = self.repo.find_commit(head_id)?;
+        Ok(commit.parent_ids().collect::<Vec<_>>().into_iter())
+    }
+
     pub fn commits_from(
         &self,
         head_id: git2::Oid,
@@ -255,6 +271,10 @@ impl GitRepo {
     }
 
     pub fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
+        if base_id == head_id {
+            return Some(0);
+        }
+
         let merge_base_id = self.merge_base(base_id, head_id)?;
         if merge_base_id != base_id {
             return None;
@@ -522,6 +542,13 @@ impl Repo for GitRepo {
         self.resolve(revspec)
     }
 
+    fn parent_ids(
+        &self,
+        head_id: git2::Oid,
+    ) -> Result<Box<dyn Iterator<Item = git2::Oid> + '_>, git2::Error> {
+        Ok(Box::new(self.parent_ids(head_id)?))
+    }
+
     fn commits_from(
         &self,
         head_id: git2::Oid,
@@ -674,6 +701,17 @@ impl InMemoryRepo {
     pub fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>> {
         let branch = self.branches.get(revspec)?;
         self.find_commit(branch.id)
+    }
+
+    pub fn parent_ids(
+        &self,
+        head_id: git2::Oid,
+    ) -> Result<impl Iterator<Item = git2::Oid> + '_, git2::Error> {
+        let next = self
+            .commits
+            .get(&head_id)
+            .and_then(|(parent, _commit)| *parent);
+        Ok(next.into_iter())
     }
 
     pub fn commits_from(
@@ -875,6 +913,13 @@ impl Repo for InMemoryRepo {
 
     fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>> {
         self.resolve(revspec)
+    }
+
+    fn parent_ids(
+        &self,
+        head_id: git2::Oid,
+    ) -> Result<Box<dyn Iterator<Item = git2::Oid> + '_>, git2::Error> {
+        Ok(Box::new(self.parent_ids(head_id)?))
     }
 
     fn commits_from(
