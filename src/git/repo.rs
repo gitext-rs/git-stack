@@ -1011,37 +1011,73 @@ pub fn stash_pop(repo: &mut dyn Repo, stash_id: Option<git2::Oid>) {
     }
 }
 
-pub fn commits_since(
+pub fn commit_range(
     repo: &dyn Repo,
-    base_id: git2::Oid,
-    head_id: git2::Oid,
-) -> Result<Vec<git2::Oid>, git2::Error> {
-    debug_assert_eq!(repo.merge_base(base_id, head_id), Some(base_id));
-    let mut results = Vec::new();
+    head_to_base: impl std::ops::RangeBounds<git2::Oid>,
+) -> Result<indexmap::IndexSet<git2::Oid>, git2::Error> {
+    let head_bound = head_to_base.start_bound();
+    let base_bound = head_to_base.end_bound();
+    commit_range_inner(repo, base_bound, head_bound)
+}
 
+pub fn commit_range_inner(
+    repo: &dyn Repo,
+    base_bound: std::ops::Bound<&git2::Oid>,
+    head_bound: std::ops::Bound<&git2::Oid>,
+) -> Result<indexmap::IndexSet<git2::Oid>, git2::Error> {
+    let head_id = match head_bound {
+        std::ops::Bound::Included(head_id) | std::ops::Bound::Excluded(head_id) => *head_id,
+        std::ops::Bound::Unbounded => panic!("commit_range's HEAD cannot be unbounded"),
+    };
+    let base_id = match base_bound {
+        std::ops::Bound::Included(base_id) | std::ops::Bound::Excluded(base_id) => {
+            debug_assert_eq!(repo.merge_base(*base_id, head_id), Some(*base_id));
+            Some(*base_id)
+        }
+        std::ops::Bound::Unbounded => None,
+    };
+
+    let mut results = indexmap::IndexSet::new();
     let mut queue = std::collections::VecDeque::new();
-    queue.push_back((Some(base_id), head_id));
+    if matches!(head_bound, std::ops::Bound::Included(_)) {
+        queue.push_back((base_id, head_id));
+    } else {
+        enqueue_parents(&mut queue, repo, base_id, head_id)?;
+    }
     while let Some((base_id, next_id)) = queue.pop_front() {
         if base_id == Some(next_id) {
+            if matches!(base_bound, std::ops::Bound::Included(_)) {
+                results.insert(base_id.unwrap());
+            }
             continue;
         }
-        results.push(next_id);
+        results.insert(next_id);
+        enqueue_parents(&mut queue, repo, base_id, next_id)?;
+    }
 
-        let parent_ids = repo.parent_ids(next_id)?;
-        match parent_ids.len() {
-            0 => {}
-            1 => {
-                let parent_id = parent_ids[0];
+    Ok(results)
+}
+
+fn enqueue_parents(
+    queue: &mut std::collections::VecDeque<(Option<git2::Oid>, git2::Oid)>,
+    repo: &dyn Repo,
+    base_id: Option<git2::Oid>,
+    next_id: git2::Oid,
+) -> Result<(), git2::Error> {
+    let parent_ids = repo.parent_ids(next_id)?;
+    match parent_ids.len() {
+        0 => {}
+        1 => {
+            let parent_id = parent_ids[0];
+            queue.push_back((base_id, parent_id));
+        }
+        _ => {
+            for parent_id in parent_ids {
+                let base_id = base_id.and_then(|base_id| repo.merge_base(base_id, next_id));
                 queue.push_back((base_id, parent_id));
-            }
-            _ => {
-                for parent_id in parent_ids {
-                    let base_id = base_id.and_then(|base_id| repo.merge_base(base_id, next_id));
-                    queue.push_back((base_id, parent_id));
-                }
             }
         }
     }
 
-    Ok(results)
+    Ok(())
 }

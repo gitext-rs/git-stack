@@ -395,6 +395,7 @@ dependencies = [
  "human-panic",
  "humantime",
  "ignore",
+ "indexmap",
  "itertools",
  "log",
  "maplit",
