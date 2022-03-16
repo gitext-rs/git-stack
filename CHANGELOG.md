@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Compatibility
+
+- Commit graph implementation changed enough that regressions could have been introduced
+
 ### Features
 
 - `-C <path>` support for changing the current directory
