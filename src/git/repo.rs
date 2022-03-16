@@ -12,10 +12,6 @@ pub trait Repo {
     fn head_branch(&self) -> Option<Branch>;
     fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>>;
     fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error>;
-    fn commits_from(
-        &self,
-        head_id: git2::Oid,
-    ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_>;
     fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize>;
     fn commit_range(
         &self,
@@ -254,19 +250,6 @@ impl GitRepo {
     pub fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error> {
         let commit = self.repo.find_commit(head_id)?;
         Ok(commit.parent_ids().collect())
-    }
-
-    pub fn commits_from(
-        &self,
-        head_id: git2::Oid,
-    ) -> impl Iterator<Item = std::rc::Rc<Commit>> + '_ {
-        let mut revwalk = self.repo.revwalk().unwrap();
-        revwalk.push(head_id).unwrap();
-        revwalk.set_sorting(git2::Sort::TOPOLOGICAL).unwrap();
-
-        revwalk
-            .filter_map(Result::ok)
-            .filter_map(move |oid| self.find_commit(oid))
     }
 
     pub fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
@@ -585,13 +568,6 @@ impl Repo for GitRepo {
         self.parent_ids(head_id)
     }
 
-    fn commits_from(
-        &self,
-        head_id: git2::Oid,
-    ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_> {
-        Box::new(self.commits_from(head_id))
-    }
-
     fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
         self.commit_count(base_id, head_id)
     }
@@ -755,10 +731,7 @@ impl InMemoryRepo {
         Ok(next.into_iter().collect())
     }
 
-    pub fn commits_from(
-        &self,
-        head_id: git2::Oid,
-    ) -> impl Iterator<Item = std::rc::Rc<Commit>> + '_ {
+    fn commits_from(&self, head_id: git2::Oid) -> impl Iterator<Item = std::rc::Rc<Commit>> + '_ {
         let next = self.commits.get(&head_id).cloned();
         CommitsFrom {
             commits: &self.commits,
@@ -798,15 +771,12 @@ impl InMemoryRepo {
             std::ops::Bound::Unbounded => None,
         };
 
-        let next = self.commits.get(&head_id).cloned();
-        let mut result = CommitsFrom {
-            commits: &self.commits,
-            next,
-        }
-        .skip(skip)
-        .map(|commit| commit.id)
-        .take_while(|id| Some(*id) != base_id)
-        .collect::<Vec<_>>();
+        let mut result = self
+            .commits_from(head_id)
+            .skip(skip)
+            .map(|commit| commit.id)
+            .take_while(|id| Some(*id) != base_id)
+            .collect::<Vec<_>>();
         if let std::ops::Bound::Included(base_id) = base_bound {
             result.push(*base_id);
         }
@@ -996,13 +966,6 @@ impl Repo for InMemoryRepo {
 
     fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error> {
         self.parent_ids(head_id)
-    }
-
-    fn commits_from(
-        &self,
-        head_id: git2::Oid,
-    ) -> Box<dyn Iterator<Item = std::rc::Rc<Commit>> + '_> {
-        Box::new(self.commits_from(head_id))
     }
 
     fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {

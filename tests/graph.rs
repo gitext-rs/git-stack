@@ -42,10 +42,7 @@ mod test_rebase {
         assert_eq!(master_branch.id, master_commit.id);
 
         let off_master_branch = repo.find_local_branch("off_master").unwrap();
-        let ancestors: Vec<_> = repo
-            .commits_from(off_master_branch.id)
-            .map(|c| c.id)
-            .collect();
+        let ancestors = git_stack::git::commit_range(&repo, off_master_branch.id..).unwrap();
         dbg!(&ancestors);
         assert!(ancestors.contains(&master_branch.id));
     }
@@ -86,10 +83,7 @@ mod test_rebase {
         assert_eq!(master_branch.id, master_commit.id);
 
         let feature2_branch = repo.find_local_branch("feature2").unwrap();
-        let ancestors: Vec<_> = repo
-            .commits_from(feature2_branch.id)
-            .map(|c| c.id)
-            .collect();
+        let ancestors = git_stack::git::commit_range(&repo, feature2_branch.id..).unwrap();
         dbg!(&ancestors);
         assert!(ancestors.contains(&master_branch.id));
 
@@ -137,10 +131,7 @@ mod test_fixup {
         assert_eq!(master_branch.id, master_commit.id);
 
         let off_master_branch = repo.find_local_branch("off_master").unwrap();
-        let ancestors: Vec<_> = repo
-            .commits_from(off_master_branch.id)
-            .map(|c| c.id)
-            .collect();
+        let ancestors = git_stack::git::commit_range(&repo, off_master_branch.id..).unwrap();
         dbg!(&ancestors);
         assert!(ancestors.contains(&master_branch.id));
     }
@@ -177,8 +168,10 @@ mod test_fixup {
         dbg!(&repo);
 
         let feature2_branch = repo.find_local_branch("feature2").unwrap();
-        let mut commits: Vec<_> = repo
-            .commits_from(feature2_branch.id)
+        let mut commits: Vec<_> = git_stack::git::commit_range(&repo, feature2_branch.id..)
+            .unwrap()
+            .into_iter()
+            .map(|id| repo.find_commit(id).unwrap())
             .map(|c| c.summary.to_str_lossy().into_owned())
             .collect();
         commits.reverse();
@@ -248,8 +241,10 @@ mod test_fixup {
         dbg!(&repo);
 
         let feature2_branch = repo.find_local_branch("feature2").unwrap();
-        let mut commits: Vec<_> = repo
-            .commits_from(feature2_branch.id)
+        let mut commits: Vec<_> = git_stack::git::commit_range(&repo, feature2_branch.id..)
+            .unwrap()
+            .into_iter()
+            .map(|id| repo.find_commit(id).unwrap())
             .map(|c| c.summary.to_str_lossy().into_owned())
             .collect();
         commits.reverse();

@@ -143,8 +143,8 @@ impl Graph {
         );
 
         let mut child_id = None;
-        for commit in repo.commits_from(head_oid) {
-            match self.nodes.entry(commit.id) {
+        for commit_id in crate::git::commit_range(repo, head_oid..=base_oid)? {
+            match self.nodes.entry(commit_id) {
                 Entry::Occupied(mut o) => {
                     let current = o.get_mut();
                     if let Some(child_id) = child_id {
@@ -152,18 +152,17 @@ impl Graph {
                         // Tapped into previous entries, don't bother going further
                         break;
                     }
-
+                    // `head_oid` might already exist but none of its parents, so keep going
                     child_id = Some(current.commit.id);
                 }
                 Entry::Vacant(v) => {
+                    let commit = repo
+                        .find_commit(commit_id)
+                        .expect("commit_range always returns valid ids");
                     let current = v.insert(Node::new(commit));
                     current.action = default_action;
                     if let Some(child_id) = child_id {
                         current.children.insert(child_id);
-                    }
-
-                    if current.commit.id == base_oid {
-                        break;
                     }
 
                     child_id = Some(current.commit.id);

@@ -92,12 +92,14 @@ fn shared_branches_fixture() {
         }
     }
 
-    // commits_from
+    // commit_range
     {
         {
             let head = repo.find_local_branch("base").unwrap();
-            let actual: Vec<_> = repo
-                .commits_from(head.id)
+            let actual: Vec<_> = git_stack::git::commit_range(&repo, head.id..)
+                .unwrap()
+                .into_iter()
+                .map(|id| repo.find_commit(id).unwrap())
                 .map(|c| c.summary.clone())
                 .collect();
             assert_eq!(actual, &["3", "2", "1"]);
