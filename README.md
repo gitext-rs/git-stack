@@ -54,12 +54,12 @@ To see how `git-stack` compares to other stacked git tools, see the [Comparison]
 
 ## Example
 
-From your development branch, run:
-```bash
-jira-3423423 $ git-stack --pull
+From your feature branch, run:
+```console
+jira-3423423 $ git stack --pull
 ```
 
-`git-stack`:
+`git stack --pull`:
 1. Auto-detects your parent remote branch (e.g. `main`).
 2. Performs a `git pull --rebase <remote> <parent>`
 3. Rebases `jira-3423423` (and any dev branches on the stack) onto `<parent>`
@@ -77,6 +77,7 @@ jira-3259 $ git checkout jira-3423
 jira-3423 $ git rebase HEAD~ --onto jurao-3259
 jira-3423 $ git log --graph --all --oneline --decorate main..HEAD
 ```
+*For more, see [Command Reference](docs/reference.md#commands)*
 
 *Parent branch auto-detection works by separating  the concept of
 upstream-controlled branches (called "protected branches") and your development
@@ -88,8 +89,8 @@ branches.*
 (installable via [gh-install](https://github.com/crate-ci/gh-install)).
 
 Or use rust to install:
-```bash
-cargo install git-stack
+```console
+$ cargo install git-stack
 ```
 
 ### Uninstall
@@ -123,21 +124,22 @@ For more, see [Configuration Reference](docs/reference.md#configuration).
 
 ### Using
 
-```bash
-# Update branches against upstream
-git-stack --pull
+```console
+$ # Update branches against upstream
+$ git stack --pull
 
-# Start a new branch / PR
-git switch -c feature1
-git add -A; git commit -m "Work"
-git add -A; git commit -m "More Work"
-git add -A; git commit --fixup HEAD~~
+$ # Start a new branch / PR
+$ git switch -c feature1
+$ git add -A; git commit -m "Work"
+$ git add -A; git commit -m "More Work"
+$ git add -A; git commit --fixup HEAD~~
 
-# See what this looks like
-git-stack
+$ # See what this looks like
+$ git stack
 
-# To push whats ready
-git-stack --push
+$ # To push whats ready
+$ git stack --fixup squash
+$ git stack --push
 ```
 
 For more, see [Command Reference](docs/reference.md#commands).
