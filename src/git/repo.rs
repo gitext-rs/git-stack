@@ -11,10 +11,7 @@ pub trait Repo {
     fn head_commit(&self) -> std::rc::Rc<Commit>;
     fn head_branch(&self) -> Option<Branch>;
     fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>>;
-    fn parent_ids(
-        &self,
-        head_id: git2::Oid,
-    ) -> Result<Box<dyn Iterator<Item = git2::Oid> + '_>, git2::Error>;
+    fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error>;
     fn commits_from(
         &self,
         head_id: git2::Oid,
@@ -249,12 +246,9 @@ impl GitRepo {
         self.find_commit(id)
     }
 
-    pub fn parent_ids(
-        &self,
-        head_id: git2::Oid,
-    ) -> Result<impl Iterator<Item = git2::Oid> + '_, git2::Error> {
+    pub fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error> {
         let commit = self.repo.find_commit(head_id)?;
-        Ok(commit.parent_ids().collect::<Vec<_>>().into_iter())
+        Ok(commit.parent_ids().collect())
     }
 
     pub fn commits_from(
@@ -542,11 +536,8 @@ impl Repo for GitRepo {
         self.resolve(revspec)
     }
 
-    fn parent_ids(
-        &self,
-        head_id: git2::Oid,
-    ) -> Result<Box<dyn Iterator<Item = git2::Oid> + '_>, git2::Error> {
-        Ok(Box::new(self.parent_ids(head_id)?))
+    fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error> {
+        self.parent_ids(head_id)
     }
 
     fn commits_from(
@@ -703,15 +694,12 @@ impl InMemoryRepo {
         self.find_commit(branch.id)
     }
 
-    pub fn parent_ids(
-        &self,
-        head_id: git2::Oid,
-    ) -> Result<impl Iterator<Item = git2::Oid> + '_, git2::Error> {
+    pub fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error> {
         let next = self
             .commits
             .get(&head_id)
             .and_then(|(parent, _commit)| *parent);
-        Ok(next.into_iter())
+        Ok(next.into_iter().collect())
     }
 
     pub fn commits_from(
@@ -915,11 +903,8 @@ impl Repo for InMemoryRepo {
         self.resolve(revspec)
     }
 
-    fn parent_ids(
-        &self,
-        head_id: git2::Oid,
-    ) -> Result<Box<dyn Iterator<Item = git2::Oid> + '_>, git2::Error> {
-        Ok(Box::new(self.parent_ids(head_id)?))
+    fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error> {
+        self.parent_ids(head_id)
     }
 
     fn commits_from(

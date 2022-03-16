@@ -285,7 +285,8 @@ pub fn find_protected_base<'b>(
     while let Some(parent_oid) = repo
         .parent_ids(child_oid)
         .expect("child_oid came from verified source")
-        .next()
+        .first()
+        .copied()
     {
         if let Some((_, closest_common_oid)) = protected_base_oids
             .iter()
