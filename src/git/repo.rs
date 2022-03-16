@@ -1046,8 +1046,9 @@ pub fn commit_range_inner(
     }
     while let Some((base_id, next_id)) = queue.pop_front() {
         if base_id == Some(next_id) {
-            if matches!(base_bound, std::ops::Bound::Included(_)) {
-                results.insert(base_id.unwrap());
+            let base_id = base_id.unwrap();
+            if std::ops::Bound::Included(&base_id) == base_bound {
+                results.insert(base_id);
             }
             continue;
         }
