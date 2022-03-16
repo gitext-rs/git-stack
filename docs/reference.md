@@ -37,6 +37,7 @@ Why not `git log --graph --all --oneline --decorate main..HEAD`?
 - Doesn't show status as you progress through review
 - Fairly verbose
 - Have to manually select your base to limit to relevant commits
+- Slower because it loads the entire commit graph into memory to sort it
 
 ### `git stack --pull`
 
