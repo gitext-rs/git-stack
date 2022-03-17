@@ -120,7 +120,13 @@ fn mark_branch_protected(graph: &mut Graph, node_id: git2::Oid, branches: &mut V
         if current.branches.is_empty() {
             protected_queue.extend(&graph.get(current_id).expect("all children exist").children);
         } else {
-            branches.extend(current.branches.iter().map(|b| b.name.clone()));
+            branches.extend(
+                current
+                    .branches
+                    .iter()
+                    // Remote branches are implicitly protected, so we don't need to record them
+                    .filter_map(|b| b.local_name().map(String::from)),
+            );
         }
     }
 }
@@ -185,11 +191,12 @@ pub fn trim_old_branches(
                     let removed = graph
                         .remove_child(current_id, child_id)
                         .expect("all children exist");
-                    old_branches.extend(
-                        removed
-                            .breadth_first_iter()
-                            .flat_map(|n| n.branches.iter().map(|b| b.name.clone())),
-                    );
+                    old_branches.extend(removed.breadth_first_iter().flat_map(|n| {
+                        n.branches
+                            .iter()
+                            // Remote branches are implicitly protected, so we don't need to record them
+                            .filter_map(|b| b.local_name().map(String::from))
+                    }));
                 }
             }
         }
@@ -279,11 +286,12 @@ pub fn trim_foreign_branches(graph: &mut Graph, user: &str, ignore: &[git2::Oid]
                     let removed = graph
                         .remove_child(current_id, child_id)
                         .expect("all children exist");
-                    foreign_branches.extend(
-                        removed
-                            .breadth_first_iter()
-                            .flat_map(|n| n.branches.iter().map(|b| b.name.clone())),
-                    );
+                    foreign_branches.extend(removed.breadth_first_iter().flat_map(|n| {
+                        n.branches
+                            .iter()
+                            // Remote branches are implicitly protected, so we don't need to record them
+                            .filter_map(|b| b.local_name().map(String::from))
+                    }));
                 }
             }
         }
@@ -396,7 +404,7 @@ pub fn pushable(graph: &mut Graph) {
         if current.action.is_protected() {
             if !current.branches.is_empty() {
                 let branch = &current.branches[0];
-                log::debug!("{} isn't pushable, branch is protected", branch.name);
+                log::debug!("{} isn't pushable, branch is protected", branch);
                 // Don't set `cause` as that will block descendants
             }
         } else {
@@ -413,10 +421,10 @@ pub fn pushable(graph: &mut Graph) {
             if !current.branches.is_empty() {
                 let branch = &current.branches[0];
                 if let Some(c) = cause {
-                    log::debug!("{} isn't pushable, {}", branch.name, c);
+                    log::debug!("{} isn't pushable, {}", branch, c);
                     cause = Some("parent isn't pushable");
                 } else {
-                    log::debug!("{} is pushable", branch.name);
+                    log::debug!("{} is pushable", branch);
                     current.pushable = true;
                     cause = Some("parent is pushable");
                 }
@@ -534,7 +542,8 @@ pub fn drop_merged_branches(
     let protected_branch_names: HashSet<_> = protected_branches
         .iter()
         .flat_map(|(_, b)| b.iter())
-        .map(|b| b.name.as_str())
+        // We'll filter out remote branches lateer
+        .filter_map(|b| b.local_name())
         .collect();
 
     for pulled_id in pulled_ids {
@@ -542,9 +551,13 @@ pub fn drop_merged_branches(
         if let Some(node) = graph.get_mut(pulled_id) {
             if !node.branches.is_empty() {
                 for i in (node.branches.len() - 1)..=0 {
-                    if !protected_branch_names.contains(node.branches[i].name.as_str()) {
-                        let branch = node.branches.remove(i);
-                        removed.push(branch.name);
+                    let branch = &node.branches[i];
+                    if let Some(local_name) = branch.local_name() {
+                        if !protected_branch_names.contains(local_name) {
+                            let branch = node.branches.remove(i);
+                            assert!(branch.remote.is_none());
+                            removed.push(branch.name);
+                        }
                     }
                 }
             }
@@ -922,9 +935,11 @@ pub fn to_script(graph: &Graph) -> crate::git::Script {
                         .commands
                         .push(crate::git::Command::SwitchCommit(stack_mark));
                     for branch in child.branches.iter() {
-                        script
-                            .commands
-                            .push(crate::git::Command::CreateBranch(branch.name.clone()));
+                        if let Some(local_name) = branch.local_name() {
+                            script
+                                .commands
+                                .push(crate::git::Command::CreateBranch(local_name.to_owned()));
+                        }
                     }
                 }
                 protected_queue.push_back(child_id);
@@ -950,9 +965,11 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
                 .commands
                 .push(crate::git::Command::CherryPick(node.commit.id));
             for branch in node.branches.iter() {
-                script
-                    .commands
-                    .push(crate::git::Command::CreateBranch(branch.name.clone()));
+                if let Some(local_name) = branch.local_name() {
+                    script
+                        .commands
+                        .push(crate::git::Command::CreateBranch(local_name.to_owned()));
+                }
             }
 
             let node_dependents: Vec<_> = node
@@ -974,9 +991,11 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
             // We can't re-target the branches of the commit we are squashing into, so the ops that
             // creates a `Fixup` option has to handle that.
             for branch in node.branches.iter() {
-                script
-                    .commands
-                    .push(crate::git::Command::CreateBranch(branch.name.clone()));
+                if let Some(local_name) = branch.local_name() {
+                    script
+                        .commands
+                        .push(crate::git::Command::CreateBranch(local_name.to_owned()));
+                }
             }
 
             let node_dependents: Vec<_> = node
@@ -1005,9 +1024,11 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
                     .push(crate::git::Command::SwitchCommit(stack_mark));
                 // We might be updating protected branches as part of a `pull --rebase`,
                 for branch in node.branches.iter() {
-                    script
-                        .commands
-                        .push(crate::git::Command::CreateBranch(branch.name.clone()));
+                    if let Some(local_name) = branch.local_name() {
+                        script
+                            .commands
+                            .push(crate::git::Command::CreateBranch(local_name.to_owned()));
+                    }
                 }
 
                 // No transactions needed for protected commits
@@ -1017,9 +1038,11 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
         }
         crate::graph::Action::Delete => {
             for branch in node.branches.iter() {
-                script
-                    .commands
-                    .push(crate::git::Command::DeleteBranch(branch.name.clone()));
+                if let Some(local_name) = branch.local_name() {
+                    script
+                        .commands
+                        .push(crate::git::Command::CreateBranch(local_name.to_owned()));
+                }
             }
 
             let node_dependents: Vec<_> = node

@@ -169,7 +169,7 @@ impl State {
                         git2::Error::new(
                             git2::ErrorCode::NotFound,
                             git2::ErrorClass::Reference,
-                            format!("could not find base between {} and HEAD", base.name),
+                            format!("could not find base between {} and HEAD", base),
                         )
                     })
                     .with_code(proc_exit::Code::USAGE_ERR)?;
@@ -239,12 +239,8 @@ struct StackState {
 
 impl StackState {
     fn update(&mut self, repo: &dyn git_stack::git::Repo) -> eyre::Result<()> {
-        self.base = repo
-            .find_local_branch(self.base.name.as_str())
-            .ok_or_else(|| eyre::eyre!("can no longer find branch {}", self.base.name))?;
-        self.onto = repo
-            .find_local_branch(self.onto.name.as_str())
-            .ok_or_else(|| eyre::eyre!("can no longer find branch {}", self.onto.name))?;
+        self.base = update_branch(repo, &self.base)?;
+        self.onto = update_branch(repo, &self.onto)?;
         self.branches.update(repo);
         Ok(())
     }
@@ -259,6 +255,18 @@ impl StackState {
         }
         graphed_branches
     }
+}
+
+fn update_branch(
+    repo: &dyn git_stack::git::Repo,
+    branch: &git_stack::git::Branch,
+) -> eyre::Result<git_stack::git::Branch> {
+    if let Some(remote) = &branch.remote {
+        repo.find_remote_branch(remote, &branch.name)
+    } else {
+        repo.find_local_branch(&branch.name)
+    }
+    .ok_or_else(|| eyre::eyre!("can no longer find branch {}", branch).into())
 }
 
 pub fn stack(
@@ -280,7 +288,7 @@ pub fn stack(
             .flat_map(|stack| stack.branches.iter())
             .filter(|(oid, _)| !state.protected_branches.contains_oid(*oid))
             .flat_map(|(_, b)| b.iter())
-            .filter_map(|b| b.push_id.map(|_| b.name.as_str()))
+            .filter_map(|b| b.push_id.and_then(|_| b.local_name()))
             .collect();
         push_branches.sort_unstable();
         if !push_branches.is_empty() {
@@ -297,14 +305,11 @@ pub fn stack(
                 match git_fetch_upstream(&mut state.repo, stack.onto.name.as_str()) {
                     Ok(_) => (),
                     Err(err) => {
-                        log::warn!("Skipping pull of `{}`, {}", stack.onto.name, err);
+                        log::warn!("Skipping pull of `{}`, {}", stack.onto, err);
                     }
                 }
             } else {
-                log::warn!(
-                    "Skipping pull of `{}`, not a protected branch",
-                    stack.onto.name
-                );
+                log::warn!("Skipping pull of `{}`, not a protected branch", stack.onto);
             }
         }
         state.update().with_code(proc_exit::Code::FAILURE)?;
@@ -355,7 +360,9 @@ pub fn stack(
             .map(|stack| {
                 let script = plan_changes(&state, stack).with_code(proc_exit::Code::FAILURE)?;
                 if script.is_branch_deleted(&head_branch) {
-                    head_branch = stack.onto.name.clone();
+                    if let Some(local_name) = stack.onto.local_name() {
+                        head_branch = local_name.to_owned();
+                    }
                 }
                 Ok(script)
             })
@@ -411,7 +418,7 @@ pub fn stack(
 }
 
 fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
-    log::trace!("Planning stack changes with base={}", stack.base.name,);
+    log::trace!("Planning stack changes with base={}", stack.base,);
     let graphed_branches = stack.graphed_branches();
     let base_commit = state
         .repo
@@ -445,7 +452,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
 
     let mut dropped_branches = Vec::new();
     if state.rebase {
-        log::trace!("Rebasing onto {}", stack.onto.name);
+        log::trace!("Rebasing onto {}", stack.onto);
         let onto_id = stack.onto.pull_id.unwrap_or(stack.onto.id);
         let pull_start_id = stack.onto.id;
         let pull_start_id = state
@@ -542,12 +549,12 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         if graphed_branches.len() == 1 && abbrev_graph {
             let branches = graphed_branches.iter().next().unwrap().1;
             if branches.len() == 1 && branches[0].id != state.head_commit.id {
-                empty_stacks.push(format!("{}", palette_stderr.info.paint(&branches[0].name)));
+                empty_stacks.push(format!("{}", palette_stderr.info.paint(&branches[0])));
                 continue;
             }
         }
 
-        log::trace!("Rendering stack base={}", stack.base.name,);
+        log::trace!("Rendering stack base={}", stack.base,);
         let base_commit = state
             .repo
             .find_commit(stack.base.id)
@@ -605,7 +612,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         if state.dry_run {
             // Show as-if we performed all mutations
             if state.rebase {
-                log::trace!("Rebasing onto {}", stack.onto.name);
+                log::trace!("Rebasing onto {}", stack.onto);
                 let onto_id = stack.onto.pull_id.unwrap_or(stack.onto.id);
                 let pull_start_id = stack.onto.id;
                 let pull_start_id = state
@@ -726,10 +733,10 @@ fn resolve_implicit_base(
         .ok_or_else(|| eyre::eyre!("could not find a protected branch to use as a base"))?;
     log::debug!(
         "Chose branch {} as the base for {}",
-        branch.name,
+        branch,
         branches
             .get(head_oid)
-            .map(|b| b[0].name.clone())
+            .map(|b| b[0].to_string())
             .or_else(|| {
                 repo.find_commit(head_oid)?
                     .summary
@@ -839,10 +846,16 @@ fn git_push_node(
 ) -> Vec<String> {
     let mut failed = Vec::new();
     for branch in node.branches.iter() {
+        let local_branch = if let Some(local_name) = branch.local_name() {
+            local_name
+        } else {
+            continue;
+        };
+
         if node.pushable {
             let raw_branch = repo
                 .raw()
-                .find_branch(&branch.name, git2::BranchType::Local)
+                .find_branch(&local_branch, git2::BranchType::Local)
                 .expect("all referenced branches exist");
             let upstream_set = raw_branch.upstream().is_ok();
 
@@ -852,26 +865,26 @@ fn git_push_node(
                 args.push("--set-upstream");
             }
             args.push(remote);
-            args.push(&branch.name);
+            args.push(&local_branch);
             log::trace!("git {}", args.join(" "),);
             if !dry_run {
                 let status = std::process::Command::new("git").args(&args).status();
                 match status {
                     Ok(status) => {
                         if !status.success() {
-                            failed.push(branch.name.clone());
+                            failed.push(local_branch.to_owned());
                         }
                     }
                     Err(err) => {
                         log::debug!("`git push` failed with {}", err);
-                        failed.push(branch.name.clone());
+                        failed.push(local_branch.to_owned());
                     }
                 }
             }
         } else if node.action.is_protected() {
-            log::debug!("Skipping push of `{}`, protected", branch.name);
+            log::debug!("Skipping push of `{}`, protected", branch);
         } else {
-            log::debug!("Skipping push of `{}`", branch.name);
+            log::debug!("Skipping push of `{}`", branch);
         }
     }
 
@@ -891,8 +904,8 @@ fn list(
         let mut branches: Vec<_> = node.branches.iter().collect();
         branches.sort();
         for b in branches {
-            if protected.into_iter().flatten().contains(&b) {
-                // Base / protected branches are just show for context, they aren't part of the
+            if b.remote.is_some() || protected.into_iter().flatten().contains(&b) {
+                // Base, remote, and protected branches are just shown for context, they aren't part of the
                 // stack, so skip them here
                 continue;
             }
@@ -1305,15 +1318,27 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
             } else {
                 let mut branches: Vec<_> = node.branches.iter().collect();
                 branches.sort_by_key(|b| {
-                    let is_head = self.head_branch.id == b.id && self.head_branch.name == b.name;
+                    let is_head = self.head_branch.id == b.id
+                        && self.head_branch.remote == b.remote
+                        && self.head_branch.name == b.name;
                     let head_first = !is_head;
-                    (head_first, &b.name)
+                    (head_first, &b.remote, &b.name)
                 });
                 write!(
                     f,
                     "{}",
                     branches
-                        .into_iter()
+                        .iter()
+                        .filter(|b| {
+                            if b.remote.is_some() {
+                                let local_present = branches
+                                    .iter()
+                                    .any(|b| b.local_name() == Some(b.name.as_str()));
+                                !local_present
+                            } else {
+                                true
+                            }
+                        })
                         .map(|b| {
                             format!(
                                 "{}{}",
@@ -1361,17 +1386,22 @@ fn format_branch_name<'d>(
     protected_branches: &'d git_stack::git::Branches,
     palette: &'d Palette,
 ) -> impl std::fmt::Display + 'd {
-    if head_branch.id == branch.id && head_branch.name == branch.name {
-        palette.highlight.paint(branch.name.as_str())
+    if head_branch.id == branch.id
+        && head_branch.remote == branch.remote
+        && head_branch.name == branch.name
+    {
+        palette.highlight.paint(branch.to_string())
     } else {
         let protected = protected_branches.get(branch.id);
         if protected.into_iter().flatten().contains(&branch) {
-            palette.info.paint(branch.name.as_str())
+            palette.info.paint(branch.to_string())
+        } else if branch.remote.is_some() {
+            palette.info.paint(branch.to_string())
         } else if node.action.is_protected() {
             // Either haven't started dev or it got merged
-            palette.warn.paint(branch.name.as_str())
+            palette.warn.paint(branch.to_string())
         } else {
-            palette.good.paint(branch.name.as_str())
+            palette.good.paint(branch.to_string())
         }
     }
 }

@@ -24,7 +24,7 @@ mod test_branches {
         let result = branches.all();
         let mut names: Vec<_> = result
             .iter()
-            .flat_map(|(_, b)| b.iter().map(|b| b.name.as_str()))
+            .flat_map(|(_, b)| b.iter().map(|b| b.to_string()))
             .collect();
         names.sort_unstable();
 
@@ -54,7 +54,7 @@ mod test_branches {
         let result = branches.descendants(&repo, base_oid);
         let mut names: Vec<_> = result
             .iter()
-            .flat_map(|(_, b)| b.iter().map(|b| b.name.as_str()))
+            .flat_map(|(_, b)| b.iter().map(|b| b.to_string()))
             .collect();
         names.sort_unstable();
 
@@ -79,7 +79,7 @@ mod test_branches {
         let result = branches.dependents(&repo, base_oid, head_oid);
         let mut names: Vec<_> = result
             .iter()
-            .flat_map(|(_, b)| b.iter().map(|b| b.name.as_str()))
+            .flat_map(|(_, b)| b.iter().map(|b| b.to_string()))
             .collect();
         names.sort_unstable();
 
@@ -101,7 +101,7 @@ mod test_branches {
         let result = branches.branch(&repo, base_oid, head_oid);
         let mut names: Vec<_> = result
             .iter()
-            .flat_map(|(_, b)| b.iter().map(|b| b.name.as_str()))
+            .flat_map(|(_, b)| b.iter().map(|b| b.to_string()))
             .collect();
         names.sort_unstable();
 
@@ -121,7 +121,7 @@ mod test_branches {
         let result = branches.protected(&protect);
         let mut names: Vec<_> = result
             .iter()
-            .flat_map(|(_, b)| b.iter().map(|b| b.name.as_str()))
+            .flat_map(|(_, b)| b.iter().map(|b| b.to_string()))
             .collect();
         names.sort_unstable();
 

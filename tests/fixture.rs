@@ -54,6 +54,7 @@ fn populate_event(
 
                 if let Some(branch) = tree.branch.as_ref() {
                     let branch = git_stack::git::Branch {
+                        remote: None,
                         name: branch.as_str().to_owned(),
                         id: commit_id,
                         push_id: None,

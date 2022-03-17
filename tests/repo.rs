@@ -108,7 +108,7 @@ fn shared_branches_fixture() {
 
     // local_branches
     {
-        let mut actual: Vec<_> = repo.local_branches().map(|b| b.name).collect();
+        let mut actual: Vec<_> = repo.local_branches().map(|b| b.to_string()).collect();
         actual.sort_unstable();
         assert_eq!(
             actual,
@@ -348,7 +348,7 @@ fn branch() {
         let actual = repo.find_local_branch("new").unwrap();
         assert_eq!(base.id, actual.id);
 
-        let mut actual: Vec<_> = repo.local_branches().map(|b| b.name).collect();
+        let mut actual: Vec<_> = repo.local_branches().map(|b| b.to_string()).collect();
         actual.sort_unstable();
         assert_eq!(
             actual,
