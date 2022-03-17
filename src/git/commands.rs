@@ -74,6 +74,7 @@ pub struct Executor {
     marks: std::collections::HashMap<git2::Oid, git2::Oid>,
     branches: Vec<(git2::Oid, String)>,
     delete_branches: Vec<String>,
+    post_rewrite: Vec<(git2::Oid, git2::Oid)>,
     dry_run: bool,
     detached: bool,
 }
@@ -86,6 +87,7 @@ impl Executor {
             marks: Default::default(),
             branches: Default::default(),
             delete_branches: Default::default(),
+            post_rewrite: Default::default(),
             dry_run,
             detached: false,
         }
@@ -169,11 +171,13 @@ impl Executor {
                     cherry_oid,
                     cherry_commit.summary
                 );
-                if self.dry_run {
-                    self.head_oid = *cherry_oid;
+                let updated_oid = if self.dry_run {
+                    *cherry_oid
                 } else {
-                    self.head_oid = repo.cherry_pick(self.head_oid, *cherry_oid)?;
-                }
+                    repo.cherry_pick(self.head_oid, *cherry_oid)?
+                };
+                self.post_rewrite.push((*cherry_oid, updated_oid));
+                self.head_oid = updated_oid;
             }
             Command::Fixup(squash_oid) => {
                 let cherry_commit = repo.find_commit(*squash_oid).ok_or_else(|| {
@@ -188,11 +192,18 @@ impl Executor {
                     squash_oid,
                     cherry_commit.summary
                 );
-                if self.dry_run {
-                    self.head_oid = *squash_oid;
+                let updated_oid = if self.dry_run {
+                    *squash_oid
                 } else {
-                    self.head_oid = repo.squash(*squash_oid, self.head_oid)?;
+                    repo.squash(*squash_oid, self.head_oid)?
+                };
+                for (_old_oid, new_oid) in &mut self.post_rewrite {
+                    if *new_oid == self.head_oid {
+                        *new_oid = updated_oid;
+                    }
                 }
+                self.post_rewrite.push((*squash_oid, updated_oid));
+                self.head_oid = updated_oid;
             }
             Command::CreateBranch(name) => {
                 let branch_oid = self.head_oid;
@@ -207,6 +218,19 @@ impl Executor {
     }
 
     pub fn commit(&mut self, repo: &mut dyn crate::git::Repo) -> Result<(), git2::Error> {
+        let hook_repo = repo
+            .path()
+            .map(|path| git2::Repository::open(path))
+            .transpose()?;
+        let hooks = if self.dry_run {
+            None
+        } else {
+            hook_repo
+                .as_ref()
+                .map(|hook_repo| git2_ext::hooks::Hooks::with_repo(hook_repo))
+                .transpose()?
+        };
+
         if !self.branches.is_empty() || !self.delete_branches.is_empty() {
             // In case we are changing the branch HEAD is attached to
             if !self.dry_run {
@@ -233,13 +257,23 @@ impl Executor {
         }
         self.delete_branches.clear();
 
+        self.post_rewrite.retain(|(old, new)| old != new);
+        if !self.post_rewrite.is_empty() {
+            log::trace!("Running post-rewrite hook");
+            if let (Some(hook_repo), Some(hooks)) = (hook_repo.as_ref(), hooks.as_ref()) {
+                hooks.run_post_rewrite_rebase(hook_repo, &self.post_rewrite);
+            }
+            self.post_rewrite.clear();
+        }
+
         Ok(())
     }
 
     pub fn abandon(&mut self, repo: &dyn crate::git::Repo) {
+        self.head_oid = repo.head_commit().id;
         self.branches.clear();
         self.delete_branches.clear();
-        self.head_oid = repo.head_commit().id;
+        self.post_rewrite.clear();
     }
 
     pub fn close(
