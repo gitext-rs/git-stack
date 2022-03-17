@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.7.4] - 2022-03-17
+
 ### Features
 
 - Support commits and tags for `--onto` and `--base` arguments
@@ -332,7 +334,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.7.3...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.7.4...HEAD
+[0.7.4]: https://github.com/gitext-rs/git-stack/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/gitext-rs/git-stack/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/gitext-rs/git-stack/compare/v0.7.1...v0.7.2
 [0.7.1]: https://github.com/gitext-rs/git-stack/compare/v0.7.0...v0.7.1
