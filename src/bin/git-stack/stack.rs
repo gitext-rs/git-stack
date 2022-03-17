@@ -716,11 +716,27 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
 }
 
 fn resolve_explicit_base(
-    repo: &dyn git_stack::git::Repo,
+    repo: &git_stack::git::GitRepo,
     base: &str,
 ) -> eyre::Result<git_stack::git::Branch> {
-    repo.find_local_branch(base)
-        .ok_or_else(|| eyre::eyre!("Could not find branch {:?}", base))
+    let (_obj, r) = repo.raw().revparse_ext(base)?;
+    let r = r.ok_or_else(|| eyre::eyre!("Expected branch, got `{}`", base))?;
+    if r.is_tag() {
+        eyre::bail!("Expected branch, got tag `{}`", base);
+    }
+
+    if r.is_remote() {
+        let (remote, name) = r
+            .shorthand()
+            .ok_or_else(|| eyre::eyre!("Expected branch, got `{}`", base))?
+            .split_once('/')
+            .unwrap();
+        repo.find_remote_branch(remote, name)
+            .ok_or_else(|| eyre::eyre!("Could not find branch {:?}", r.shorthand()))
+    } else {
+        repo.find_local_branch(base)
+            .ok_or_else(|| eyre::eyre!("Could not find branch {:?}", base))
+    }
 }
 
 fn resolve_implicit_base(
