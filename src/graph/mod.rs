@@ -29,7 +29,7 @@ impl Graph {
         mut branches: crate::git::Branches,
     ) -> eyre::Result<Self> {
         if branches.is_empty() {
-            eyre::bail!("no branches to graph");
+            eyre::bail!("No branches to graph");
         }
 
         let mut branch_ids: Vec<_> = branches.oids().collect();

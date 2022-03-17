@@ -266,7 +266,7 @@ fn update_branch(
     } else {
         repo.find_local_branch(&branch.name)
     }
-    .ok_or_else(|| eyre::eyre!("can no longer find branch {}", branch).into())
+    .ok_or_else(|| eyre::eyre!("Can no longer find branch {}", branch).into())
 }
 
 pub fn stack(
@@ -720,7 +720,7 @@ fn resolve_explicit_base(
     base: &str,
 ) -> eyre::Result<git_stack::git::Branch> {
     repo.find_local_branch(base)
-        .ok_or_else(|| eyre::eyre!("could not find branch {:?}", base))
+        .ok_or_else(|| eyre::eyre!("Could not find branch {:?}", base))
 }
 
 fn resolve_implicit_base(
@@ -730,7 +730,7 @@ fn resolve_implicit_base(
     protected_branches: &git_stack::git::Branches,
 ) -> eyre::Result<git_stack::git::Branch> {
     let branch = git_stack::git::find_protected_base(repo, protected_branches, head_oid)
-        .ok_or_else(|| eyre::eyre!("could not find a protected branch to use as a base"))?;
+        .ok_or_else(|| eyre::eyre!("Could not find a protected branch to use as a base"))?;
     log::debug!(
         "Chose branch {} as the base for {}",
         branch,
@@ -835,7 +835,7 @@ fn git_push(
     if failed.is_empty() {
         Ok(())
     } else {
-        eyre::bail!("could not push {}", failed.into_iter().join(", "));
+        eyre::bail!("Could not push {}", failed.into_iter().join(", "));
     }
 }
 
