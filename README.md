@@ -27,7 +27,7 @@ Dual-licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE)
 
 Like Stacked-Diffs? `git-stack` is [another approach](docs/comparison.md) to bringing the
 [Stacked Diff workflow](https://jg.gg/2018/09/29/stacked-diffs-versus-pull-requests/)
-to PRs that aims to be unintrusive to a project's workflow.  Branches are the unit
+to PRs/branches that aims to be unintrusive to a project's workflow.  Branches are the unit
 of work and review in `git-stack`.  As you create branches on top of each
 other (i.e. "stacked" branches), `git-stack` will takes care of all of the
 micromanagement for you.
@@ -64,6 +64,8 @@ jira-3423423 $ git stack --pull
 2. Performs a `git pull --rebase <remote> <parent>`
 3. Rebases `jira-3423423` (and any dev branches on the stack) onto `<parent>`
 4. Shows the stacked branches
+
+See [Getting Start](#using) for a complete workflow example.
 
 The closest equivalent is:
 ```bash
@@ -106,9 +108,10 @@ Removing this is safe and will have no effect.
 
 ### Configuring `git-stack`
 
-**Protected branches:** These are branches like `main` or `v3` that `git-stack`
-must not modify.  `git-stack` will also rebase local protected branches against
-their remote counter parts.
+**Protected branches:** These are branches that `git-stack` should not modify.
+`git-stack` will also rebase local protected branches against
+their remote counter parts.  Usually you mark shared or long-lived branches as
+protected, like `main`, `v3`.
 
 Run `git-stack --protected -v` to test your config
 - To locally protect additional branches, run `git-stack --protect <glob>`.
@@ -137,14 +140,27 @@ $ git add -A; git commit --fixup HEAD~~
 $ # See what this looks like
 $ git stack
 
-$ # To push whats ready
+$ # Clean up in preparation for a push
+$ git stack --pull
 $ git stack --fixup squash
+
+$ # Push whats ready
 $ git stack --push
 ```
 
 For more, see [Command Reference](docs/reference.md#commands).
 
 ## FAQ
+
+### When should my branches be stacked?
+
+This is up to you.  Some might prefer to have linear development (single branch) and just manipulate ordering within that.
+
+For me, I prefer to stack branches of related work or when there is a
+dependency between them, like a feature being stacked on top of a refactor to
+enable that feature
+- Only deal with conflicts when I have to (one gets merged we're rebasing on top of it)
+- Stacking of PRs, especially of unrelated work, doesn't work too well in Github
 
 ### How do I stack another branch on top of an existing one?
 
@@ -157,9 +173,9 @@ For more, see [Command Reference](docs/reference.md#commands).
 This works like normal, just checkout the branch you want to base the feature on and start adding commits.
 
 For example:
-```bash
-git switch feature1
-git switch -c feature2
+```console
+$ git switch feature1
+$ git switch -c feature2
 ```
 
 ### How do I add a commit to a parent branch in a stack?
