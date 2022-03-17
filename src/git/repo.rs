@@ -37,6 +37,7 @@ pub trait Repo {
     fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error>;
     fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error>;
     fn find_local_branch(&self, name: &str) -> Option<Branch>;
+    fn find_remote_branch(&self, remote: &str, name: &str) -> Option<Branch>;
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_>;
     fn detach(&mut self) -> Result<(), git2::Error>;
     fn switch(&mut self, name: &str) -> Result<(), git2::Error>;
@@ -44,10 +45,27 @@ pub trait Repo {
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Branch {
+    pub remote: Option<String>,
     pub name: String,
     pub id: git2::Oid,
     pub push_id: Option<git2::Oid>,
     pub pull_id: Option<git2::Oid>,
+}
+
+impl Branch {
+    pub fn local_name(&self) -> Option<&str> {
+        self.remote.is_none().then(|| self.name.as_str())
+    }
+}
+
+impl std::fmt::Display for Branch {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(remote) = self.remote.as_deref() {
+            write!(f, "{}/{}", remote, self.name.as_str())
+        } else {
+            write!(f, "{}", self.name.as_str())
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -236,6 +254,7 @@ impl GitRepo {
             .and_then(|b| b.get().target());
 
         Some(Branch {
+            remote: None,
             name: name.to_owned(),
             id,
             push_id,
@@ -439,6 +458,27 @@ impl GitRepo {
             .and_then(|b| b.get().target());
 
         Some(Branch {
+            remote: None,
+            name: name.to_owned(),
+            id,
+            push_id,
+            pull_id,
+        })
+    }
+
+    pub fn find_remote_branch(&self, remote: &str, name: &str) -> Option<Branch> {
+        let qualified = format!("{}/{}", remote, name);
+        let branch = self
+            .repo
+            .find_branch(&qualified, git2::BranchType::Remote)
+            .ok()?;
+        let id = branch.get().target().unwrap();
+
+        let push_id = (remote == self.push_remote()).then(|| id);
+        let pull_id = (remote == self.pull_remote()).then(|| id);
+
+        Some(Branch {
+            remote: Some(remote.to_owned()),
             name: name.to_owned(),
             id,
             push_id,
@@ -483,6 +523,7 @@ impl GitRepo {
                     .and_then(|b| b.get().target());
 
                 Some(Branch {
+                    remote: None,
                     name: name.to_owned(),
                     id,
                     push_id,
@@ -622,6 +663,10 @@ impl Repo for GitRepo {
 
     fn find_local_branch(&self, name: &str) -> Option<Branch> {
         self.find_local_branch(name)
+    }
+
+    fn find_remote_branch(&self, remote: &str, name: &str) -> Option<Branch> {
+        self.find_remote_branch(remote, name)
     }
 
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_> {
@@ -874,6 +919,7 @@ impl InMemoryRepo {
         self.branches.insert(
             name.to_owned(),
             Branch {
+                remote: None,
                 name: name.to_owned(),
                 id,
                 push_id: None,
@@ -895,6 +941,10 @@ impl InMemoryRepo {
 
     pub fn find_local_branch(&self, name: &str) -> Option<Branch> {
         self.branches.get(name).cloned()
+    }
+
+    pub fn find_remote_branch(&self, _remote: &str, _name: &str) -> Option<Branch> {
+        None
     }
 
     pub fn local_branches(&self) -> impl Iterator<Item = Branch> + '_ {
@@ -1029,6 +1079,10 @@ impl Repo for InMemoryRepo {
 
     fn find_local_branch(&self, name: &str) -> Option<Branch> {
         self.find_local_branch(name)
+    }
+
+    fn find_remote_branch(&self, remote: &str, name: &str) -> Option<Branch> {
+        self.find_remote_branch(remote, name)
     }
 
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_> {

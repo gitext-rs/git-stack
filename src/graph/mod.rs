@@ -29,12 +29,15 @@ impl Graph {
         mut branches: crate::git::Branches,
     ) -> eyre::Result<Self> {
         if branches.is_empty() {
-            eyre::bail!("no branches to graph");
+            eyre::bail!("No branches to graph");
         }
 
         let mut branch_ids: Vec<_> = branches.oids().collect();
         // Be more reproducible to make it easier to debug
-        branch_ids.sort_by_key(|id| &branches.get(*id).unwrap()[0].name);
+        branch_ids.sort_by_key(|id| {
+            let first_branch = &branches.get(*id).unwrap()[0];
+            (first_branch.remote.as_deref(), first_branch.name.as_str())
+        });
 
         let branch_id = branch_ids.remove(0);
         let branch_commit = repo.find_commit(branch_id).unwrap();

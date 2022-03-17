@@ -18,20 +18,24 @@ impl Branches {
     }
 
     pub fn update(&mut self, repo: &dyn crate::git::Repo) {
-        let mut new = Self::new(
-            self.branches
-                .values()
-                .flatten()
-                .filter_map(|b| repo.find_local_branch(&b.name)),
-        );
+        let mut new = Self::new(self.branches.values().flatten().filter_map(|b| {
+            if let Some(remote) = b.remote.as_deref() {
+                repo.find_remote_branch(remote, &b.name)
+            } else {
+                repo.find_local_branch(&b.name)
+            }
+        }));
         std::mem::swap(&mut new, self);
     }
 
     pub fn insert(&mut self, branch: crate::git::Branch) {
-        self.branches
-            .entry(branch.id)
-            .or_insert_with(Vec::new)
-            .push(branch);
+        let branches = self.branches.entry(branch.id).or_insert_with(Vec::new);
+        if !branches
+            .iter()
+            .any(|b| b.remote == branch.remote && b.name == branch.name)
+        {
+            branches.push(branch);
+        }
     }
 
     pub fn extend(&mut self, branches: impl Iterator<Item = crate::git::Branch>) {
@@ -86,13 +90,10 @@ impl Branches {
                 if is_base_descendant {
                     true
                 } else {
-                    let branch_name = &branch
-                        .first()
-                        .expect("we always have at least one branch")
-                        .name;
+                    let first_branch = &branch.first().expect("we always have at least one branch");
                     log::trace!(
                         "Branch {} is not on the branch of {}",
-                        branch_name,
+                        first_branch,
                         base_oid
                     );
                     false
@@ -125,24 +126,18 @@ impl Branches {
                     .map(|merge_oid| merge_oid == base_oid)
                     .unwrap_or(false);
                 if is_shared_base {
-                    let branch_name = &branch
-                        .first()
-                        .expect("we always have at least one branch")
-                        .name;
+                    let first_branch = &branch.first().expect("we always have at least one branch");
                     log::trace!(
                         "Branch {} is not on the branch of HEAD ({})",
-                        branch_name,
+                        first_branch,
                         head_oid
                     );
                     false
                 } else if !is_base_descendant {
-                    let branch_name = &branch
-                        .first()
-                        .expect("we always have at least one branch")
-                        .name;
+                    let first_branch = &branch.first().expect("we always have at least one branch");
                     log::trace!(
                         "Branch {} is not on the branch of {}",
-                        branch_name,
+                        first_branch,
                         base_oid
                     );
                     false
@@ -177,24 +172,18 @@ impl Branches {
                     .map(|merge_oid| merge_oid == base_oid)
                     .unwrap_or(false);
                 if !is_head_ancestor {
-                    let branch_name = &branch
-                        .first()
-                        .expect("we always have at least one branch")
-                        .name;
+                    let first_branch = &branch.first().expect("we always have at least one branch");
                     log::trace!(
                         "Branch {} is not on the branch of HEAD ({})",
-                        branch_name,
+                        first_branch,
                         head_oid
                     );
                     false
                 } else if !is_base_descendant {
-                    let branch_name = &branch
-                        .first()
-                        .expect("we always have at least one branch")
-                        .name;
+                    let first_branch = &branch.first().expect("we always have at least one branch");
                     log::trace!(
                         "Branch {} is not on the branch of {}",
-                        branch_name,
+                        first_branch,
                         base_oid
                     );
                     false
@@ -218,8 +207,9 @@ impl Branches {
                 let protected_branches: Vec<_> = branches
                     .iter()
                     .filter_map(|b| {
+                        // Protect branches, regardless of whether they are remote or not
                         if protected.is_protected(&b.name) {
-                            log::trace!("Branch {} is protected", b.name);
+                            log::trace!("Branch {} is protected", b);
                             Some(b.clone())
                         } else {
                             None

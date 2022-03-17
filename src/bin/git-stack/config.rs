@@ -65,11 +65,11 @@ pub fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
     for (branch_id, branches) in branches.iter() {
         if protected_branches.contains_oid(branch_id) {
             for branch in branches {
-                writeln!(std::io::stdout(), "{}", branch.name)?;
+                writeln!(std::io::stdout(), "{}", branch)?;
             }
         } else {
             for branch in branches {
-                log::debug!("Unprotected: {}", branch.name);
+                log::debug!("Unprotected: {}", branch);
             }
         }
     }
