@@ -247,12 +247,8 @@ impl StackState {
 
     fn graphed_branches(&self) -> git_stack::git::Branches {
         let mut graphed_branches = self.branches.clone();
-        if !graphed_branches.contains_oid(self.base.id) {
-            graphed_branches.insert(self.base.clone());
-        }
-        if !graphed_branches.contains_oid(self.onto.id) {
-            graphed_branches.insert(self.onto.clone());
-        }
+        graphed_branches.insert(self.base.clone());
+        graphed_branches.insert(self.onto.clone());
         graphed_branches
     }
 }

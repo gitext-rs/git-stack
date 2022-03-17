@@ -29,10 +29,13 @@ impl Branches {
     }
 
     pub fn insert(&mut self, branch: crate::git::Branch) {
-        self.branches
-            .entry(branch.id)
-            .or_insert_with(Vec::new)
-            .push(branch);
+        let branches = self.branches.entry(branch.id).or_insert_with(Vec::new);
+        if !branches
+            .iter()
+            .any(|b| b.remote == branch.remote && b.name == branch.name)
+        {
+            branches.push(branch);
+        }
     }
 
     pub fn extend(&mut self, branches: impl Iterator<Item = crate::git::Branch>) {
