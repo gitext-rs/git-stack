@@ -1177,6 +1177,9 @@ impl<'r> Tree<'r> {
                 }
                 tree.push(stack_tree);
             } else {
+                if i != 0 && !stack.is_empty() {
+                    tree.push(termtree::Tree::root(joint).with_glyphs(SPACE_GLYPHS));
+                }
                 for child_tree in stack.into_iter() {
                     let child = RenderNode {
                         repo,
@@ -1256,6 +1259,14 @@ struct RenderNode<'r> {
 const GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
     middle_item: "⌽",
     last_item: "⌽",
+    item_indent: " ",
+    skip_indent: " ",
+    ..termtree::GlyphPalette::new()
+};
+
+const SPACE_GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
+    middle_item: "│",
+    last_item: " ",
     item_indent: " ",
     skip_indent: " ",
     ..termtree::GlyphPalette::new()
