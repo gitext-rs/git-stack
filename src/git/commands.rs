@@ -218,16 +218,13 @@ impl Executor {
     }
 
     pub fn commit(&mut self, repo: &mut dyn crate::git::Repo) -> Result<(), git2::Error> {
-        let hook_repo = repo
-            .path()
-            .map(|path| git2::Repository::open(path))
-            .transpose()?;
+        let hook_repo = repo.path().map(git2::Repository::open).transpose()?;
         let hooks = if self.dry_run {
             None
         } else {
             hook_repo
                 .as_ref()
-                .map(|hook_repo| git2_ext::hooks::Hooks::with_repo(hook_repo))
+                .map(git2_ext::hooks::Hooks::with_repo)
                 .transpose()?
         };
 
@@ -246,7 +243,7 @@ impl Executor {
             if let (Some(hook_repo), Some(hooks)) = (hook_repo.as_ref(), hooks.as_ref()) {
                 Some(
                     hooks
-                        .run_reference_transaction(&hook_repo, &reference_transaction)
+                        .run_reference_transaction(hook_repo, &reference_transaction)
                         .map_err(|err| {
                             git2::Error::new(
                                 git2::ErrorCode::GenericError,
@@ -285,7 +282,9 @@ impl Executor {
         }
         self.delete_branches.clear();
 
-        reference_transaction.map(|tx| tx.committed());
+        if let Some(tx) = reference_transaction {
+            tx.committed()
+        }
         self.post_rewrite.retain(|(old, new)| old != new);
         if !self.post_rewrite.is_empty() {
             log::trace!("Running post-rewrite hook");
