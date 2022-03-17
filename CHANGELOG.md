@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- Support commits and tags for `--onto` and `--base` arguments
+
 ## [0.7.3] - 2022-03-17
 
 ### Features
