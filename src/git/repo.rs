@@ -60,11 +60,10 @@ impl Branch {
 
 impl std::fmt::Display for Branch {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let name = self.name.as_str();
         if let Some(remote) = self.remote.as_deref() {
-            write!(f, "{remote}/{name}")
+            write!(f, "{}/{}", remote, self.name.as_str())
         } else {
-            write!(f, "{name}")
+            write!(f, "{}", self.name.as_str())
         }
     }
 }
