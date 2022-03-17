@@ -262,7 +262,7 @@ fn update_branch(
     } else {
         repo.find_local_branch(&branch.name)
     }
-    .ok_or_else(|| eyre::eyre!("Can no longer find branch {}", branch).into())
+    .ok_or_else(|| eyre::eyre!("Can no longer find branch {}", branch))
 }
 
 pub fn stack(
@@ -867,7 +867,7 @@ fn git_push_node(
         if node.pushable {
             let raw_branch = repo
                 .raw()
-                .find_branch(&local_branch, git2::BranchType::Local)
+                .find_branch(local_branch, git2::BranchType::Local)
                 .expect("all referenced branches exist");
             let upstream_set = raw_branch.upstream().is_ok();
 
@@ -877,7 +877,7 @@ fn git_push_node(
                 args.push("--set-upstream");
             }
             args.push(remote);
-            args.push(&local_branch);
+            args.push(local_branch);
             log::trace!("git {}", args.join(" "),);
             if !dry_run {
                 let status = std::process::Command::new("git").args(&args).status();
