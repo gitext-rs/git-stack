@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Call `post-rewrite` and `reference-transaction` git hooks
+
 ## [0.7.1] - 2022-03-17
 
 ### Fixes
