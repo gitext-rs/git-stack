@@ -2,6 +2,7 @@ use bstr::ByteSlice;
 use itertools::Itertools;
 
 pub trait Repo {
+    fn path(&self) -> Option<&std::path::Path>;
     fn user(&self) -> Option<std::rc::Rc<str>>;
 
     fn is_dirty(&self) -> bool;
@@ -536,6 +537,9 @@ impl std::fmt::Debug for GitRepo {
 }
 
 impl Repo for GitRepo {
+    fn path(&self) -> Option<&std::path::Path> {
+        Some(self.repo.path())
+    }
     fn user(&self) -> Option<std::rc::Rc<str>> {
         self.user()
     }
@@ -940,6 +944,9 @@ impl<'c> Iterator for CommitsFrom<'c> {
 }
 
 impl Repo for InMemoryRepo {
+    fn path(&self) -> Option<&std::path::Path> {
+        None
+    }
     fn user(&self) -> Option<std::rc::Rc<str>> {
         self.user()
     }
