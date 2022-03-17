@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- Support remote tracking branches for `--onto` and `--base` arguments
+
 ## [0.7.2] - 2022-03-17
 
 ### Fixes
