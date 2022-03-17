@@ -231,6 +231,34 @@ impl Executor {
                 .transpose()?
         };
 
+        log::trace!("Running reference-transaction hook");
+        let reference_transaction = self.branches.clone();
+        let reference_transaction: Vec<(git2::Oid, git2::Oid, &str)> = reference_transaction
+            .iter()
+            .map(|(new_oid, name)| {
+                // HACK: relying on "force updating the reference regardless of its current value" part
+                // of rules rather than tracking the old value
+                let old_oid = git2::Oid::zero();
+                (old_oid, *new_oid, name.as_str())
+            })
+            .collect();
+        let reference_transaction =
+            if let (Some(hook_repo), Some(hooks)) = (hook_repo.as_ref(), hooks.as_ref()) {
+                Some(
+                    hooks
+                        .run_reference_transaction(&hook_repo, &reference_transaction)
+                        .map_err(|err| {
+                            git2::Error::new(
+                                git2::ErrorCode::GenericError,
+                                git2::ErrorClass::Os,
+                                err.to_string(),
+                            )
+                        })?,
+                )
+            } else {
+                None
+            };
+
         if !self.branches.is_empty() || !self.delete_branches.is_empty() {
             // In case we are changing the branch HEAD is attached to
             if !self.dry_run {
@@ -257,6 +285,7 @@ impl Executor {
         }
         self.delete_branches.clear();
 
+        reference_transaction.map(|tx| tx.committed());
         self.post_rewrite.retain(|(old, new)| old != new);
         if !self.post_rewrite.is_empty() {
             log::trace!("Running post-rewrite hook");
