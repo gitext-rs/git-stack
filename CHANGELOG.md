@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Consistent spacing between stacks
+
 ## [0.7.0] - 2022-03-16
 
 ### Compatibility
