@@ -442,15 +442,6 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         .expect("base branch is valid");
     let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
-    for branch in state.protected_branches.iter().flat_map(|(_, b)| b) {
-        if let Some(pull_id) = branch.pull_id {
-            let pull_commit = state
-                .repo
-                .find_commit(pull_id)
-                .expect("base branch is valid");
-            graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
-        }
-    }
     git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
     let bases = stack.self_branches();
     git_stack::graph::protect_branches(&mut graph, &state.repo, &bases);
@@ -473,7 +464,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
             .onto
             .branch
             .as_ref()
-            .and_then(|b| b.pull_id)
+            .map(|b| b.id)
             .unwrap_or(stack.onto.id);
         let pull_start_id = stack.onto.id;
         let pull_start_id = state
@@ -582,17 +573,6 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             .expect("base branch is valid");
         let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
         graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
-        for branch in state.protected_branches.iter().flat_map(|(_, b)| b) {
-            if let Some(pull_id) = branch.pull_id {
-                if state.repo.merge_base(pull_id, graph.root_id()) == Some(graph.root_id()) {
-                    let pull_commit = state
-                        .repo
-                        .find_commit(pull_id)
-                        .expect("base branch is valid");
-                    graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
-                }
-            }
-        }
         git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
         let bases = stack.self_branches();
         git_stack::graph::protect_branches(&mut graph, &state.repo, &bases);
@@ -638,7 +618,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                     .onto
                     .branch
                     .as_ref()
-                    .and_then(|b| b.pull_id)
+                    .map(|b| b.id)
                     .unwrap_or(stack.onto.id);
                 let pull_start_id = stack.onto.id;
                 let pull_start_id = state
@@ -1500,25 +1480,10 @@ fn format_branch_status<'d>(
 ) -> String {
     // See format_commit_status
     if node.action.is_protected() {
-        match commit_relation(repo, branch.id, branch.pull_id) {
-            Some((0, 0)) => String::new(),
-            Some((local, 0)) => {
-                format!(" {}", palette.warn.paint(format!("({} ahead)", local)))
-            }
-            Some((0, remote)) => {
-                format!(" {}", palette.warn.paint(format!("({} behind)", remote)))
-            }
-            Some((local, remote)) => {
-                format!(
-                    " {}",
-                    palette
-                        .warn
-                        .paint(format!("({} ahead, {} behind)", local, remote)),
-                )
-            }
-            None => {
-                format!(" {}", palette.warn.paint("(no remote)"))
-            }
+        if branch.pull_id.is_none() {
+            format!(" {}", palette.warn.paint("(no remote)"))
+        } else {
+            String::new()
         }
     } else if node.action.is_delete() {
         String::new()
