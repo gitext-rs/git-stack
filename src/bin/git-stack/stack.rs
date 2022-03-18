@@ -340,15 +340,15 @@ pub fn stack(
 
         for stack in state.stacks.iter() {
             if let Some(branch) = &stack.onto.branch {
-                if state.protected_branches.contains_oid(branch.id) {
-                    match git_fetch_upstream(&mut state.repo, branch.name.as_str()) {
+                if let Some(remote) = &branch.remote {
+                    match git_fetch_upstream(remote, branch.name.as_str()) {
                         Ok(_) => (),
                         Err(err) => {
                             log::warn!("Skipping pull of `{}`, {}", branch, err);
                         }
                     }
                 } else {
-                    log::warn!("Skipping pull of `{}`, not a protected branch", branch);
+                    log::warn!("Skipping pull of `{}` local branch", branch);
                 }
             }
         }
@@ -897,8 +897,7 @@ fn git_prune_development(
     Ok(())
 }
 
-fn git_fetch_upstream(repo: &mut git_stack::git::GitRepo, branch_name: &str) -> eyre::Result<()> {
-    let remote = repo.pull_remote();
+fn git_fetch_upstream(remote: &str, branch_name: &str) -> eyre::Result<()> {
     log::debug!("git fetch {} {}", remote, branch_name);
     // A little uncertain about some of the weirder authentication needs, just deferring to `git`
     // instead of using `libgit2`
