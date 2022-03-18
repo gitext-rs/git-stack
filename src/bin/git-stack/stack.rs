@@ -97,10 +97,11 @@ impl State {
         for branch in repo.local_branches() {
             if protected.is_protected(&branch.name) {
                 log::trace!("Branch {} is protected", branch);
-                protected_branches.insert(branch.clone());
                 if let Some(remote) = repo.find_remote_branch(repo.pull_remote(), &branch.name) {
                     protected_branches.insert(remote.clone());
                     branches.insert(remote);
+                } else {
+                    protected_branches.insert(branch.clone());
                 }
             }
             branches.insert(branch);
