@@ -129,7 +129,7 @@ impl State {
                 }]
             }
             (Some(base), None, git_stack::config::Stack::All) => {
-                let onto = base.clone();
+                let onto = resolve_onto_from_base(&repo, &base);
                 vec![StackState {
                     base,
                     onto,
@@ -137,7 +137,7 @@ impl State {
                 }]
             }
             (None, Some(onto), git_stack::config::Stack::All) => {
-                let base = onto.clone();
+                let base = resolve_base_from_onto(&repo, &onto);
                 vec![StackState {
                     base,
                     onto,
@@ -157,8 +157,8 @@ impl State {
                 }
                 stack_branches
                     .into_iter()
-                    .map(|(base, branches)| {
-                        let onto = base.clone();
+                    .map(|(onto, branches)| {
+                        let base = resolve_base_from_onto(&repo, &onto);
                         StackState {
                             base,
                             onto,
@@ -168,14 +168,40 @@ impl State {
                     .collect()
             }
             (base, onto, stack) => {
-                let base = base
-                    .map(Result::Ok)
-                    .unwrap_or_else(|| {
-                        resolve_implicit_base(&repo, head_commit.id, &branches, &protected_branches)
-                            .map(AnnotatedOid::with_branch)
-                    })
-                    .with_code(proc_exit::Code::USAGE_ERR)?;
-                let onto = onto.unwrap_or_else(|| base.clone());
+                let (base, onto) = match (base, onto) {
+                    (Some(base), Some(onto)) => (base, onto),
+                    (Some(base), None) => {
+                        let onto = resolve_onto_from_base(&repo, &base);
+                        (base, onto)
+                    }
+                    (None, Some(onto)) => {
+                        let base = AnnotatedOid::with_branch(
+                            resolve_implicit_base(
+                                &repo,
+                                head_commit.id,
+                                &branches,
+                                &protected_branches,
+                            )
+                            .with_code(proc_exit::Code::USAGE_ERR)?,
+                        );
+                        // HACK: Since `base` might have come back with a remote branch, treat it as an
+                        // "onto" to find the local version.
+                        let base = resolve_base_from_onto(&repo, &base);
+                        (base, onto)
+                    }
+                    (None, None) => {
+                        let onto = resolve_implicit_base(
+                            &repo,
+                            head_commit.id,
+                            &branches,
+                            &protected_branches,
+                        )
+                        .map(AnnotatedOid::with_branch)
+                        .with_code(proc_exit::Code::USAGE_ERR)?;
+                        let base = resolve_base_from_onto(&repo, &onto);
+                        (base, onto)
+                    }
+                };
                 let merge_base_oid = repo
                     .merge_base(base.id, head_commit.id)
                     .ok_or_else(|| {
@@ -803,6 +829,26 @@ fn resolve_implicit_base(
             .unwrap_or_else(|| "target".to_owned())
     );
     Ok(branch.clone())
+}
+
+fn resolve_base_from_onto(repo: &git_stack::git::GitRepo, onto: &AnnotatedOid) -> AnnotatedOid {
+    // HACK: Assuming the local branch is the current base for all the commits
+    onto.branch
+        .as_ref()
+        .filter(|b| b.remote.is_some())
+        .and_then(|b| repo.find_local_branch(&b.name))
+        .map(AnnotatedOid::with_branch)
+        .unwrap_or_else(|| onto.clone())
+}
+
+fn resolve_onto_from_base(repo: &git_stack::git::GitRepo, base: &AnnotatedOid) -> AnnotatedOid {
+    // HACK: Assuming the local branch is the current base for all the commits
+    base.branch
+        .as_ref()
+        .filter(|b| b.remote.is_none())
+        .and_then(|b| repo.find_remote_branch(repo.pull_remote(), &b.name))
+        .map(AnnotatedOid::with_branch)
+        .unwrap_or_else(|| base.clone())
 }
 
 fn git_prune_development(
