@@ -39,6 +39,7 @@ pub trait Repo {
     fn find_local_branch(&self, name: &str) -> Option<Branch>;
     fn find_remote_branch(&self, remote: &str, name: &str) -> Option<Branch>;
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_>;
+    fn remote_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_>;
     fn detach(&mut self) -> Result<(), git2::Error>;
     fn switch(&mut self, name: &str) -> Result<(), git2::Error>;
 }
@@ -438,6 +439,62 @@ impl GitRepo {
 
     pub fn find_local_branch(&self, name: &str) -> Option<Branch> {
         let branch = self.repo.find_branch(name, git2::BranchType::Local).ok()?;
+        self.load_local_branch(&branch, name).ok()
+    }
+
+    pub fn find_remote_branch(&self, remote: &str, name: &str) -> Option<Branch> {
+        let qualified = format!("{}/{}", remote, name);
+        let branch = self
+            .repo
+            .find_branch(&qualified, git2::BranchType::Remote)
+            .ok()?;
+        self.load_remote_branch(&branch, remote, name).ok()
+    }
+
+    pub fn local_branches(&self) -> impl Iterator<Item = Branch> + '_ {
+        log::trace!("Loading local branches");
+        self.repo
+            .branches(Some(git2::BranchType::Local))
+            .into_iter()
+            .flatten()
+            .flat_map(move |branch| {
+                let (branch, _) = branch.ok()?;
+                let name = if let Some(name) = branch.name().ok().flatten() {
+                    name
+                } else {
+                    log::debug!(
+                        "Ignoring non-UTF8 branch {:?}",
+                        branch.name_bytes().unwrap().as_bstr()
+                    );
+                    return None;
+                };
+                self.load_local_branch(&branch, name).ok()
+            })
+    }
+
+    pub fn remote_branches(&self) -> impl Iterator<Item = Branch> + '_ {
+        log::trace!("Loading remote branches");
+        self.repo
+            .branches(Some(git2::BranchType::Remote))
+            .into_iter()
+            .flatten()
+            .flat_map(move |branch| {
+                let (branch, _) = branch.ok()?;
+                let name = if let Some(name) = branch.name().ok().flatten() {
+                    name
+                } else {
+                    log::debug!(
+                        "Ignoring non-UTF8 branch {:?}",
+                        branch.name_bytes().unwrap().as_bstr()
+                    );
+                    return None;
+                };
+                let (remote, name) = name.split_once('/').unwrap();
+                self.load_remote_branch(&branch, remote, name).ok()
+            })
+    }
+
+    fn load_local_branch(&self, branch: &git2::Branch, name: &str) -> Result<Branch, git2::Error> {
         let id = branch.get().target().unwrap();
 
         let push_id = self
@@ -457,7 +514,7 @@ impl GitRepo {
             .ok()
             .and_then(|b| b.get().target());
 
-        Some(Branch {
+        Ok(Branch {
             remote: None,
             name: name.to_owned(),
             id,
@@ -466,70 +523,24 @@ impl GitRepo {
         })
     }
 
-    pub fn find_remote_branch(&self, remote: &str, name: &str) -> Option<Branch> {
-        let qualified = format!("{}/{}", remote, name);
-        let branch = self
-            .repo
-            .find_branch(&qualified, git2::BranchType::Remote)
-            .ok()?;
+    fn load_remote_branch(
+        &self,
+        branch: &git2::Branch,
+        remote: &str,
+        name: &str,
+    ) -> Result<Branch, git2::Error> {
         let id = branch.get().target().unwrap();
 
         let push_id = (remote == self.push_remote()).then(|| id);
         let pull_id = (remote == self.pull_remote()).then(|| id);
 
-        Some(Branch {
+        Ok(Branch {
             remote: Some(remote.to_owned()),
             name: name.to_owned(),
             id,
             push_id,
             pull_id,
         })
-    }
-
-    pub fn local_branches(&self) -> impl Iterator<Item = Branch> + '_ {
-        log::trace!("Loading branches");
-        self.repo
-            .branches(Some(git2::BranchType::Local))
-            .into_iter()
-            .flatten()
-            .flat_map(move |branch| {
-                let (branch, _) = branch.ok()?;
-                let name = if let Some(name) = branch.name().ok().flatten() {
-                    name
-                } else {
-                    log::debug!(
-                        "Ignoring non-UTF8 branch {:?}",
-                        branch.name_bytes().unwrap().as_bstr()
-                    );
-                    return None;
-                };
-                let id = branch.get().target().unwrap();
-
-                let push_id = self
-                    .repo
-                    .find_branch(
-                        &format!("{}/{}", self.push_remote(), name),
-                        git2::BranchType::Remote,
-                    )
-                    .ok()
-                    .and_then(|b| b.get().target());
-                let pull_id = self
-                    .repo
-                    .find_branch(
-                        &format!("{}/{}", self.pull_remote(), name),
-                        git2::BranchType::Remote,
-                    )
-                    .ok()
-                    .and_then(|b| b.get().target());
-
-                Some(Branch {
-                    remote: None,
-                    name: name.to_owned(),
-                    id,
-                    push_id,
-                    pull_id,
-                })
-            })
     }
 
     pub fn detach(&mut self) -> Result<(), git2::Error> {
@@ -671,6 +682,10 @@ impl Repo for GitRepo {
 
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_> {
         Box::new(self.local_branches())
+    }
+
+    fn remote_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_> {
+        Box::new(self.remote_branches())
     }
 
     fn detach(&mut self) -> Result<(), git2::Error> {
@@ -951,6 +966,10 @@ impl InMemoryRepo {
         self.branches.values().cloned()
     }
 
+    pub fn remote_branches(&self) -> impl Iterator<Item = Branch> + '_ {
+        None.into_iter()
+    }
+
     pub fn detach(&mut self) -> Result<(), git2::Error> {
         Ok(())
     }
@@ -1087,6 +1106,10 @@ impl Repo for InMemoryRepo {
 
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_> {
         Box::new(self.local_branches())
+    }
+
+    fn remote_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_> {
+        Box::new(self.remote_branches())
     }
 
     fn detach(&mut self) -> Result<(), git2::Error> {

@@ -198,34 +198,6 @@ impl Branches {
             .collect();
         Self { branches }
     }
-
-    pub fn protected(&self, protected: &crate::git::ProtectedBranches) -> Self {
-        let branches: std::collections::BTreeMap<_, _> = self
-            .branches
-            .iter()
-            .filter_map(|(oid, branches)| {
-                let protected_branches: Vec<_> = branches
-                    .iter()
-                    .filter_map(|b| {
-                        // Protect branches, regardless of whether they are remote or not
-                        if protected.is_protected(&b.name) {
-                            log::trace!("Branch {} is protected", b);
-                            Some(b.clone())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect();
-                if protected_branches.is_empty() {
-                    None
-                } else {
-                    Some((*oid, protected_branches))
-                }
-            })
-            .collect();
-
-        Self { branches }
-    }
 }
 
 impl IntoIterator for Branches {

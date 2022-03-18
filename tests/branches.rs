@@ -108,25 +108,6 @@ mod test_branches {
         // Shouldn't pick up feature1 (dependent) or master (branches off base)
         assert_eq!(names, ["base", "feature1"]);
     }
-
-    #[test]
-    fn test_protected() {
-        let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
-        fixture::populate_repo(&mut repo, plan);
-
-        let protect = protect();
-        let branches = Branches::new(repo.local_branches());
-        let result = branches.protected(&protect);
-        let mut names: Vec<_> = result
-            .iter()
-            .flat_map(|(_, b)| b.iter().map(|b| b.to_string()))
-            .collect();
-        names.sort_unstable();
-
-        assert_eq!(names, ["master"]);
-    }
 }
 
 mod test_find_protected_base {
@@ -140,8 +121,10 @@ mod test_find_protected_base {
         fixture::populate_repo(&mut repo, plan);
 
         let protect = no_protect();
-        let branches = Branches::new(repo.local_branches());
-        let protected = branches.protected(&protect);
+        let protected = Branches::new(
+            repo.local_branches()
+                .filter(|b| protect.is_protected(&b.name)),
+        );
 
         let head_oid = repo.resolve("base").unwrap().id;
 
@@ -157,8 +140,10 @@ mod test_find_protected_base {
         fixture::populate_repo(&mut repo, plan);
 
         let protect = protect();
-        let branches = Branches::new(repo.local_branches());
-        let protected = branches.protected(&protect);
+        let protected = Branches::new(
+            repo.local_branches()
+                .filter(|b| protect.is_protected(&b.name)),
+        );
 
         let head_oid = repo.resolve("off_master").unwrap().id;
 
@@ -174,8 +159,10 @@ mod test_find_protected_base {
         fixture::populate_repo(&mut repo, plan);
 
         let protect = protect();
-        let branches = Branches::new(repo.local_branches());
-        let protected = branches.protected(&protect);
+        let protected = Branches::new(
+            repo.local_branches()
+                .filter(|b| protect.is_protected(&b.name)),
+        );
 
         let head_oid = repo.resolve("base").unwrap().id;
 
