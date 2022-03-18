@@ -381,11 +381,16 @@ pub fn rebase_pulled_branches(graph: &mut Graph, pull_start: git2::Oid, pull_end
             .expect("all children exist")
             .branches,
     );
+    let (start_branches, end_branches) = branches.into_iter().partition(|b| b.remote.is_some());
+    graph
+        .get_mut(pull_start)
+        .expect("all children exist")
+        .branches = start_branches;
     graph
         .get_mut(pull_end)
         .expect("all children exist")
         .branches
-        .extend(branches);
+        .extend(end_branches);
 }
 
 pub fn pushable(graph: &mut Graph) {
