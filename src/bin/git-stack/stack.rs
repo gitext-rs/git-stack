@@ -122,27 +122,15 @@ impl State {
 
         let stacks = match (base, onto, repo_config.stack()) {
             (Some(base), Some(onto), git_stack::config::Stack::All) => {
-                vec![StackState {
-                    base,
-                    onto,
-                    branches: branches.all(),
-                }]
+                vec![StackState::new(base, onto, branches.all())]
             }
             (Some(base), None, git_stack::config::Stack::All) => {
                 let onto = resolve_onto_from_base(&repo, &base);
-                vec![StackState {
-                    base,
-                    onto,
-                    branches: branches.all(),
-                }]
+                vec![StackState::new(base, onto, branches.all())]
             }
             (None, Some(onto), git_stack::config::Stack::All) => {
                 let base = resolve_base_from_onto(&repo, &onto);
-                vec![StackState {
-                    base,
-                    onto,
-                    branches: branches.all(),
-                }]
+                vec![StackState::new(base, onto, branches.all())]
             }
             (None, None, git_stack::config::Stack::All) => {
                 let mut stack_branches = std::collections::BTreeMap::new();
@@ -159,11 +147,7 @@ impl State {
                     .into_iter()
                     .map(|(onto, branches)| {
                         let base = resolve_base_from_onto(&repo, &onto);
-                        StackState {
-                            base,
-                            onto,
-                            branches,
-                        }
+                        StackState::new(base, onto, branches)
                     })
                     .collect()
             }
@@ -224,11 +208,7 @@ impl State {
                     }
                     git_stack::config::Stack::All => unreachable!("Covered in another branch"),
                 };
-                vec![StackState {
-                    base,
-                    onto,
-                    branches: stack_branches,
-                }]
+                vec![StackState::new(base, onto, stack_branches)]
             }
         };
 
@@ -277,6 +257,20 @@ struct StackState {
 }
 
 impl StackState {
+    fn new(base: AnnotatedOid, onto: AnnotatedOid, mut branches: git_stack::git::Branches) -> Self {
+        if let Some(base) = &base.branch {
+            branches.insert(base.clone());
+        }
+        if let Some(onto) = &onto.branch {
+            branches.insert(onto.clone());
+        }
+        Self {
+            base,
+            onto,
+            branches,
+        }
+    }
+
     fn update(&mut self, repo: &dyn git_stack::git::Repo) -> eyre::Result<()> {
         self.base.update(repo)?;
         self.onto.update(repo)?;
@@ -286,17 +280,6 @@ impl StackState {
 
     fn self_branches(&self) -> git_stack::git::Branches {
         let mut graphed_branches = git_stack::git::Branches::new([]);
-        if let Some(base) = &self.base.branch {
-            graphed_branches.insert(base.clone());
-        }
-        if let Some(onto) = &self.onto.branch {
-            graphed_branches.insert(onto.clone());
-        }
-        graphed_branches
-    }
-
-    fn graphed_branches(&self) -> git_stack::git::Branches {
-        let mut graphed_branches = self.branches.clone();
         if let Some(base) = &self.base.branch {
             graphed_branches.insert(base.clone());
         }
@@ -461,7 +444,7 @@ pub fn stack(
 
 fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
     log::trace!("Planning stack changes with base={}", stack.base,);
-    let graphed_branches = stack.graphed_branches();
+    let graphed_branches = stack.branches.clone();
     let base_commit = state
         .repo
         .find_commit(stack.base.id)
@@ -530,7 +513,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
 fn push(state: &mut State) -> eyre::Result<()> {
     let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
     for stack in state.stacks.iter() {
-        let stack_graphed_branches = stack.graphed_branches();
+        let stack_graphed_branches = stack.branches.clone();
         graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
     }
     let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
@@ -578,7 +561,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
 
     let mut graphs = Vec::with_capacity(state.stacks.len());
     for stack in state.stacks.iter() {
-        let graphed_branches = stack.graphed_branches();
+        let graphed_branches = stack.branches.clone();
         if graphed_branches.len() == 1 && abbrev_graph {
             let branches = graphed_branches.iter().next().unwrap().1;
             if branches.len() == 1 && branches[0].id != state.head_commit.id {
