@@ -466,7 +466,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
             .as_ref()
             .map(|b| b.id)
             .unwrap_or(stack.onto.id);
-        let pull_start_id = stack.onto.id;
+        let pull_start_id = stack.base.id;
         let pull_start_id = state
             .repo
             .merge_base(pull_start_id, onto_id)
@@ -620,7 +620,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                     .as_ref()
                     .map(|b| b.id)
                     .unwrap_or(stack.onto.id);
-                let pull_start_id = stack.onto.id;
+                let pull_start_id = stack.base.id;
                 let pull_start_id = state
                     .repo
                     .merge_base(pull_start_id, onto_id)
