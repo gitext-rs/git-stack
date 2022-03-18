@@ -375,21 +375,17 @@ pub fn rebase_pulled_branches(graph: &mut Graph, pull_start: git2::Oid, pull_end
         return;
     }
 
-    let mut branches = Default::default();
-    std::mem::swap(
-        &mut branches,
+    let branches = std::mem::take(
         &mut graph
             .get_mut(pull_start)
             .expect("all children exist")
             .branches,
     );
-    std::mem::swap(
-        &mut branches,
-        &mut graph
-            .get_mut(pull_end)
-            .expect("all children exist")
-            .branches,
-    );
+    graph
+        .get_mut(pull_end)
+        .expect("all children exist")
+        .branches
+        .extend(branches);
 }
 
 pub fn pushable(graph: &mut Graph) {
