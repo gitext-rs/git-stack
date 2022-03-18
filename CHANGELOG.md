@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.8.0] - 2022-03-18
+
 ### Compatibility
 
 - Pull remote handling changed enough that regressions could have been introduced.
@@ -347,7 +349,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.7.4...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.8.0...HEAD
+[0.8.0]: https://github.com/gitext-rs/git-stack/compare/v0.7.4...v0.8.0
 [0.7.4]: https://github.com/gitext-rs/git-stack/compare/v0.7.3...v0.7.4
 [0.7.3]: https://github.com/gitext-rs/git-stack/compare/v0.7.2...v0.7.3
 [0.7.2]: https://github.com/gitext-rs/git-stack/compare/v0.7.1...v0.7.2
