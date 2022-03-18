@@ -97,10 +97,11 @@ impl State {
         for branch in repo.local_branches() {
             if protected.is_protected(&branch.name) {
                 log::trace!("Branch {} is protected", branch);
-                protected_branches.insert(branch.clone());
                 if let Some(remote) = repo.find_remote_branch(repo.pull_remote(), &branch.name) {
                     protected_branches.insert(remote.clone());
                     branches.insert(remote);
+                } else {
+                    protected_branches.insert(branch.clone());
                 }
             }
             branches.insert(branch);
@@ -128,7 +129,7 @@ impl State {
                 }]
             }
             (Some(base), None, git_stack::config::Stack::All) => {
-                let onto = base.clone();
+                let onto = resolve_onto_from_base(&repo, &base);
                 vec![StackState {
                     base,
                     onto,
@@ -136,7 +137,7 @@ impl State {
                 }]
             }
             (None, Some(onto), git_stack::config::Stack::All) => {
-                let base = onto.clone();
+                let base = resolve_base_from_onto(&repo, &onto);
                 vec![StackState {
                     base,
                     onto,
@@ -156,8 +157,8 @@ impl State {
                 }
                 stack_branches
                     .into_iter()
-                    .map(|(base, branches)| {
-                        let onto = base.clone();
+                    .map(|(onto, branches)| {
+                        let base = resolve_base_from_onto(&repo, &onto);
                         StackState {
                             base,
                             onto,
@@ -167,14 +168,40 @@ impl State {
                     .collect()
             }
             (base, onto, stack) => {
-                let base = base
-                    .map(Result::Ok)
-                    .unwrap_or_else(|| {
-                        resolve_implicit_base(&repo, head_commit.id, &branches, &protected_branches)
-                            .map(AnnotatedOid::with_branch)
-                    })
-                    .with_code(proc_exit::Code::USAGE_ERR)?;
-                let onto = onto.unwrap_or_else(|| base.clone());
+                let (base, onto) = match (base, onto) {
+                    (Some(base), Some(onto)) => (base, onto),
+                    (Some(base), None) => {
+                        let onto = resolve_onto_from_base(&repo, &base);
+                        (base, onto)
+                    }
+                    (None, Some(onto)) => {
+                        let base = AnnotatedOid::with_branch(
+                            resolve_implicit_base(
+                                &repo,
+                                head_commit.id,
+                                &branches,
+                                &protected_branches,
+                            )
+                            .with_code(proc_exit::Code::USAGE_ERR)?,
+                        );
+                        // HACK: Since `base` might have come back with a remote branch, treat it as an
+                        // "onto" to find the local version.
+                        let base = resolve_base_from_onto(&repo, &base);
+                        (base, onto)
+                    }
+                    (None, None) => {
+                        let onto = resolve_implicit_base(
+                            &repo,
+                            head_commit.id,
+                            &branches,
+                            &protected_branches,
+                        )
+                        .map(AnnotatedOid::with_branch)
+                        .with_code(proc_exit::Code::USAGE_ERR)?;
+                        let base = resolve_base_from_onto(&repo, &onto);
+                        (base, onto)
+                    }
+                };
                 let merge_base_oid = repo
                     .merge_base(base.id, head_commit.id)
                     .ok_or_else(|| {
@@ -441,15 +468,6 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         .expect("base branch is valid");
     let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
-    for branch in state.protected_branches.iter().flat_map(|(_, b)| b) {
-        if let Some(pull_id) = branch.pull_id {
-            let pull_commit = state
-                .repo
-                .find_commit(pull_id)
-                .expect("base branch is valid");
-            graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
-        }
-    }
     git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
     let bases = stack.self_branches();
     git_stack::graph::protect_branches(&mut graph, &state.repo, &bases);
@@ -468,13 +486,8 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     let mut dropped_branches = Vec::new();
     if state.rebase {
         log::trace!("Rebasing onto {}", stack.onto);
-        let onto_id = stack
-            .onto
-            .branch
-            .as_ref()
-            .and_then(|b| b.pull_id)
-            .unwrap_or(stack.onto.id);
-        let pull_start_id = stack.onto.id;
+        let onto_id = stack.onto.id;
+        let pull_start_id = stack.base.id;
         let pull_start_id = state
             .repo
             .merge_base(pull_start_id, onto_id)
@@ -581,17 +594,6 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             .expect("base branch is valid");
         let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
         graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
-        for branch in state.protected_branches.iter().flat_map(|(_, b)| b) {
-            if let Some(pull_id) = branch.pull_id {
-                if state.repo.merge_base(pull_id, graph.root_id()) == Some(graph.root_id()) {
-                    let pull_commit = state
-                        .repo
-                        .find_commit(pull_id)
-                        .expect("base branch is valid");
-                    graph.insert(&state.repo, git_stack::graph::Node::new(pull_commit))?;
-                }
-            }
-        }
         git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
         let bases = stack.self_branches();
         git_stack::graph::protect_branches(&mut graph, &state.repo, &bases);
@@ -633,13 +635,8 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             // Show as-if we performed all mutations
             if state.rebase {
                 log::trace!("Rebasing onto {}", stack.onto);
-                let onto_id = stack
-                    .onto
-                    .branch
-                    .as_ref()
-                    .and_then(|b| b.pull_id)
-                    .unwrap_or(stack.onto.id);
-                let pull_start_id = stack.onto.id;
+                let onto_id = stack.onto.id;
+                let pull_start_id = stack.base.id;
                 let pull_start_id = state
                     .repo
                     .merge_base(pull_start_id, onto_id)
@@ -832,6 +829,26 @@ fn resolve_implicit_base(
             .unwrap_or_else(|| "target".to_owned())
     );
     Ok(branch.clone())
+}
+
+fn resolve_base_from_onto(repo: &git_stack::git::GitRepo, onto: &AnnotatedOid) -> AnnotatedOid {
+    // HACK: Assuming the local branch is the current base for all the commits
+    onto.branch
+        .as_ref()
+        .filter(|b| b.remote.is_some())
+        .and_then(|b| repo.find_local_branch(&b.name))
+        .map(AnnotatedOid::with_branch)
+        .unwrap_or_else(|| onto.clone())
+}
+
+fn resolve_onto_from_base(repo: &git_stack::git::GitRepo, base: &AnnotatedOid) -> AnnotatedOid {
+    // HACK: Assuming the local branch is the current base for all the commits
+    base.branch
+        .as_ref()
+        .filter(|b| b.remote.is_none())
+        .and_then(|b| repo.find_remote_branch(repo.pull_remote(), &b.name))
+        .map(AnnotatedOid::with_branch)
+        .unwrap_or_else(|| base.clone())
 }
 
 fn git_prune_development(
@@ -1499,25 +1516,10 @@ fn format_branch_status<'d>(
 ) -> String {
     // See format_commit_status
     if node.action.is_protected() {
-        match commit_relation(repo, branch.id, branch.pull_id) {
-            Some((0, 0)) => String::new(),
-            Some((local, 0)) => {
-                format!(" {}", palette.warn.paint(format!("({} ahead)", local)))
-            }
-            Some((0, remote)) => {
-                format!(" {}", palette.warn.paint(format!("({} behind)", remote)))
-            }
-            Some((local, remote)) => {
-                format!(
-                    " {}",
-                    palette
-                        .warn
-                        .paint(format!("({} ahead, {} behind)", local, remote)),
-                )
-            }
-            None => {
-                format!(" {}", palette.warn.paint("(no remote)"))
-            }
+        if branch.pull_id.is_none() {
+            format!(" {}", palette.warn.paint("(no remote)"))
+        } else {
+            String::new()
         }
     } else if node.action.is_delete() {
         String::new()

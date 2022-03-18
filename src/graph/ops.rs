@@ -14,7 +14,7 @@ pub fn protect_branches(
 
     let protected_oids: HashSet<_> = protected_branches
         .iter()
-        .flat_map(|(_, branches)| branches.iter().map(|b| b.pull_id.unwrap_or(b.id)))
+        .flat_map(|(_, branches)| branches.iter().map(|b| b.id))
         .collect();
 
     for protected_oid in protected_oids.into_iter().filter(|protected_oid| {
