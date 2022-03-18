@@ -59,8 +59,15 @@ pub fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
     .with_code(proc_exit::Code::CONFIG_ERR)?;
 
     let repo = git_stack::git::GitRepo::new(repo);
-    let branches = git_stack::git::Branches::new(repo.local_branches());
-    let protected_branches = branches.protected(&protected);
+    let mut branches = git_stack::git::Branches::new([]);
+    let mut protected_branches = git_stack::git::Branches::new([]);
+    for branch in repo.local_branches() {
+        if protected.is_protected(&branch.name) {
+            log::trace!("Branch {} is protected", branch);
+            protected_branches.insert(branch.clone());
+        }
+        branches.insert(branch);
+    }
 
     for (branch_id, branches) in branches.iter() {
         if protected_branches.contains_oid(branch_id) {
