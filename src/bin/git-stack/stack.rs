@@ -381,8 +381,14 @@ pub fn stack(
             .map(|stack| {
                 let script = plan_changes(&state, stack).with_code(proc_exit::Code::FAILURE)?;
                 if script.is_branch_deleted(&head_branch) {
-                    if let Some(local_name) =
-                        stack.onto.branch.as_ref().and_then(|b| b.local_name())
+                    // Current branch is deleted, fallback to the local version of the onto branch,
+                    // if possible.
+                    if let Some(local_name) = stack
+                        .onto
+                        .branch
+                        .as_ref()
+                        .map(|b| b.name.as_str())
+                        .filter(|n| state.repo.find_local_branch(n).is_some())
                     {
                         head_branch = local_name.to_owned();
                     }
