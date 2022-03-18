@@ -460,12 +460,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
     let mut dropped_branches = Vec::new();
     if state.rebase {
         log::trace!("Rebasing onto {}", stack.onto);
-        let onto_id = stack
-            .onto
-            .branch
-            .as_ref()
-            .map(|b| b.id)
-            .unwrap_or(stack.onto.id);
+        let onto_id = stack.onto.id;
         let pull_start_id = stack.base.id;
         let pull_start_id = state
             .repo
@@ -614,12 +609,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             // Show as-if we performed all mutations
             if state.rebase {
                 log::trace!("Rebasing onto {}", stack.onto);
-                let onto_id = stack
-                    .onto
-                    .branch
-                    .as_ref()
-                    .map(|b| b.id)
-                    .unwrap_or(stack.onto.id);
+                let onto_id = stack.onto.id;
                 let pull_start_id = stack.base.id;
                 let pull_start_id = state
                     .repo
