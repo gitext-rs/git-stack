@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Compatibility
+
+- Pull remote handling changed enough that regressions could have been introduced.
+- Slight changes to how `--base` and `--onto` are defaulted
+- `--pull --onto <remote>/<branch>` behavior changed
+
+### Fixes
+
+- Show remote branches when they diverge from base branch
+- `--base` defaults to the local branch of `--onto`
+- `--onto` defaults to the remote branch of `--base`
+- Pull using the remote specified in `--onto` rather than just the upstream
+
 ## [0.7.4] - 2022-03-17
 
 ### Features
