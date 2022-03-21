@@ -136,10 +136,9 @@ impl State {
                 let mut stack_branches = std::collections::BTreeMap::new();
                 for (branch_id, branch) in branches.iter() {
                     let base_branch =
-                        resolve_implicit_base(&repo, branch_id, &branches, &protected_branches)
-                            .with_code(proc_exit::Code::USAGE_ERR)?;
+                        resolve_implicit_base(&repo, branch_id, &branches, &protected_branches);
                     stack_branches
-                        .entry(AnnotatedOid::with_branch(base_branch))
+                        .entry(base_branch)
                         .or_insert_with(git_stack::git::Branches::default)
                         .extend(branch.iter().cloned());
                 }
@@ -159,14 +158,11 @@ impl State {
                         (base, onto)
                     }
                     (None, Some(onto)) => {
-                        let base = AnnotatedOid::with_branch(
-                            resolve_implicit_base(
-                                &repo,
-                                head_commit.id,
-                                &branches,
-                                &protected_branches,
-                            )
-                            .with_code(proc_exit::Code::USAGE_ERR)?,
+                        let base = resolve_implicit_base(
+                            &repo,
+                            head_commit.id,
+                            &branches,
+                            &protected_branches,
                         );
                         // HACK: Since `base` might have come back with a remote branch, treat it as an
                         // "onto" to find the local version.
@@ -179,9 +175,7 @@ impl State {
                             head_commit.id,
                             &branches,
                             &protected_branches,
-                        )
-                        .map(AnnotatedOid::with_branch)
-                        .with_code(proc_exit::Code::USAGE_ERR)?;
+                        );
                         let base = resolve_base_from_onto(&repo, &onto);
                         (base, onto)
                     }
@@ -793,25 +787,32 @@ fn resolve_implicit_base(
     head_oid: git2::Oid,
     branches: &git_stack::git::Branches,
     protected_branches: &git_stack::git::Branches,
-) -> eyre::Result<git_stack::git::Branch> {
-    let branch = git_stack::git::find_protected_base(repo, protected_branches, head_oid)
-        .ok_or_else(|| eyre::eyre!("Could not find a protected branch to use as a base"))?;
-    log::debug!(
-        "Chose branch {} as the base for {}",
-        branch,
-        branches
-            .get(head_oid)
-            .map(|b| b[0].to_string())
-            .or_else(|| {
-                repo.find_commit(head_oid)?
-                    .summary
-                    .to_str()
-                    .ok()
-                    .map(ToOwned::to_owned)
-            })
-            .unwrap_or_else(|| "target".to_owned())
-    );
-    Ok(branch.clone())
+) -> AnnotatedOid {
+    let branch = match git_stack::git::find_protected_base(repo, protected_branches, head_oid) {
+        Some(branch) => {
+            log::debug!(
+                "Chose branch {} as the base for {}",
+                branch,
+                branches
+                    .get(head_oid)
+                    .map(|b| b[0].to_string())
+                    .or_else(|| {
+                        repo.find_commit(head_oid)?
+                            .summary
+                            .to_str()
+                            .ok()
+                            .map(ToOwned::to_owned)
+                    })
+                    .unwrap_or_else(|| "target".to_owned())
+            );
+            AnnotatedOid::with_branch(branch.to_owned())
+        }
+        None => {
+            log::warn!("Could not find protected branch for {}", head_oid);
+            AnnotatedOid::new(head_oid)
+        }
+    };
+    branch
 }
 
 fn resolve_base_from_onto(repo: &git_stack::git::GitRepo, onto: &AnnotatedOid) -> AnnotatedOid {
