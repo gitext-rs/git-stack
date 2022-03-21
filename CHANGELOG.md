@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Don't fail on undetected base
+
+### Performance
+
+- Speed up view rendering with branches on very old commits by caching git operations in-memory
+
 ## [0.8.0] - 2022-03-18
 
 ### Compatibility
