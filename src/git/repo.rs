@@ -123,6 +123,7 @@ pub struct GitRepo {
     pull_remote: Option<String>,
     commits: std::cell::RefCell<std::collections::HashMap<git2::Oid, std::rc::Rc<Commit>>>,
     interned_strings: std::cell::RefCell<std::collections::HashSet<std::rc::Rc<str>>>,
+    bases: std::cell::RefCell<std::collections::HashMap<(git2::Oid, git2::Oid), Option<git2::Oid>>>,
 }
 
 impl GitRepo {
@@ -133,6 +134,7 @@ impl GitRepo {
             pull_remote: None,
             commits: Default::default(),
             interned_strings: Default::default(),
+            bases: Default::default(),
         }
     }
 
@@ -192,7 +194,11 @@ impl GitRepo {
             return Some(one);
         }
 
-        self.repo.merge_base(one, two).ok()
+        *self
+            .bases
+            .borrow_mut()
+            .entry((one, two))
+            .or_insert_with(|| self.repo.merge_base(one, two).ok())
     }
 
     pub fn find_commit(&self, id: git2::Oid) -> Option<std::rc::Rc<Commit>> {
