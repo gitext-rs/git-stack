@@ -808,8 +808,13 @@ fn resolve_implicit_base(
             AnnotatedOid::with_branch(branch.to_owned())
         }
         None => {
-            log::warn!("Could not find protected branch for {}", head_oid);
-            AnnotatedOid::new(head_oid)
+            let assumed_base_oid = git_stack::git::infer_base(repo, head_oid).unwrap_or(head_oid);
+            log::warn!(
+                "Could not find protected branch for {}, assuming {}",
+                head_oid,
+                assumed_base_oid
+            );
+            AnnotatedOid::new(assumed_base_oid)
         }
     };
     branch
