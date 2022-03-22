@@ -194,11 +194,12 @@ impl GitRepo {
             return Some(one);
         }
 
+        let (smaller, larger) = if one < two { (one, two) } else { (two, one) };
         *self
             .bases
             .borrow_mut()
-            .entry((one, two))
-            .or_insert_with(|| self.repo.merge_base(one, two).ok())
+            .entry((smaller, larger))
+            .or_insert_with(|| self.repo.merge_base(smaller, larger).ok())
     }
 
     pub fn find_commit(&self, id: git2::Oid) -> Option<std::rc::Rc<Commit>> {
