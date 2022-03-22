@@ -199,7 +199,11 @@ impl GitRepo {
             .bases
             .borrow_mut()
             .entry((smaller, larger))
-            .or_insert_with(|| self.repo.merge_base(smaller, larger).ok())
+            .or_insert_with(|| self.merge_base_raw(smaller, larger))
+    }
+
+    fn merge_base_raw(&self, one: git2::Oid, two: git2::Oid) -> Option<git2::Oid> {
+        self.repo.merge_base(one, two).ok()
     }
 
     pub fn find_commit(&self, id: git2::Oid) -> Option<std::rc::Rc<Commit>> {
