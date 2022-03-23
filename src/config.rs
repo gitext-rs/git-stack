@@ -5,6 +5,7 @@ pub struct RepoConfig {
     pub protected_branches: Option<Vec<String>>,
     pub protect_commit_count: Option<usize>,
     pub protect_commit_age: Option<std::time::Duration>,
+    pub auto_base_commit_count: Option<usize>,
     pub stack: Option<Stack>,
     pub push_remote: Option<String>,
     pub pull_remote: Option<String>,
@@ -20,6 +21,7 @@ pub struct RepoConfig {
 static PROTECTED_STACK_FIELD: &str = "stack.protected-branch";
 static PROTECT_COMMIT_COUNT: &str = "stack.protect-commit-count";
 static PROTECT_COMMIT_AGE: &str = "stack.protect-commit-age";
+static AUTO_BASE_COMMIT_COUNT: &str = "stack.auto-base-commit-count";
 static STACK_FIELD: &str = "stack.stack";
 static PUSH_REMOTE_FIELD: &str = "stack.push-remote";
 static PULL_REMOTE_FIELD: &str = "stack.pull-remote";
@@ -34,6 +36,7 @@ static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable
 static DEFAULT_PROTECT_COMMIT_COUNT: usize = 50;
 static DEFAULT_PROTECT_COMMIT_AGE: std::time::Duration =
     std::time::Duration::from_secs(60 * 60 * 24 * 14);
+static DEFAULT_AUTO_BASE_COMMIT_COUNT: usize = 500;
 const DEFAULT_CAPACITY: usize = 30;
 
 impl RepoConfig {
@@ -132,6 +135,10 @@ impl RepoConfig {
                 {
                     config.protect_commit_age = Some(value);
                 }
+            } else if key == AUTO_BASE_COMMIT_COUNT {
+                if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
+                    config.auto_base_commit_count = Some(value);
+                }
             } else if key == STACK_FIELD {
                 if let Some(value) = value.as_ref().and_then(|v| FromStr::from_str(v).ok()) {
                     config.stack = Some(value);
@@ -190,6 +197,7 @@ impl RepoConfig {
         let mut conf = Self::default();
         conf.protect_commit_count = Some(conf.protect_commit_count().unwrap_or(0));
         conf.protect_commit_age = Some(conf.protect_commit_age());
+        conf.auto_base_commit_count = Some(conf.auto_base_commit_count().unwrap_or(0));
         conf.stack = Some(conf.stack());
         conf.push_remote = Some(conf.push_remote().to_owned());
         conf.pull_remote = Some(conf.pull_remote().to_owned());
@@ -240,6 +248,11 @@ impl RepoConfig {
             .ok()
             .and_then(|s| humantime::parse_duration(&s).ok());
 
+        let auto_base_commit_count = config
+            .get_i64(AUTO_BASE_COMMIT_COUNT)
+            .ok()
+            .map(|i| i.max(0) as usize);
+
         let push_remote = config
             .get_string(PUSH_REMOTE_FIELD)
             .ok()
@@ -279,6 +292,7 @@ impl RepoConfig {
             protected_branches,
             protect_commit_count,
             protect_commit_age,
+            auto_base_commit_count,
             push_remote,
             pull_remote,
             stack,
@@ -320,6 +334,7 @@ impl RepoConfig {
         }
         self.protect_commit_count = other.protect_commit_count.or(self.protect_commit_count);
         self.protect_commit_age = other.protect_commit_age.or(self.protect_commit_age);
+        self.auto_base_commit_count = other.auto_base_commit_count.or(self.auto_base_commit_count);
         self.push_remote = other.push_remote.or(self.push_remote);
         self.pull_remote = other.pull_remote.or(self.pull_remote);
         self.stack = other.stack.or(self.stack);
@@ -347,6 +362,13 @@ impl RepoConfig {
     pub fn protect_commit_age(&self) -> std::time::Duration {
         self.protect_commit_age
             .unwrap_or(DEFAULT_PROTECT_COMMIT_AGE)
+    }
+
+    pub fn auto_base_commit_count(&self) -> Option<usize> {
+        let auto_base_commit_count = self
+            .auto_base_commit_count
+            .unwrap_or(DEFAULT_AUTO_BASE_COMMIT_COUNT);
+        (auto_base_commit_count != 0).then(|| auto_base_commit_count)
     }
 
     pub fn push_remote(&self) -> &str {
@@ -411,6 +433,12 @@ impl std::fmt::Display for RepoConfig {
             "\t{}={}",
             PROTECT_COMMIT_AGE.split_once('.').unwrap().1,
             humantime::format_duration(self.protect_commit_age())
+        )?;
+        writeln!(
+            f,
+            "\t{}={}",
+            AUTO_BASE_COMMIT_COUNT.split_once('.').unwrap().1,
+            self.auto_base_commit_count().unwrap_or(0)
         )?;
         writeln!(
             f,

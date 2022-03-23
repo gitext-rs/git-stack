@@ -89,6 +89,7 @@ impl Args {
             protected_branches: None,
             protect_commit_count: None,
             protect_commit_age: None,
+            auto_base_commit_count: None,
             stack: self.stack,
             push_remote: None,
             pull_remote: None,
