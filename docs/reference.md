@@ -104,7 +104,9 @@ Why not `git push --set-upstream --force-with-lease origin <branch>`?
 
 ### `git branch-stash`
 
-While `git stash` backs up and restores your working tree, `git branch-stash` backs up and restores the state of all of your branches.
+While `git stash` backs up and restores your working tree,
+[`git branch-stash`](https://github.com/gitext-rs/git-branch-stash) backs up
+and restores the state of all of your branches.
 
 `git-stack` implicitly does a `git branch-stash` whenever modifying the tree.
 
