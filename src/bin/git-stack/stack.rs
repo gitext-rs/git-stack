@@ -1275,10 +1275,11 @@ impl<'r> Tree<'r> {
                 }
                 tree.push(stack_tree);
             } else {
-                if i != 0 && !stack.is_empty() {
-                    tree.push(termtree::Tree::root(joint).with_glyphs(SPACE_GLYPHS));
-                }
-                for child_tree in stack.into_iter() {
+                let stack_len = stack.len();
+                for (j, child_tree) in stack.into_iter().enumerate() {
+                    if i != 0 && j == 0 {
+                        tree.push(termtree::Tree::root(joint).with_glyphs(SPACE_GLYPHS));
+                    }
                     let child = RenderNode {
                         repo,
                         head_branch,
@@ -1287,17 +1288,23 @@ impl<'r> Tree<'r> {
                         palette,
                     };
                     tree.push(termtree::Tree::root(child).with_glyphs(GLYPHS));
-                    for child_stack in child_tree.stacks.into_iter() {
-                        let mut stack_tree = termtree::Tree::root(joint).with_glyphs(JOINT_GLYPHS);
-                        for child_tree in child_stack.into_iter() {
-                            stack_tree.push(child_tree.into_display(
-                                repo,
-                                head_branch,
-                                protected_branches,
-                                palette,
-                            ));
+                    if !child_tree.stacks.is_empty() {
+                        for child_stack in child_tree.stacks.into_iter() {
+                            let mut stack_tree =
+                                termtree::Tree::root(joint).with_glyphs(JOINT_GLYPHS);
+                            for child_tree in child_stack.into_iter() {
+                                stack_tree.push(child_tree.into_display(
+                                    repo,
+                                    head_branch,
+                                    protected_branches,
+                                    palette,
+                                ));
+                            }
+                            tree.push(stack_tree);
                         }
-                        tree.push(stack_tree);
+                        if j < stack_len {
+                            tree.push(termtree::Tree::root(joint).with_glyphs(SPACE_GLYPHS));
+                        }
                     }
                 }
             }
