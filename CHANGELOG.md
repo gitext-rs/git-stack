@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Find a better base for commits without a protected branch
+
+### Performance
+
+- Split off old branches into dedicated stacks before building the commit graph, controlled by `stack.auto-base-commit-count`.
+- Cache some git operations in-memory
+
 ## [0.8.1] - 2022-03-21
 
 ### Fixes
