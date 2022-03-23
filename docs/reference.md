@@ -129,6 +129,7 @@ Configuration is read from the following (in precedence order):
 | stack.protected-branch | \-       | multivar of globs          | Branch names that match these globs (`.gitignore` syntax) are considered protected branches |
 | stack.protect-commit-count | \-   | integer                    | Protect commits that are on a branch with `count`+ commits |
 | stack.protect-commit-age | \-     | time delta (e.g. 10days)   | Protect commits that older than the specified time |
+| stack.auto-base-commit-count | \-     | integer                | Split off branches that are more than `count` commits away from the implied base |
 | stack.stack            | --stack  | "current", "dependents", "descendants", "all" | Which development branch-stacks to operate on |
 | stack.push-remote      | \-       | string                     | Development remote for pushing local branches |
 | stack.pull-remote      | \-       | string                     | Upstream remote for pulling protected branches |

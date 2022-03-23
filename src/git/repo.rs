@@ -124,6 +124,7 @@ pub struct GitRepo {
     commits: std::cell::RefCell<std::collections::HashMap<git2::Oid, std::rc::Rc<Commit>>>,
     interned_strings: std::cell::RefCell<std::collections::HashSet<std::rc::Rc<str>>>,
     bases: std::cell::RefCell<std::collections::HashMap<(git2::Oid, git2::Oid), Option<git2::Oid>>>,
+    counts: std::cell::RefCell<std::collections::HashMap<(git2::Oid, git2::Oid), Option<usize>>>,
 }
 
 impl GitRepo {
@@ -135,6 +136,7 @@ impl GitRepo {
             commits: Default::default(),
             interned_strings: Default::default(),
             bases: Default::default(),
+            counts: Default::default(),
         }
     }
 
@@ -194,11 +196,16 @@ impl GitRepo {
             return Some(one);
         }
 
+        let (smaller, larger) = if one < two { (one, two) } else { (two, one) };
         *self
             .bases
             .borrow_mut()
-            .entry((one, two))
-            .or_insert_with(|| self.repo.merge_base(one, two).ok())
+            .entry((smaller, larger))
+            .or_insert_with(|| self.merge_base_raw(smaller, larger))
+    }
+
+    fn merge_base_raw(&self, one: git2::Oid, two: git2::Oid) -> Option<git2::Oid> {
+        self.repo.merge_base(one, two).ok()
     }
 
     pub fn find_commit(&self, id: git2::Oid) -> Option<std::rc::Rc<Commit>> {
@@ -284,6 +291,14 @@ impl GitRepo {
             return Some(0);
         }
 
+        *self
+            .counts
+            .borrow_mut()
+            .entry((base_id, head_id))
+            .or_insert_with(|| self.commit_count_raw(base_id, head_id))
+    }
+
+    fn commit_count_raw(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize> {
         let merge_base_id = self.merge_base(base_id, head_id)?;
         if merge_base_id != base_id {
             return None;

@@ -279,3 +279,26 @@ pub fn find_protected_base<'b>(
 
     None
 }
+
+pub fn infer_base(repo: &dyn crate::git::Repo, head_oid: git2::Oid) -> Option<git2::Oid> {
+    let head_commit = repo.find_commit(head_oid)?;
+    let head_committer = head_commit.committer.clone();
+
+    let mut next_oid = head_oid;
+    loop {
+        let next_commit = repo.find_commit(next_oid)?;
+        if next_commit.committer != head_committer {
+            return Some(next_oid);
+        }
+        let parent_ids = repo.parent_ids(next_oid).ok()?;
+        match parent_ids.len() {
+            1 => {
+                next_oid = parent_ids[0];
+            }
+            _ => {
+                // Assume merge-commits are topic branches being merged into the upstream
+                return Some(next_oid);
+            }
+        }
+    }
+}

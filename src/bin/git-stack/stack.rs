@@ -135,8 +135,13 @@ impl State {
             (None, None, git_stack::config::Stack::All) => {
                 let mut stack_branches = std::collections::BTreeMap::new();
                 for (branch_id, branch) in branches.iter() {
-                    let base_branch =
-                        resolve_implicit_base(&repo, branch_id, &branches, &protected_branches);
+                    let base_branch = resolve_implicit_base(
+                        &repo,
+                        branch_id,
+                        &branches,
+                        &protected_branches,
+                        repo_config.auto_base_commit_count(),
+                    );
                     stack_branches
                         .entry(base_branch)
                         .or_insert_with(git_stack::git::Branches::default)
@@ -163,6 +168,7 @@ impl State {
                             head_commit.id,
                             &branches,
                             &protected_branches,
+                            repo_config.auto_base_commit_count(),
                         );
                         // HACK: Since `base` might have come back with a remote branch, treat it as an
                         // "onto" to find the local version.
@@ -175,6 +181,7 @@ impl State {
                             head_commit.id,
                             &branches,
                             &protected_branches,
+                            repo_config.auto_base_commit_count(),
                         );
                         let base = resolve_base_from_onto(&repo, &onto);
                         (base, onto)
@@ -787,9 +794,45 @@ fn resolve_implicit_base(
     head_oid: git2::Oid,
     branches: &git_stack::git::Branches,
     protected_branches: &git_stack::git::Branches,
+    auto_base_commit_count: Option<usize>,
 ) -> AnnotatedOid {
-    let branch = match git_stack::git::find_protected_base(repo, protected_branches, head_oid) {
+    match git_stack::git::find_protected_base(repo, protected_branches, head_oid) {
         Some(branch) => {
+            let merge_base_id = repo
+                .merge_base(branch.id, head_oid)
+                .expect("to be a base, there must be a merge base");
+            if let Some(max_commit_count) = auto_base_commit_count {
+                let ahead_count = repo
+                    .commit_count(merge_base_id, head_oid)
+                    .expect("merge_base should ensure a count exists ");
+                let behind_count = repo
+                    .commit_count(merge_base_id, branch.id)
+                    .expect("merge_base should ensure a count exists ");
+                if max_commit_count <= ahead_count + behind_count {
+                    let assumed_base_oid =
+                        git_stack::git::infer_base(repo, head_oid).unwrap_or(head_oid);
+                    log::warn!(
+                        "{} is {} ahead and {} behind {}, using {} as --base instead",
+                        branches
+                            .get(head_oid)
+                            .map(|b| b[0].to_string())
+                            .or_else(|| {
+                                repo.find_commit(head_oid)?
+                                    .summary
+                                    .to_str()
+                                    .ok()
+                                    .map(ToOwned::to_owned)
+                            })
+                            .unwrap_or_else(|| "target".to_owned()),
+                        ahead_count,
+                        behind_count,
+                        branch,
+                        assumed_base_oid
+                    );
+                    return AnnotatedOid::new(assumed_base_oid);
+                }
+            }
+
             log::debug!(
                 "Chose branch {} as the base for {}",
                 branch,
@@ -808,11 +851,15 @@ fn resolve_implicit_base(
             AnnotatedOid::with_branch(branch.to_owned())
         }
         None => {
-            log::warn!("Could not find protected branch for {}", head_oid);
-            AnnotatedOid::new(head_oid)
+            let assumed_base_oid = git_stack::git::infer_base(repo, head_oid).unwrap_or(head_oid);
+            log::warn!(
+                "Could not find protected branch for {}, assuming {}",
+                head_oid,
+                assumed_base_oid
+            );
+            AnnotatedOid::new(assumed_base_oid)
         }
-    };
-    branch
+    }
 }
 
 fn resolve_base_from_onto(repo: &git_stack::git::GitRepo, onto: &AnnotatedOid) -> AnnotatedOid {
