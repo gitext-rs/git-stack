@@ -1300,7 +1300,7 @@ impl<'r> Tree<'r> {
             node: Some(self.root),
             palette,
         };
-        let mut tree = termtree::Tree::root(root).with_glyphs(GLYPHS);
+        let mut tree = termtree::Tree::new(root).with_glyphs(GLYPHS);
         let joint = RenderNode {
             repo,
             head_branch,
@@ -1311,7 +1311,7 @@ impl<'r> Tree<'r> {
         let stacks_len = self.stacks.len();
         for (i, stack) in self.stacks.into_iter().enumerate() {
             if i < stacks_len - 1 {
-                let mut stack_tree = termtree::Tree::root(joint).with_glyphs(JOINT_GLYPHS);
+                let mut stack_tree = termtree::Tree::new(joint).with_glyphs(JOINT_GLYPHS);
                 for child_tree in stack.into_iter() {
                     stack_tree.push(child_tree.into_display(
                         repo,
@@ -1325,7 +1325,7 @@ impl<'r> Tree<'r> {
                 let stack_len = stack.len();
                 for (j, child_tree) in stack.into_iter().enumerate() {
                     if i != 0 && j == 0 {
-                        tree.push(termtree::Tree::root(joint).with_glyphs(SPACE_GLYPHS));
+                        tree.push(termtree::Tree::new(joint).with_glyphs(SPACE_GLYPHS));
                     }
                     let child = RenderNode {
                         repo,
@@ -1334,11 +1334,11 @@ impl<'r> Tree<'r> {
                         node: Some(child_tree.root),
                         palette,
                     };
-                    tree.push(termtree::Tree::root(child).with_glyphs(GLYPHS));
+                    tree.push(termtree::Tree::new(child).with_glyphs(GLYPHS));
                     if !child_tree.stacks.is_empty() {
                         for child_stack in child_tree.stacks.into_iter() {
                             let mut stack_tree =
-                                termtree::Tree::root(joint).with_glyphs(JOINT_GLYPHS);
+                                termtree::Tree::new(joint).with_glyphs(JOINT_GLYPHS);
                             for child_tree in child_stack.into_iter() {
                                 stack_tree.push(child_tree.into_display(
                                     repo,
@@ -1350,7 +1350,7 @@ impl<'r> Tree<'r> {
                             tree.push(stack_tree);
                         }
                         if j < stack_len {
-                            tree.push(termtree::Tree::root(joint).with_glyphs(SPACE_GLYPHS));
+                            tree.push(termtree::Tree::new(joint).with_glyphs(SPACE_GLYPHS));
                         }
                     }
                 }

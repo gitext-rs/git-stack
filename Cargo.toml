@@ -39,7 +39,7 @@ concolor-clap = { version = "0.0.9", features = ["api_unstable"] }
 proc-exit = "1"
 eyre = "0.6"
 human-panic = "1"
-termtree = "0.2.4"
+termtree = "0.4"
 indexmap = "1"
 
 git2-ext = "0.0.5"
