@@ -64,6 +64,19 @@ Cons:
 - Only supports Github
 - Sounds like they require user-prefixes for branches
 
+## `git-machete`
+
+[Website](https://github.com/VirtusLab/git-machete)
+
+Pros:
+- Supports going up and down stacks (`go up`, `go down`, `go next`, `go prev`, `go root`)
+- Quick way to diff a branch on a stack
+
+Cons:
+- Manually managed branch relationships
+  - `discover` to get started
+  - `add` to edit the file from the command-line
+
 ## `git spr`
 
 [Website](https://github.com/ejoffe/spr)
