@@ -211,7 +211,7 @@ If a commit summary is only `WIP` or is prefixed by:
 
 *This includes the prefixes used by [Gitlab](https://docs.gitlab.com/ee/user/project/merge_requests/drafts.html)*
 
-### What is `git branch-staash`
+### What is `git branch-stash`
 
 [`git-branch-stash`](https://github.com/gitext-rs/git-branch-stash) is a
 separate utility that is like `git stash` for instead of your working tree, it
