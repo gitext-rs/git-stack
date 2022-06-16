@@ -8,7 +8,8 @@ documentation = "https://github.com/gitext-rs/git-stack.git"
 readme = "README.md"
 categories = ["command-line-interface", "development-tools"]
 keywords = ["git", "cli"]
-edition = "2018"
+edition = "2021"
+rust-version = "1.60.0"  # MSRV
 include = [
   "src/**/*",
   "Cargo.toml",
