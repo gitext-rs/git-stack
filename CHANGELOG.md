@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Foreign branches are always protected
+
 ## [0.8.2] - 2022-03-23
 
 ### Fixes
