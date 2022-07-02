@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.8.3] - 2022-07-02
+
 ### Fixes
 
 - Foreign branches are always protected
@@ -374,7 +376,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.8.2...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.8.3...HEAD
+[0.8.3]: https://github.com/gitext-rs/git-stack/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/gitext-rs/git-stack/compare/v0.8.1...v0.8.2
 [0.8.1]: https://github.com/gitext-rs/git-stack/compare/v0.8.0...v0.8.1
 [0.8.0]: https://github.com/gitext-rs/git-stack/compare/v0.7.4...v0.8.0
