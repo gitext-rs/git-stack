@@ -466,7 +466,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
         &[state.head_commit.id],
     );
     if let Some(user) = state.repo.user() {
-        git_stack::graph::protect_foreign_branches(&mut graph, &user, &[state.head_commit.id]);
+        git_stack::graph::protect_foreign_branches(&mut graph, &user, &[]);
     }
 
     let mut dropped_branches = Vec::new();
@@ -535,7 +535,7 @@ fn push(state: &mut State) -> eyre::Result<()> {
         &[state.head_commit.id],
     );
     if let Some(user) = state.repo.user() {
-        git_stack::graph::protect_foreign_branches(&mut graph, &user, &[state.head_commit.id]);
+        git_stack::graph::protect_foreign_branches(&mut graph, &user, &[]);
     }
 
     git_stack::graph::pushable(&mut graph);
@@ -612,6 +612,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                     .into_iter()
                     .map(|b| format!("{}", palette_stderr.warn.paint(b))),
                 );
+                git_stack::graph::protect_foreign_branches(&mut graph, &user, &[]);
             }
         }
 
