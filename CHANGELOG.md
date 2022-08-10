@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Correctly identify parent branch when a protected branch points to a commit that is a direct ancestor of another protected branch
+
 ## [0.8.3] - 2022-07-02
 
 ### Fixes
