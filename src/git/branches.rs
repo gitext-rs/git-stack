@@ -253,7 +253,12 @@ pub fn find_protected_base<'b>(
         if let Some((_, closest_common_oid)) = protected_base_oids
             .iter()
             .filter(|(base, _)| *base == parent_oid)
-            .min_by_key(|(base, _)| repo.commit_count(*base, head_oid))
+            .min_by_key(|(base, branch)| {
+                (
+                    repo.commit_count(*base, head_oid),
+                    repo.commit_count(*base, *branch),
+                )
+            })
         {
             return protected_branches
                 .get(*closest_common_oid)
