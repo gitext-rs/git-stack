@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.8.5] - 2022-09-06
+
 ### Fixes
 
 - Provide more information on crash/panic
@@ -386,7 +388,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.8.4...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.8.5...HEAD
+[0.8.5]: https://github.com/gitext-rs/git-stack/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/gitext-rs/git-stack/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/gitext-rs/git-stack/compare/v0.8.2...v0.8.3
 [0.8.2]: https://github.com/gitext-rs/git-stack/compare/v0.8.1...v0.8.2

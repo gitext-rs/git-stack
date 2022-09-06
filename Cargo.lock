@@ -385,7 +385,7 @@ dependencies = [
 
 [[package]]
 name = "git-stack"
-version = "0.8.4"
+version = "0.8.5"
 dependencies = [
  "assert_fs",
  "bstr",
