@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Provide more information on crash/panic
+
 ## [0.8.4] - 2022-08-10
 
 ### Fixes
