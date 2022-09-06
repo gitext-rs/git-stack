@@ -664,10 +664,18 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         graphs.push(graph);
     }
     graphs.sort_by_key(|g| {
-        let mut revwalk = state.repo.raw().revwalk().unwrap();
+        let mut revwalk = state
+            .repo
+            .raw()
+            .revwalk()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
         // Reduce the number of commits to walk
-        revwalk.simplify_first_parent().unwrap();
-        revwalk.push(g.root_id()).unwrap();
+        revwalk
+            .simplify_first_parent()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+        revwalk
+            .push(g.root_id())
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
         revwalk.count()
     });
 
@@ -777,7 +785,7 @@ fn resolve_explicit_base(repo: &git_stack::git::GitRepo, base: &str) -> eyre::Re
                 .shorthand()
                 .ok_or_else(|| eyre::eyre!("Expected branch, got `{}`", base))?
                 .split_once('/')
-                .unwrap();
+                .expect("removes should always have at least one `/`");
             repo.find_remote_branch(remote, name)
                 .ok_or_else(|| eyre::eyre!("Could not find branch {:?}", r.shorthand()))
         } else {
@@ -1441,9 +1449,9 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                     .repo
                     .raw()
                     .find_object(node.commit.id, None)
-                    .unwrap()
+                    .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
                     .short_id()
-                    .unwrap();
+                    .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
                 let style = if self.head_branch.id == node.commit.id {
                     self.palette.highlight
                 } else if node.action.is_protected() {
@@ -1564,7 +1572,7 @@ fn format_branch_status<'d>(
     } else if 1 < repo
         .raw()
         .find_commit(node.commit.id)
-        .unwrap()
+        .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
         .parent_count()
     {
         String::new()
@@ -1616,7 +1624,7 @@ fn format_commit_status<'d>(
     } else if 1 < repo
         .raw()
         .find_commit(node.commit.id)
-        .unwrap()
+        .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
         .parent_count()
     {
         format!(" {}", palette.error.paint("(merge commit)"))
