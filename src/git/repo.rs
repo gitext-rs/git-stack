@@ -176,7 +176,7 @@ impl GitRepo {
         let status = self
             .repo
             .statuses(Some(git2::StatusOptions::new().include_ignored(false)))
-            .unwrap();
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
         if status.is_empty() {
             false
         } else {
@@ -237,16 +237,21 @@ impl GitRepo {
         let head_id = self
             .repo
             .head()
-            .unwrap()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
             .resolve()
-            .unwrap()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
             .target()
             .unwrap();
         self.find_commit(head_id).unwrap()
     }
 
     pub fn head_branch(&self) -> Option<Branch> {
-        let resolved = self.repo.head().unwrap().resolve().unwrap();
+        let resolved = self
+            .repo
+            .head()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .resolve()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
         let name = resolved.shorthand()?;
         let id = resolved.target()?;
 
@@ -303,9 +308,16 @@ impl GitRepo {
         if merge_base_id != base_id {
             return None;
         }
-        let mut revwalk = self.repo.revwalk().unwrap();
-        revwalk.push(head_id).unwrap();
-        revwalk.hide(base_id).unwrap();
+        let mut revwalk = self
+            .repo
+            .revwalk()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+        revwalk
+            .push(head_id)
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+        revwalk
+            .hide(base_id)
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
         Some(revwalk.count())
     }
 
@@ -377,12 +389,17 @@ impl GitRepo {
                 let _ = rebase.abort();
                 e
             })?;
-            let inmemory_index = rebase.inmemory_index().unwrap();
+            let inmemory_index = rebase
+                .inmemory_index()
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
             if inmemory_index.has_conflicts() {
                 return Ok(false);
             }
 
-            let sig = self.repo.signature().unwrap();
+            let sig = self
+                .repo
+                .signature()
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
             match rebase.commit(None, &sig, None).map_err(|e| {
                 let _ = rebase.abort();
                 e
@@ -568,9 +585,9 @@ impl GitRepo {
         let head_id = self
             .repo
             .head()
-            .unwrap()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
             .resolve()
-            .unwrap()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
             .target()
             .unwrap();
         self.repo.set_head_detached(head_id)?;
