@@ -30,11 +30,11 @@ pre-release-replacements = [
 [dependencies]
 git2 = { version = "0.14", default-features = false, features = ["vendored-libgit2"] }
 git-config-env = "0.1"
-clap = { version = "3.1", features = ["derive"] }
+clap = { version = "3.2", features = ["derive"] }
 clap-verbosity-flag = "1.0"
 log = "0.4"
 env_logger = { version = "0.9", default-features = false, features = ["termcolor"] }
-yansi = "0.5.0"
+yansi = "0.5.1"
 concolor = "0.0.8"
 concolor-clap = { version = "0.0.9", features = ["api_unstable"] }
 proc-exit = "1"
@@ -43,12 +43,12 @@ human-panic = "1"
 termtree = "0.4"
 indexmap = "1"
 
-git2-ext = "0.0.5"
+git2-ext = "0.0.6"
 git-branch-stash = "0.8"
 humantime = "2"
 itertools = "0.10"
 ignore = "0.4"
-bstr = "0.2"
+bstr = "1.0.1"
 maplit = "1"
 
 [dev-dependencies]
