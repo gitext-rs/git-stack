@@ -243,13 +243,8 @@ pub fn find_protected_base<'b>(
     }
 
     // Prefer protected branch from first parent
-    let mut child_oid = head_oid;
-    while let Some(parent_oid) = repo
-        .parent_ids(child_oid)
-        .expect("child_oid came from verified source")
-        .first()
-        .copied()
-    {
+    let mut next_oid = Some(head_oid);
+    while let Some(parent_oid) = next_oid {
         if let Some((_, closest_common_oid)) = protected_base_oids
             .iter()
             .filter(|(base, _)| *base == parent_oid)
@@ -265,7 +260,11 @@ pub fn find_protected_base<'b>(
                 .expect("protected_oid came from protected_branches")
                 .first();
         }
-        child_oid = parent_oid;
+        next_oid = repo
+            .parent_ids(parent_oid)
+            .expect("child_oid came from verified source")
+            .first()
+            .copied();
     }
 
     // Prefer most direct ancestors
