@@ -507,7 +507,7 @@ fn default_branch(config: &git2::Config) -> &str {
     config.get_str("init.defaultBranch").ok().unwrap_or("main")
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ArgEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ValueEnum)]
 pub enum Format {
     /// No output
     Silent,
@@ -521,7 +521,7 @@ pub enum Format {
 
 impl std::fmt::Display for Format {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use clap::ArgEnum;
+        use clap::ValueEnum;
         self.to_possible_value()
             .expect("no values are skipped")
             .get_name()
@@ -533,7 +533,7 @@ impl std::str::FromStr for Format {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use clap::ArgEnum;
+        use clap::ValueEnum;
         for variant in Self::value_variants() {
             if variant.to_possible_value().unwrap().matches(s, false) {
                 return Ok(*variant);
@@ -549,7 +549,7 @@ impl Default for Format {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ArgEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ValueEnum)]
 pub enum ShowCommits {
     None,
     Unprotected,
@@ -558,7 +558,7 @@ pub enum ShowCommits {
 
 impl std::fmt::Display for ShowCommits {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use clap::ArgEnum;
+        use clap::ValueEnum;
         self.to_possible_value()
             .expect("no values are skipped")
             .get_name()
@@ -570,7 +570,7 @@ impl std::str::FromStr for ShowCommits {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use clap::ArgEnum;
+        use clap::ValueEnum;
         for variant in Self::value_variants() {
             if variant.to_possible_value().unwrap().matches(s, false) {
                 return Ok(*variant);
@@ -586,7 +586,7 @@ impl Default for ShowCommits {
     }
 }
 
-#[derive(clap::ArgEnum, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(clap::ValueEnum, Debug, Copy, Clone, PartialEq, Eq)]
 pub enum Stack {
     /// Branches in BASE..HEAD
     Current,
@@ -600,7 +600,7 @@ pub enum Stack {
 
 impl std::fmt::Display for Stack {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use clap::ArgEnum;
+        use clap::ValueEnum;
         self.to_possible_value()
             .expect("no values are skipped")
             .get_name()
@@ -612,7 +612,7 @@ impl std::str::FromStr for Stack {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use clap::ArgEnum;
+        use clap::ValueEnum;
         for variant in Self::value_variants() {
             if variant.to_possible_value().unwrap().matches(s, false) {
                 return Ok(*variant);
@@ -628,7 +628,7 @@ impl Default for Stack {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ArgEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ValueEnum)]
 pub enum Fixup {
     /// No special processing
     Ignore,
@@ -646,7 +646,7 @@ impl Fixup {
 
 impl std::fmt::Display for Fixup {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use clap::ArgEnum;
+        use clap::ValueEnum;
         self.to_possible_value()
             .expect("no values are skipped")
             .get_name()
@@ -658,7 +658,7 @@ impl std::str::FromStr for Fixup {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        use clap::ArgEnum;
+        use clap::ValueEnum;
         for variant in Self::value_variants() {
             if variant.to_possible_value().unwrap().matches(s, false) {
                 return Ok(*variant);

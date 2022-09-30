@@ -1,61 +1,59 @@
 #[derive(clap::Parser)]
-#[clap(about, author, version)]
-#[clap(
-        setting = clap::AppSettings::DeriveDisplayOrder,
-        dont_collapse_args_in_usage = true,
+#[command(about, author, version)]
+#[command(
         color = concolor_clap::color_choice(),
     )]
-#[clap(group = clap::ArgGroup::new("mode").multiple(false))]
+#[command(group = clap::ArgGroup::new("mode").multiple(false))]
 pub struct Args {
     /// Rebase the selected stacks
-    #[clap(short, long, group = "mode")]
+    #[arg(short, long, group = "mode")]
     pub rebase: bool,
 
     /// Pull the parent branch and rebase onto it.
-    #[clap(long)]
+    #[arg(long)]
     pub pull: bool,
 
     /// Push all ready branches
-    #[clap(long)]
+    #[arg(long)]
     pub push: bool,
 
     /// Which branch stacks to include
-    #[clap(short, long, arg_enum)]
+    #[arg(short, long, value_enum)]
     pub stack: Option<git_stack::config::Stack>,
 
     /// Branch to evaluate from (default: most-recent protected branch)
-    #[clap(long)]
+    #[arg(long)]
     pub base: Option<String>,
 
     /// Branch to rebase onto (default: base)
-    #[clap(long)]
+    #[arg(long)]
     pub onto: Option<String>,
 
     /// Action to perform with fixup-commits
-    #[clap(long, arg_enum)]
+    #[arg(long, value_enum)]
     pub fixup: Option<git_stack::config::Fixup>,
 
     /// Repair diverging branches.
-    #[clap(long, overrides_with("no-repair"))]
+    #[arg(long, overrides_with("no_repair"))]
     repair: bool,
-    #[clap(long, overrides_with("repair"), hide = true)]
+    #[arg(long, overrides_with("repair"), hide = true)]
     no_repair: bool,
 
-    #[clap(short = 'n', long)]
+    #[arg(short = 'n', long)]
     pub dry_run: bool,
 
-    #[clap(long, arg_enum)]
+    #[arg(long, value_enum)]
     pub format: Option<git_stack::config::Format>,
 
-    #[clap(long, arg_enum)]
+    #[arg(long, value_enum)]
     pub show_commits: Option<git_stack::config::ShowCommits>,
 
     /// See what branches are protected
-    #[clap(long, group = "mode")]
+    #[arg(long, group = "mode")]
     pub protected: bool,
 
     /// Append a protected branch to the repository's config (gitignore syntax)
-    #[clap(long, group = "mode")]
+    #[arg(long, group = "mode")]
     pub protect: Option<String>,
 
     /// Run as if git was started in `PATH` instead of the current working directory.
@@ -69,17 +67,17 @@ pub struct Args {
     ///
     ///     git --git-dir=a.git --work-tree=b -C c status
     ///     git --git-dir=c/a.git --work-tree=c/b status
-    #[clap(short = 'C', hide = true, value_name = "PATH", parse(from_os_str))]
+    #[arg(short = 'C', hide = true, value_name = "PATH")]
     pub current_dir: Option<Vec<std::path::PathBuf>>,
 
     /// Write the current configuration to file with `-` for stdout
-    #[clap(long, parse(from_os_str), group = "mode")]
+    #[arg(long, group = "mode")]
     pub dump_config: Option<std::path::PathBuf>,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     pub(crate) color: concolor_clap::Color,
 
-    #[clap(flatten)]
+    #[command(flatten)]
     pub verbose: clap_verbosity_flag::Verbosity<clap_verbosity_flag::InfoLevel>,
 }
 
