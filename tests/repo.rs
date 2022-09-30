@@ -110,6 +110,7 @@ fn shared_branches_fixture() {
     {
         let mut actual: Vec<_> = repo.local_branches().map(|b| b.to_string()).collect();
         actual.sort_unstable();
+        actual.retain(|b| b != "main"); // HACK: default branch name workaround
         assert_eq!(
             actual,
             &[
@@ -350,6 +351,7 @@ fn branch() {
 
         let mut actual: Vec<_> = repo.local_branches().map(|b| b.to_string()).collect();
         actual.sort_unstable();
+        actual.retain(|b| b != "main"); // HACK: default branch name workaround
         assert_eq!(
             actual,
             &[
