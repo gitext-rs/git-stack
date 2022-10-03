@@ -226,11 +226,14 @@ impl RepoConfig {
         let protected_branches = config
             .multivar(PROTECTED_STACK_FIELD, None)
             .map(|entries| {
-                let entries_ref = &entries;
-                let protected_branches: Vec<_> = entries_ref
-                    .flat_map(|e| e.into_iter())
-                    .filter_map(|e| e.value().map(|v| v.to_owned()))
-                    .collect();
+                let mut protected_branches = Vec::new();
+                entries
+                    .for_each(|entry| {
+                        if let Some(value) = entry.value() {
+                            protected_branches.push(value.to_owned());
+                        }
+                    })
+                    .unwrap();
                 if protected_branches.is_empty() {
                     None
                 } else {
