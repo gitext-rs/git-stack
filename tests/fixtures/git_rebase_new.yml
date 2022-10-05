@@ -1,36 +1,40 @@
 init: true
-events:
+commands:
 - tree:
-    tracked:
+    files:
       "file_a.txt": "1"
     message: "1"
-    branch: initial
+- branch: initial
 - tree:
-    tracked:
+    files:
       "file_a.txt": "2"
     message: "2"
 - tree:
-    tracked:
+    files:
       "file_a.txt": "3"
     message: "3"
-    branch: master
-- children:
-  - - tree:
-        tracked:
-          "file_a.txt": "3"
-          "file_b.txt": "1"
-        message: "7"
-    - tree:
-        tracked:
-          "file_a.txt": "3"
-          "file_b.txt": "1"
-          "file_c.txt": "1"
-        message: "8"
-        branch: feature2
-  # `git rebase master` caused the history to split
-  - - tree:
-        tracked:
-          "file_a.txt": "3"
-          "file_b.txt": "1"
-        message: "7"
-        branch: feature1
+- branch: master
+- label: master
+
+- reset: master
+- tree:
+    files:
+      "file_a.txt": "3"
+      "file_b.txt": "1"
+    message: "7"
+- tree:
+    files:
+      "file_a.txt": "3"
+      "file_b.txt": "1"
+      "file_c.txt": "1"
+    message: "8"
+- branch: feature2
+
+# `git rebase master` caused the history to split
+- reset: master
+- tree:
+    files:
+      "file_a.txt": "3"
+      "file_b.txt": "1"
+    message: "7"
+- branch: feature1

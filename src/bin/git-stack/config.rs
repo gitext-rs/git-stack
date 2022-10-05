@@ -1,25 +1,27 @@
 use std::io::Write;
 
-use proc_exit::WithCodeResultExt;
+use proc_exit::prelude::*;
 
 pub fn dump_config(
     args: &crate::args::Args,
     output_path: &std::path::Path,
 ) -> proc_exit::ExitResult {
     log::trace!("Initializing");
-    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
+    let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
+    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
     let repo_config = git_stack::config::RepoConfig::from_all(&repo)
-        .with_code(proc_exit::Code::CONFIG_ERR)?
+        .with_code(proc_exit::sysexits::CONFIG_ERR)?
         .update(args.to_config());
 
     let output = repo_config.to_string();
 
     if output_path == std::path::Path::new("-") {
-        std::io::stdout().write_all(output.as_bytes())?;
+        std::io::stdout()
+            .write_all(output.as_bytes())
+            .to_sysexits()?;
     } else {
-        std::fs::write(output_path, &output)?;
+        std::fs::write(output_path, &output).to_sysexits()?;
     }
 
     Ok(())
@@ -27,11 +29,11 @@ pub fn dump_config(
 
 pub fn protect(args: &crate::args::Args, ignore: &str) -> proc_exit::ExitResult {
     log::trace!("Initializing");
-    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
+    let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
+    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
     let mut repo_config = git_stack::config::RepoConfig::from_repo(&repo)
-        .with_code(proc_exit::Code::CONFIG_ERR)?
+        .with_code(proc_exit::sysexits::CONFIG_ERR)?
         .update(args.to_config());
     repo_config
         .protected_branches
@@ -47,16 +49,16 @@ pub fn protect(args: &crate::args::Args, ignore: &str) -> proc_exit::ExitResult 
 
 pub fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
     log::trace!("Initializing");
-    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
+    let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
+    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
     let repo_config = git_stack::config::RepoConfig::from_all(&repo)
-        .with_code(proc_exit::Code::CONFIG_ERR)?
+        .with_code(proc_exit::sysexits::CONFIG_ERR)?
         .update(args.to_config());
     let protected = git_stack::git::ProtectedBranches::new(
         repo_config.protected_branches().iter().map(|s| s.as_str()),
     )
-    .with_code(proc_exit::Code::CONFIG_ERR)?;
+    .with_code(proc_exit::sysexits::CONFIG_ERR)?;
 
     let repo = git_stack::git::GitRepo::new(repo);
     let mut branches = git_stack::git::Branches::new([]);
@@ -76,7 +78,7 @@ pub fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
     for (branch_id, branches) in branches.iter() {
         if protected_branches.contains_oid(branch_id) {
             for branch in branches {
-                writeln!(std::io::stdout(), "{}", branch)?;
+                writeln!(std::io::stdout(), "{}", branch).to_sysexits()?;
             }
         } else {
             for branch in branches {

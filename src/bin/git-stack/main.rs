@@ -22,7 +22,7 @@ fn run() -> proc_exit::ExitResult {
         Ok(args) => args,
         Err(e) if e.use_stderr() => {
             let _ = e.print();
-            return proc_exit::Code::USAGE_ERR.ok();
+            return proc_exit::sysexits::USAGE_ERR.ok();
         }
         Err(e) => {
             let _ = e.print();
@@ -43,7 +43,7 @@ fn run() -> proc_exit::ExitResult {
                 current.join(next)
             });
         log::trace!("CWD={}", current_dir.display());
-        std::env::set_current_dir(current_dir).with_code(proc_exit::Code::USAGE_ERR)?;
+        std::env::set_current_dir(current_dir).with_code(proc_exit::sysexits::USAGE_ERR)?;
     }
 
     if let Some(output_path) = args.dump_config.as_deref() {

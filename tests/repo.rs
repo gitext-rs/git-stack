@@ -5,7 +5,8 @@ use git_stack::git::*;
 #[test]
 fn shared_branches_fixture() {
     let temp = assert_fs::TempDir::new().unwrap();
-    let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+    let plan =
+        git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
     plan.run(temp.path()).unwrap();
 
     let repo = git2::Repository::discover(temp.path()).unwrap();
@@ -130,7 +131,8 @@ fn shared_branches_fixture() {
 #[test]
 fn contains_commit_not_with_independent_branches() {
     let temp = assert_fs::TempDir::new().unwrap();
-    let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+    let plan =
+        git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
     plan.run(temp.path()).unwrap();
 
     let repo = git2::Repository::discover(temp.path()).unwrap();
@@ -149,7 +151,8 @@ fn contains_commit_not_with_independent_branches() {
 fn contains_commit_rebased_branches_with_disjoint_commit() {
     let temp = assert_fs::TempDir::new().unwrap();
     let plan =
-        git_fixture::Dag::load(std::path::Path::new("tests/fixtures/git_rebase_new.yml")).unwrap();
+        git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/git_rebase_new.yml"))
+            .unwrap();
     plan.run(temp.path()).unwrap();
 
     let repo = git2::Repository::discover(temp.path()).unwrap();
@@ -171,7 +174,7 @@ fn contains_commit_rebased_branches_with_disjoint_commit() {
 #[ignore] // Not correctly detecting the commit already exists earlier in history
 fn contains_commit_rebased_branches_with_overlapping_commit() {
     let temp = assert_fs::TempDir::new().unwrap();
-    let plan = git_fixture::Dag::load(std::path::Path::new(
+    let plan = git_fixture::TodoList::load(std::path::Path::new(
         "tests/fixtures/git_rebase_existing.yml",
     ))
     .unwrap();
@@ -196,7 +199,7 @@ fn contains_commit_rebased_branches_with_overlapping_commit() {
 #[ignore] // Not correctly detecting the commit already exists earlier in history
 fn contains_commit_semi_linear_merge() {
     let temp = assert_fs::TempDir::new().unwrap();
-    let plan = git_fixture::Dag::load(std::path::Path::new(
+    let plan = git_fixture::TodoList::load(std::path::Path::new(
         "tests/fixtures/pr-semi-linear-merge.yml",
     ))
     .unwrap();
@@ -228,7 +231,7 @@ fn contains_commit_semi_linear_merge() {
 fn contains_commit_pr_squashed() {
     let temp = assert_fs::TempDir::new().unwrap();
     let plan =
-        git_fixture::Dag::load(std::path::Path::new("tests/fixtures/pr-squash.yml")).unwrap();
+        git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/pr-squash.yml")).unwrap();
     plan.run(temp.path()).unwrap();
 
     let repo = git2::Repository::discover(temp.path()).unwrap();
@@ -255,7 +258,8 @@ fn contains_commit_pr_squashed() {
 #[test]
 fn cherry_pick_clean() {
     let temp = assert_fs::TempDir::new().unwrap();
-    let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+    let plan =
+        git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
     plan.run(temp.path()).unwrap();
 
     let repo = git2::Repository::discover(temp.path()).unwrap();
@@ -285,7 +289,8 @@ fn cherry_pick_clean() {
 #[test]
 fn cherry_pick_conflict() {
     let temp = assert_fs::TempDir::new().unwrap();
-    let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/conflict.yml")).unwrap();
+    let plan =
+        git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/conflict.yml")).unwrap();
     plan.run(temp.path()).unwrap();
 
     let repo = git2::Repository::discover(temp.path()).unwrap();
@@ -308,7 +313,8 @@ fn cherry_pick_conflict() {
 #[test]
 fn squash_clean() {
     let temp = assert_fs::TempDir::new().unwrap();
-    let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+    let plan =
+        git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
     plan.run(temp.path()).unwrap();
 
     let repo = git2::Repository::discover(temp.path()).unwrap();
@@ -331,7 +337,8 @@ fn squash_clean() {
 #[test]
 fn branch() {
     let temp = assert_fs::TempDir::new().unwrap();
-    let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+    let plan =
+        git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
     plan.run(temp.path()).unwrap();
 
     let repo = git2::Repository::discover(temp.path()).unwrap();
@@ -382,7 +389,8 @@ fn branch() {
 #[test]
 fn switch() {
     let temp = assert_fs::TempDir::new().unwrap();
-    let plan = git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+    let plan =
+        git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
     plan.run(temp.path()).unwrap();
 
     let repo = git2::Repository::discover(temp.path()).unwrap();

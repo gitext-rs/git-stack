@@ -16,8 +16,8 @@ mod test_branches {
     #[test]
     fn test_all() {
         let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        let plan = git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml"))
+            .unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let branches = Branches::new(repo.local_branches());
@@ -44,8 +44,8 @@ mod test_branches {
     #[test]
     fn test_descendants() {
         let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        let plan = git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml"))
+            .unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let base_oid = repo.resolve("base").unwrap().id;
@@ -68,8 +68,8 @@ mod test_branches {
     #[test]
     fn test_dependents() {
         let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        let plan = git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml"))
+            .unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let base_oid = repo.resolve("base").unwrap().id;
@@ -90,8 +90,8 @@ mod test_branches {
     #[test]
     fn test_branch() {
         let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        let plan = git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml"))
+            .unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let base_oid = repo.resolve("base").unwrap().id;
@@ -116,8 +116,8 @@ mod test_find_protected_base {
     #[test]
     fn test_no_protected() {
         let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        let plan = git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml"))
+            .unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let protect = no_protect();
@@ -135,8 +135,8 @@ mod test_find_protected_base {
     #[test]
     fn test_protected_branch() {
         let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        let plan = git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml"))
+            .unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let protect = protect();
@@ -154,8 +154,8 @@ mod test_find_protected_base {
     #[test]
     fn test_protected_base() {
         let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        let plan = git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml"))
+            .unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let protect = protect();

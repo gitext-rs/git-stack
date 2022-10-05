@@ -10,8 +10,8 @@ mod test_rebase {
     #[test]
     fn no_op() {
         let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        let plan = git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml"))
+            .unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let master_branch = repo.find_local_branch("master").unwrap();
@@ -50,8 +50,8 @@ mod test_rebase {
     #[test]
     fn rebase() {
         let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        let plan = git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml"))
+            .unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let master_branch = repo.find_local_branch("master").unwrap();
@@ -99,8 +99,8 @@ mod test_fixup {
     #[test]
     fn no_op() {
         let mut repo = git_stack::git::InMemoryRepo::new();
-        let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/branches.yml")).unwrap();
+        let plan = git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/branches.yml"))
+            .unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let master_branch = repo.find_local_branch("master").unwrap();
@@ -140,7 +140,7 @@ mod test_fixup {
     fn fixup_move_after_target() {
         let mut repo = git_stack::git::InMemoryRepo::new();
         let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/fixup.yml")).unwrap();
+            git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/fixup.yml")).unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let master_branch = repo.find_local_branch("master").unwrap();
@@ -213,7 +213,7 @@ mod test_fixup {
     fn stray_fixups() {
         let mut repo = git_stack::git::InMemoryRepo::new();
         let plan =
-            git_fixture::Dag::load(std::path::Path::new("tests/fixtures/fixup.yml")).unwrap();
+            git_fixture::TodoList::load(std::path::Path::new("tests/fixtures/fixup.yml")).unwrap();
         fixture::populate_repo(&mut repo, plan);
 
         let master_branch = repo.find_local_branch("feature1").unwrap();
@@ -283,59 +283,57 @@ mod test_fixup {
 #[test]
 fn overflow() {
     let mut repo = git_stack::git::InMemoryRepo::new();
-    let mut plan = git_fixture::Dag::default();
-    plan.events
-        .push(git_fixture::Event::Tree(git_fixture::Tree {
-            tracked: maplit::hashmap! {
+    let mut plan = git_fixture::TodoList::default();
+    plan.commands
+        .push(git_fixture::Command::Tree(git_fixture::Tree {
+            files: maplit::hashmap! {
                 std::path::PathBuf::from("file.txt") => "content base".into(),
             },
             message: Some("Base Commit".to_owned()),
             author: Some("Someone <email>".to_owned()),
-            branch: Some(git_fixture::Branch::new("base")),
-            ..Default::default()
         }));
+    plan.commands
+        .push(git_fixture::Command::Branch("base".into()));
     for i in 0..1000 {
-        plan.events
-            .push(git_fixture::Event::Tree(git_fixture::Tree {
-                tracked: maplit::hashmap! {
+        plan.commands
+            .push(git_fixture::Command::Tree(git_fixture::Tree {
+                files: maplit::hashmap! {
                     std::path::PathBuf::from("file.txt") => format!("content {}", i).into(),
                 },
                 message: Some(format!("Shared Commit {}", i)),
                 author: Some("Someone <email>".to_owned()),
-                ..Default::default()
             }));
     }
-    plan.events
-        .push(git_fixture::Event::Tree(git_fixture::Tree {
-            tracked: maplit::hashmap! {
+    plan.commands
+        .push(git_fixture::Command::Tree(git_fixture::Tree {
+            files: maplit::hashmap! {
                 std::path::PathBuf::from("file.txt") => "content master".into(),
             },
             message: Some("Master Commit".to_owned()),
             author: Some("Someone <email>".to_owned()),
-            branch: Some(git_fixture::Branch::new("master")),
-            ..Default::default()
         }));
+    plan.commands
+        .push(git_fixture::Command::Branch("master".into()));
     for i in 0..49 {
-        plan.events
-            .push(git_fixture::Event::Tree(git_fixture::Tree {
-                tracked: maplit::hashmap! {
+        plan.commands
+            .push(git_fixture::Command::Tree(git_fixture::Tree {
+                files: maplit::hashmap! {
                     std::path::PathBuf::from("file.txt") => format!("content {}", i).into(),
                 },
                 message: Some(format!("Private Commit {}", i)),
                 author: Some("Myself <email>".to_owned()),
-                ..Default::default()
             }));
     }
-    plan.events
-        .push(git_fixture::Event::Tree(git_fixture::Tree {
-            tracked: maplit::hashmap! {
+    plan.commands
+        .push(git_fixture::Command::Tree(git_fixture::Tree {
+            files: maplit::hashmap! {
                 std::path::PathBuf::from("file.txt") => "content feature".into(),
             },
             message: Some("Feature Commit".to_owned()),
             author: Some("Myself <email>".to_owned()),
-            branch: Some(git_fixture::Branch::new("feature")),
-            ..Default::default()
         }));
+    plan.commands
+        .push(git_fixture::Command::Branch("feature".into()));
     fixture::populate_repo(&mut repo, plan);
 
     let mut graphed_branches = git_stack::git::Branches::default();
