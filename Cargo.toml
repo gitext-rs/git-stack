@@ -35,9 +35,9 @@ clap-verbosity-flag = "2.0.0"
 log = "0.4"
 env_logger = { version = "0.9", default-features = false, features = ["termcolor"] }
 yansi = "0.5.1"
-concolor = "0.0.8"
-concolor-clap = { version = "0.0.11", features = ["api_unstable"] }
-proc-exit = "1"
+concolor = "0.0.9"
+concolor-clap = { version = "0.0.12", features = ["api_unstable"] }
+proc-exit = "2"
 eyre = "0.6"
 human-panic = "1"
 termtree = "0.4"
@@ -52,5 +52,5 @@ bstr = "1.0.1"
 maplit = "1"
 
 [dev-dependencies]
-git-fixture = { version = "0.2" }
+git-fixture = { version = "0.3", features = ["yaml"] }
 assert_fs = "1"

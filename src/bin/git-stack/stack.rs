@@ -4,7 +4,7 @@ use std::io::Write;
 use bstr::ByteSlice;
 use eyre::WrapErr;
 use itertools::Itertools;
-use proc_exit::WithCodeResultExt;
+use proc_exit::prelude::*;
 
 struct State {
     repo: git_stack::git::GitRepo,
@@ -35,7 +35,7 @@ impl State {
         args: &crate::args::Args,
     ) -> Result<Self, proc_exit::Exit> {
         let repo_config = git_stack::config::RepoConfig::from_all(repo.raw())
-            .with_code(proc_exit::Code::CONFIG_ERR)?
+            .with_code(proc_exit::sysexits::CONFIG_ERR)?
             .update(args.to_config());
 
         let mut rebase = args.rebase;
@@ -79,7 +79,7 @@ impl State {
         let protected = git_stack::git::ProtectedBranches::new(
             repo_config.protected_branches().iter().map(|s| s.as_str()),
         )
-        .with_code(proc_exit::Code::CONFIG_ERR)?;
+        .with_code(proc_exit::sysexits::CONFIG_ERR)?;
         let dry_run = args.dry_run;
         let snapshot_capacity = repo_config.capacity();
         let protect_commit_count = repo_config.protect_commit_count();
@@ -112,13 +112,13 @@ impl State {
             .as_deref()
             .map(|name| resolve_explicit_base(&repo, name))
             .transpose()
-            .with_code(proc_exit::Code::USAGE_ERR)?;
+            .with_code(proc_exit::sysexits::USAGE_ERR)?;
         let onto = args
             .onto
             .as_deref()
             .map(|name| resolve_explicit_base(&repo, name))
             .transpose()
-            .with_code(proc_exit::Code::USAGE_ERR)?;
+            .with_code(proc_exit::sysexits::USAGE_ERR)?;
 
         let stacks = match (base, onto, repo_config.stack()) {
             (Some(base), Some(onto), git_stack::config::Stack::All) => {
@@ -196,7 +196,7 @@ impl State {
                             format!("could not find base between {} and HEAD", base),
                         )
                     })
-                    .with_code(proc_exit::Code::USAGE_ERR)?;
+                    .with_code(proc_exit::sysexits::USAGE_ERR)?;
                 let stack_branches = match stack {
                     git_stack::config::Stack::Current => {
                         branches.branch(&repo, merge_base_oid, head_commit.id)
@@ -295,8 +295,8 @@ pub fn stack(
     colored_stderr: bool,
 ) -> proc_exit::ExitResult {
     log::trace!("Initializing");
-    let cwd = std::env::current_dir().with_code(proc_exit::Code::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
+    let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
+    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git_stack::git::GitRepo::new(repo);
     let mut state = State::new(repo, args)?;
 
@@ -351,20 +351,20 @@ pub fn stack(
                 log::error!("{}", message);
             } else {
                 git_stack::git::stash_pop(&mut state.repo, stash_id);
-                return Err(proc_exit::Code::USAGE_ERR.with_message(message));
+                return Err(proc_exit::sysexits::USAGE_ERR.with_message(message));
             }
         }
 
         {
             let stash_repo =
-                git2::Repository::discover(&cwd).with_code(proc_exit::Code::USAGE_ERR)?;
+                git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
             let stash_repo = git_branch_stash::GitRepo::new(stash_repo);
             let mut snapshots = git_branch_stash::Stack::new(STASH_STACK_NAME, &stash_repo);
             snapshots.capacity(state.snapshot_capacity);
             let snapshot = git_branch_stash::Snapshot::from_repo(&stash_repo)
                 .with_code(proc_exit::Code::FAILURE)?;
             if !state.dry_run {
-                snapshots.push(snapshot)?;
+                snapshots.push(snapshot).to_sysexits()?;
                 backed_up = true;
             }
         }
@@ -373,7 +373,7 @@ pub fn stack(
             .repo
             .head_branch()
             .ok_or_else(|| eyre::eyre!("Must not be in a detached HEAD state."))
-            .with_code(proc_exit::Code::USAGE_ERR)?
+            .with_code(proc_exit::sysexits::USAGE_ERR)?
             .name;
 
         let scripts: Result<Vec<_>, proc_exit::Exit> = state
