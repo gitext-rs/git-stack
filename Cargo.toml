@@ -9,7 +9,7 @@ readme = "README.md"
 categories = ["command-line-interface", "development-tools"]
 keywords = ["git", "cli"]
 edition = "2021"
-rust-version = "1.60.0"  # MSRV
+rust-version = "1.61.0"  # MSRV
 include = [
   "src/**/*",
   "Cargo.toml",
