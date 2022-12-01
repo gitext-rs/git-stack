@@ -1,0 +1,21 @@
+{
+  "semanticCommits": "enabled",
+  "configMigration": true,
+  "schedule": [
+    "before 3am on the first day of the month"
+  ],
+  "packageRules": [
+    {
+      "groupName": "dev",
+      "matchManagers": ["cargo"],
+      "matchDepTypes": ["dev-dependencies"],
+      "matchUpdateTypes": ["patch"],
+      "automerge": true,
+    },
+    {
+      "groupName": "breaking",
+      "matchManagers": ["cargo"],
+      "matchUpdateTypes": ["major"],
+    },
+  ],
+}
