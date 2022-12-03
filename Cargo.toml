@@ -43,7 +43,7 @@ human-panic = "1"
 termtree = "0.4"
 indexmap = "1"
 
-git2-ext = "0.0.7"
+git2-ext = "0.1.0"
 git-branch-stash = "0.9"
 humantime = "2"
 itertools = "0.10"
