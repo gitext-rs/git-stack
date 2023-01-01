@@ -96,9 +96,9 @@ dependencies = [
 
 [[package]]
 name = "bstr"
-version = "1.0.1"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fca0852af221f458706eb0725c03e4ed6c46af9ac98e6a689d5e634215d594dd"
+checksum = "b45ea9b00a7b3f2988e9a65ad3917e62123c38dba709b666506207be96d1790b"
 dependencies = [
  "memchr",
  "once_cell",
@@ -123,9 +123,9 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "clap"
-version = "4.0.29"
+version = "4.0.32"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d63b9e9c07271b9957ad22c173bae2a4d9a81127680962039296abcd2f8251d"
+checksum = "a7db700bc935f9e43e88d00b0850dae18a63773cfbec6d8e070fccf7fef89a39"
 dependencies = [
  "bitflags",
  "clap_derive",
@@ -335,7 +335,7 @@ version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "caadb3a03592d73ed14c8dfae3066bdc1fe269d26e4ea5c7ed29bd30a63b4bda"
 dependencies = [
- "bstr 1.0.1",
+ "bstr 1.1.0",
  "eyre",
  "git-config-env",
  "git2",
@@ -363,7 +363,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8316938721002656fefc2e819dfd44f78d56bd8d1662064026660a44735c5813"
 dependencies = [
- "bstr 1.0.1",
+ "bstr 1.1.0",
  "derive_more",
  "eyre",
  "git2",
@@ -379,7 +379,7 @@ name = "git-stack"
 version = "0.8.5"
 dependencies = [
  "assert_fs",
- "bstr 1.0.1",
+ "bstr 1.1.0",
  "clap",
  "clap-verbosity-flag",
  "concolor",
