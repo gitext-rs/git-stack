@@ -8,6 +8,8 @@ use proc_exit::WithCodeResultExt;
 mod args;
 mod config;
 mod logger;
+mod ops;
+mod prev;
 mod stack;
 
 fn main() {
@@ -46,15 +48,5 @@ fn run() -> proc_exit::ExitResult {
         std::env::set_current_dir(current_dir).with_code(proc_exit::sysexits::USAGE_ERR)?;
     }
 
-    if let Some(output_path) = args.dump_config.as_deref() {
-        config::dump_config(&args, output_path)?;
-    } else if let Some(ignore) = args.protect.as_deref() {
-        config::protect(&args, ignore)?;
-    } else if args.protected {
-        config::protected(&args)?;
-    } else {
-        stack::stack(&args, colored_stdout, colored_stderr)?;
-    }
-
-    Ok(())
+    args.exec(colored_stdout, colored_stderr)
 }

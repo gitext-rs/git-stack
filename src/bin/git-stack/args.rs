@@ -4,6 +4,7 @@
         color = concolor_clap::color_choice(),
     )]
 #[command(group = clap::ArgGroup::new("mode").multiple(false))]
+#[command(args_conflicts_with_subcommands = true)]
 pub struct Args {
     /// Rebase the selected stacks
     #[arg(short, long, group = "mode")]
@@ -79,9 +80,35 @@ pub struct Args {
 
     #[command(flatten)]
     pub verbose: clap_verbosity_flag::Verbosity<clap_verbosity_flag::InfoLevel>,
+
+    #[command(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(clap::Subcommand)]
+pub enum Command {
+    #[command(alias = "prev")]
+    Previous(crate::prev::PrevArgs),
 }
 
 impl Args {
+    pub fn exec(&self, colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
+        match &self.command {
+            Some(Command::Previous(c)) => c.exec(colored_stdout, colored_stderr),
+            None => {
+                if let Some(output_path) = self.dump_config.as_deref() {
+                    crate::config::dump_config(self, output_path)
+                } else if let Some(ignore) = self.protect.as_deref() {
+                    crate::config::protect(self, ignore)
+                } else if self.protected {
+                    crate::config::protected(self)
+                } else {
+                    crate::stack::stack(self, colored_stdout, colored_stderr)
+                }
+            }
+        }
+    }
+
     pub fn to_config(&self) -> git_stack::legacy::config::RepoConfig {
         git_stack::legacy::config::RepoConfig {
             protected_branches: None,

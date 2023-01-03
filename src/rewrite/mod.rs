@@ -587,7 +587,7 @@ impl Executor {
         log::trace!("git switch {}", restore_branch);
         if !self.dry_run {
             if self.detached {
-                repo.switch(restore_branch)?;
+                repo.switch_branch(restore_branch)?;
             }
         }
 

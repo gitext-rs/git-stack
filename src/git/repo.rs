@@ -39,7 +39,8 @@ pub trait Repo {
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_>;
     fn remote_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_>;
     fn detach(&mut self) -> Result<()>;
-    fn switch(&mut self, name: &str) -> Result<()>;
+    fn switch_branch(&mut self, name: &str) -> Result<()>;
+    fn switch_commit(&mut self, id: git2::Oid) -> Result<()>;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -539,10 +540,18 @@ impl GitRepo {
         Ok(())
     }
 
-    pub fn switch(&mut self, name: &str) -> Result<()> {
+    pub fn switch_branch(&mut self, name: &str) -> Result<()> {
         // HACK: We shouldn't limit ourselves to `Local`
         let branch = self.repo.find_branch(name, git2::BranchType::Local)?;
         self.repo.set_head(branch.get().name().unwrap())?;
+        let mut builder = git2::build::CheckoutBuilder::new();
+        builder.force();
+        self.repo.checkout_head(Some(&mut builder))?;
+        Ok(())
+    }
+
+    pub fn switch_commit(&mut self, id: git2::Oid) -> Result<()> {
+        self.repo.set_head_detached(id)?;
         let mut builder = git2::build::CheckoutBuilder::new();
         builder.force();
         self.repo.checkout_head(Some(&mut builder))?;
@@ -677,8 +686,12 @@ impl Repo for GitRepo {
         self.detach()
     }
 
-    fn switch(&mut self, name: &str) -> Result<()> {
-        self.switch(name)
+    fn switch_branch(&mut self, name: &str) -> Result<()> {
+        self.switch_branch(name)
+    }
+
+    fn switch_commit(&mut self, id: git2::Oid) -> Result<()> {
+        self.switch_commit(id)
     }
 }
 
@@ -968,7 +981,7 @@ impl InMemoryRepo {
         Ok(())
     }
 
-    pub fn switch(&mut self, name: &str) -> Result<()> {
+    pub fn switch_branch(&mut self, name: &str) -> Result<()> {
         let branch = self.find_local_branch(name).ok_or_else(|| {
             Error::new(
                 git2::ErrorCode::NotFound,
@@ -977,6 +990,11 @@ impl InMemoryRepo {
             )
         })?;
         self.head_id = Some(branch.id);
+        Ok(())
+    }
+
+    pub fn switch_commit(&mut self, id: git2::Oid) -> Result<()> {
+        self.head_id = Some(id);
         Ok(())
     }
 }
@@ -1112,8 +1130,12 @@ impl Repo for InMemoryRepo {
         self.detach()
     }
 
-    fn switch(&mut self, name: &str) -> Result<()> {
-        self.switch(name)
+    fn switch_branch(&mut self, name: &str) -> Result<()> {
+        self.switch_branch(name)
+    }
+
+    fn switch_commit(&mut self, id: git2::Oid) -> Result<()> {
+        self.switch_commit(id)
     }
 }
 
