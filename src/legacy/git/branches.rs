@@ -1,10 +1,10 @@
 #[derive(Clone, Default, Debug, PartialEq, Eq)]
 pub struct Branches {
-    branches: std::collections::BTreeMap<git2::Oid, Vec<crate::git::Branch>>,
+    branches: std::collections::BTreeMap<git2::Oid, Vec<crate::legacy::git::Branch>>,
 }
 
 impl Branches {
-    pub fn new(branches: impl IntoIterator<Item = crate::git::Branch>) -> Self {
+    pub fn new(branches: impl IntoIterator<Item = crate::legacy::git::Branch>) -> Self {
         let mut grouped_branches = std::collections::BTreeMap::new();
         for branch in branches {
             grouped_branches
@@ -17,7 +17,7 @@ impl Branches {
         }
     }
 
-    pub fn update(&mut self, repo: &dyn crate::git::Repo) {
+    pub fn update(&mut self, repo: &dyn crate::legacy::git::Repo) {
         let mut new = Self::new(self.branches.values().flatten().filter_map(|b| {
             if let Some(remote) = b.remote.as_deref() {
                 repo.find_remote_branch(remote, &b.name)
@@ -28,7 +28,7 @@ impl Branches {
         std::mem::swap(&mut new, self);
     }
 
-    pub fn insert(&mut self, branch: crate::git::Branch) {
+    pub fn insert(&mut self, branch: crate::legacy::git::Branch) {
         let branches = self.branches.entry(branch.id).or_insert_with(Vec::new);
         if !branches
             .iter()
@@ -38,7 +38,7 @@ impl Branches {
         }
     }
 
-    pub fn extend(&mut self, branches: impl Iterator<Item = crate::git::Branch>) {
+    pub fn extend(&mut self, branches: impl Iterator<Item = crate::legacy::git::Branch>) {
         for branch in branches {
             self.insert(branch);
         }
@@ -48,11 +48,11 @@ impl Branches {
         self.branches.contains_key(&oid)
     }
 
-    pub fn get(&self, oid: git2::Oid) -> Option<&[crate::git::Branch]> {
+    pub fn get(&self, oid: git2::Oid) -> Option<&[crate::legacy::git::Branch]> {
         self.branches.get(&oid).map(|v| v.as_slice())
     }
 
-    pub fn remove(&mut self, oid: git2::Oid) -> Option<Vec<crate::git::Branch>> {
+    pub fn remove(&mut self, oid: git2::Oid) -> Option<Vec<crate::legacy::git::Branch>> {
         self.branches.remove(&oid)
     }
 
@@ -60,7 +60,7 @@ impl Branches {
         self.branches.keys().copied()
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (git2::Oid, &[crate::git::Branch])> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = (git2::Oid, &[crate::legacy::git::Branch])> + '_ {
         self.branches
             .iter()
             .map(|(oid, branch)| (*oid, branch.as_slice()))
@@ -78,7 +78,7 @@ impl Branches {
         self.clone()
     }
 
-    pub fn descendants(&self, repo: &dyn crate::git::Repo, base_oid: git2::Oid) -> Self {
+    pub fn descendants(&self, repo: &dyn crate::legacy::git::Repo, base_oid: git2::Oid) -> Self {
         let branches = self
             .branches
             .iter()
@@ -109,7 +109,7 @@ impl Branches {
 
     pub fn dependents(
         &self,
-        repo: &dyn crate::git::Repo,
+        repo: &dyn crate::legacy::git::Repo,
         base_oid: git2::Oid,
         head_oid: git2::Oid,
     ) -> Self {
@@ -155,7 +155,7 @@ impl Branches {
 
     pub fn branch(
         &self,
-        repo: &dyn crate::git::Repo,
+        repo: &dyn crate::legacy::git::Repo,
         base_oid: git2::Oid,
         head_oid: git2::Oid,
     ) -> Self {
@@ -201,8 +201,9 @@ impl Branches {
 }
 
 impl IntoIterator for Branches {
-    type Item = (git2::Oid, Vec<crate::git::Branch>);
-    type IntoIter = std::collections::btree_map::IntoIter<git2::Oid, Vec<crate::git::Branch>>;
+    type Item = (git2::Oid, Vec<crate::legacy::git::Branch>);
+    type IntoIter =
+        std::collections::btree_map::IntoIter<git2::Oid, Vec<crate::legacy::git::Branch>>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.branches.into_iter()
@@ -210,10 +211,10 @@ impl IntoIterator for Branches {
 }
 
 pub fn find_protected_base<'b>(
-    repo: &dyn crate::git::Repo,
+    repo: &dyn crate::legacy::git::Repo,
     protected_branches: &'b Branches,
     head_oid: git2::Oid,
-) -> Option<&'b crate::git::Branch> {
+) -> Option<&'b crate::legacy::git::Branch> {
     // We're being asked about a protected branch
     if let Some(head_branches) = protected_branches.get(head_oid) {
         return head_branches.first();
@@ -284,7 +285,7 @@ pub fn find_protected_base<'b>(
     None
 }
 
-pub fn infer_base(repo: &dyn crate::git::Repo, head_oid: git2::Oid) -> Option<git2::Oid> {
+pub fn infer_base(repo: &dyn crate::legacy::git::Repo, head_oid: git2::Oid) -> Option<git2::Oid> {
     let head_commit = repo.find_commit(head_oid)?;
     let head_committer = head_commit.committer.clone();
 

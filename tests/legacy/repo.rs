@@ -1,6 +1,6 @@
 use assert_fs::prelude::*;
 
-use git_stack::git::*;
+use git_stack::legacy::git::*;
 
 #[test]
 fn shared_branches_fixture() {
@@ -97,7 +97,7 @@ fn shared_branches_fixture() {
     {
         {
             let head = repo.find_local_branch("base").unwrap();
-            let actual: Vec<_> = git_stack::git::commit_range(&repo, head.id..)
+            let actual: Vec<_> = git_stack::legacy::git::commit_range(&repo, head.id..)
                 .unwrap()
                 .into_iter()
                 .map(|id| repo.find_commit(id).unwrap())

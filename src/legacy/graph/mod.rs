@@ -25,8 +25,8 @@ impl Graph {
     }
 
     pub fn from_branches(
-        repo: &dyn crate::git::Repo,
-        mut branches: crate::git::Branches,
+        repo: &dyn crate::legacy::git::Repo,
+        mut branches: crate::legacy::git::Branches,
     ) -> eyre::Result<Self> {
         if branches.is_empty() {
             eyre::bail!("No branches to graph");
@@ -53,7 +53,7 @@ impl Graph {
         Ok(graph)
     }
 
-    pub fn insert(&mut self, repo: &dyn crate::git::Repo, node: Node) -> eyre::Result<()> {
+    pub fn insert(&mut self, repo: &dyn crate::legacy::git::Repo, node: Node) -> eyre::Result<()> {
         let node_id = node.commit.id;
         if let Some(local) = self.get_mut(node_id) {
             local.update(node);
@@ -76,7 +76,7 @@ impl Graph {
         Ok(())
     }
 
-    pub fn extend(&mut self, repo: &dyn crate::git::Repo, other: Self) -> eyre::Result<()> {
+    pub fn extend(&mut self, repo: &dyn crate::legacy::git::Repo, other: Self) -> eyre::Result<()> {
         if self.get(other.root_id).is_none() {
             self.insert(repo, other.root().clone())?;
         }
@@ -133,10 +133,10 @@ impl Graph {
 
     fn populate(
         &mut self,
-        repo: &dyn crate::git::Repo,
+        repo: &dyn crate::legacy::git::Repo,
         base_oid: git2::Oid,
         head_oid: git2::Oid,
-        default_action: crate::graph::Action,
+        default_action: crate::legacy::graph::Action,
     ) -> Result<(), git2::Error> {
         log::trace!("Populating data for {}..{}", base_oid, head_oid);
         debug_assert_eq!(
@@ -146,7 +146,7 @@ impl Graph {
         );
 
         let mut child_id = None;
-        for commit_id in crate::git::commit_range(repo, head_oid..=base_oid)? {
+        for commit_id in crate::legacy::git::commit_range(repo, head_oid..=base_oid)? {
             match self.nodes.entry(commit_id) {
                 Entry::Occupied(mut o) => {
                     let current = o.get_mut();

@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
-use crate::graph::Graph;
-use crate::graph::Node;
+use crate::legacy::graph::Graph;
+use crate::legacy::graph::Node;
 
 pub fn protect_branches(
     graph: &mut Graph,
-    repo: &dyn crate::git::Repo,
-    protected_branches: &crate::git::Branches,
+    repo: &dyn crate::legacy::git::Repo,
+    protected_branches: &crate::legacy::git::Branches,
 ) {
     let root_id = graph.root_id();
 
@@ -22,8 +22,8 @@ pub fn protect_branches(
             .map(|merge_base_oid| merge_base_oid == root_id)
             .unwrap_or(false)
     }) {
-        for commit_id in
-            crate::git::commit_range(repo, protected_oid..=root_id).expect("IDs already validated")
+        for commit_id in crate::legacy::git::commit_range(repo, protected_oid..=root_id)
+            .expect("IDs already validated")
         {
             let commit = repo
                 .find_commit(commit_id)
@@ -32,7 +32,7 @@ pub fn protect_branches(
                 if node.action.is_protected() {
                     break;
                 }
-                node.action = crate::graph::Action::Protected;
+                node.action = crate::legacy::graph::Action::Protected;
             }
             if commit.id == root_id {
                 break;
@@ -100,7 +100,7 @@ fn protect_large_branches_recursive(
         }
         if needs_protection {
             let node = graph.get_mut(node_id).expect("all children exist");
-            node.action = crate::graph::Action::Protected;
+            node.action = crate::legacy::graph::Action::Protected;
         }
     } else {
         mark_branch_protected(graph, node_id, large_branches);
@@ -115,7 +115,7 @@ fn mark_branch_protected(graph: &mut Graph, node_id: git2::Oid, branches: &mut V
     protected_queue.push_back(node_id);
     while let Some(current_id) = protected_queue.pop_front() {
         let current = graph.get_mut(current_id).expect("all children exist");
-        current.action = crate::graph::Action::Protected;
+        current.action = crate::legacy::graph::Action::Protected;
 
         if current.branches.is_empty() {
             protected_queue.extend(&graph.get(current_id).expect("all children exist").children);
@@ -501,7 +501,7 @@ fn drop_first_branch_by_tree_id(
         if pulled_tree_ids.contains(&node_tree_id) {
             for branch_id in branch_ids {
                 graph.get_mut(branch_id).expect("all children exist").action =
-                    crate::graph::Action::Delete;
+                    crate::legacy::graph::Action::Delete;
             }
         }
     } else {
@@ -537,7 +537,7 @@ fn drop_first_branch_by_tree_id(
 pub fn drop_merged_branches(
     graph: &mut Graph,
     pulled_ids: impl Iterator<Item = git2::Oid>,
-    protected_branches: &crate::git::Branches,
+    protected_branches: &crate::legacy::git::Branches,
 ) -> Vec<String> {
     let mut removed = Vec::new();
     let protected_branch_names: HashSet<_> = protected_branches
@@ -568,8 +568,8 @@ pub fn drop_merged_branches(
     removed
 }
 
-pub fn fixup(graph: &mut Graph, effect: crate::config::Fixup) {
-    if effect == crate::config::Fixup::Ignore {
+pub fn fixup(graph: &mut Graph, effect: crate::legacy::config::Fixup) {
+    if effect == crate::legacy::config::Fixup::Ignore {
         return;
     }
 
@@ -600,9 +600,9 @@ fn fixup_branch(
     graph: &mut Graph,
     base_id: git2::Oid,
     mut node_id: git2::Oid,
-    effect: crate::config::Fixup,
+    effect: crate::legacy::config::Fixup,
 ) {
-    debug_assert_ne!(effect, crate::config::Fixup::Ignore);
+    debug_assert_ne!(effect, crate::legacy::config::Fixup::Ignore);
 
     let mut outstanding = std::collections::BTreeMap::new();
     let node_children = graph
@@ -616,18 +616,18 @@ fn fixup_branch(
     if !outstanding.is_empty() {
         let node = graph.get_mut(node_id).expect("all children exist");
         if let Some(fixup_ids) = outstanding.remove(&node.commit.summary) {
-            if effect == crate::config::Fixup::Squash {
+            if effect == crate::legacy::config::Fixup::Squash {
                 for fixup_id in fixup_ids.iter().copied() {
                     let fixup = graph.get_mut(fixup_id).expect("all children exist");
-                    assert!(fixup.action == crate::graph::Action::Pick);
-                    fixup.action = crate::graph::Action::Fixup;
+                    assert!(fixup.action == crate::legacy::graph::Action::Pick);
+                    fixup.action = crate::legacy::graph::Action::Fixup;
                 }
             }
             splice_after(graph, node_id, fixup_ids);
         }
         debug_assert_ne!(
             graph.get(node_id).expect("all children exist").action,
-            crate::graph::Action::Protected,
+            crate::legacy::graph::Action::Protected,
             "Unexpected result for {}",
             base_id
         );
@@ -641,10 +641,10 @@ fn fixup_node(
     graph: &mut Graph,
     base_id: git2::Oid,
     node_id: git2::Oid,
-    effect: crate::config::Fixup,
+    effect: crate::legacy::config::Fixup,
     outstanding: &mut std::collections::BTreeMap<bstr::BString, Vec<git2::Oid>>,
 ) {
-    debug_assert_ne!(effect, crate::config::Fixup::Ignore);
+    debug_assert_ne!(effect, crate::legacy::config::Fixup::Ignore);
 
     let node_children = graph
         .get(node_id)
@@ -659,8 +659,8 @@ fn fixup_node(
     let mut fixup_ids = Vec::new();
     {
         let node = graph.get_mut(node_id).expect("all children exist");
-        debug_assert_ne!(node.action, crate::graph::Action::Protected);
-        debug_assert_ne!(node.action, crate::graph::Action::Delete);
+        debug_assert_ne!(node.action, crate::legacy::graph::Action::Protected);
+        debug_assert_ne!(node.action, crate::legacy::graph::Action::Delete);
         if let Some(summary) = node.commit.fixup_summary() {
             outstanding
                 .entry(summary.to_owned())
@@ -681,17 +681,17 @@ fn fixup_node(
         debug_assert!(fixup_ids.is_empty());
 
         let base = graph.get_mut(base_id).expect("all children exist");
-        debug_assert_ne!(base.action, crate::graph::Action::Protected);
-        debug_assert_ne!(base.action, crate::graph::Action::Delete);
+        debug_assert_ne!(base.action, crate::legacy::graph::Action::Protected);
+        debug_assert_ne!(base.action, crate::legacy::graph::Action::Delete);
         base.children.remove(&node_id);
         base.children.extend(children);
         base.branches.extend(branches);
     } else if !fixup_ids.is_empty() {
-        if effect == crate::config::Fixup::Squash {
+        if effect == crate::legacy::config::Fixup::Squash {
             for fixup_id in fixup_ids.iter().copied() {
                 let fixup = graph.get_mut(fixup_id).expect("all children exist");
-                assert!(fixup.action == crate::graph::Action::Pick);
-                fixup.action = crate::graph::Action::Fixup;
+                assert!(fixup.action == crate::legacy::graph::Action::Pick);
+                fixup.action = crate::legacy::graph::Action::Fixup;
             }
         }
         splice_after(graph, node_id, fixup_ids);
@@ -915,8 +915,8 @@ fn enqueue_merge_stack(
     }
 }
 
-pub fn to_script(graph: &Graph) -> crate::git::Script {
-    let mut script = crate::git::Script::new();
+pub fn to_script(graph: &Graph) -> crate::legacy::git::Script {
+    let mut script = crate::legacy::git::Script::new();
 
     let mut protected_queue = VecDeque::new();
     if graph.root().action.is_protected() {
@@ -934,12 +934,14 @@ pub fn to_script(graph: &Graph) -> crate::git::Script {
                     let stack_mark = child.commit.id;
                     script
                         .commands
-                        .push(crate::git::Command::SwitchCommit(stack_mark));
+                        .push(crate::legacy::git::Command::SwitchCommit(stack_mark));
                     for branch in child.branches.iter() {
                         if let Some(local_name) = branch.local_name() {
                             script
                                 .commands
-                                .push(crate::git::Command::CreateBranch(local_name.to_owned()));
+                                .push(crate::legacy::git::Command::CreateBranch(
+                                    local_name.to_owned(),
+                                ));
                         }
                     }
                 }
@@ -947,7 +949,7 @@ pub fn to_script(graph: &Graph) -> crate::git::Script {
             } else if let Some(mut dependent) = node_to_script(graph, child_id) {
                 dependent
                     .commands
-                    .insert(0, crate::git::Command::SwitchCommit(current_id));
+                    .insert(0, crate::legacy::git::Command::SwitchCommit(current_id));
                 script.dependents.push(dependent);
             }
         }
@@ -956,20 +958,22 @@ pub fn to_script(graph: &Graph) -> crate::git::Script {
     script
 }
 
-fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Script> {
-    let mut script = crate::git::Script::new();
+fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::legacy::git::Script> {
+    let mut script = crate::legacy::git::Script::new();
 
     let node = graph.get(node_id).expect("all children exist");
     match node.action {
-        crate::graph::Action::Pick => {
+        crate::legacy::graph::Action::Pick => {
             script
                 .commands
-                .push(crate::git::Command::CherryPick(node.commit.id));
+                .push(crate::legacy::git::Command::CherryPick(node.commit.id));
             for branch in node.branches.iter() {
                 if let Some(local_name) = branch.local_name() {
                     script
                         .commands
-                        .push(crate::git::Command::CreateBranch(local_name.to_owned()));
+                        .push(crate::legacy::git::Command::CreateBranch(
+                            local_name.to_owned(),
+                        ));
                 }
             }
 
@@ -985,17 +989,19 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
                 extend_dependents(node, &mut script, node_dependents, transaction);
             }
         }
-        crate::graph::Action::Fixup => {
+        crate::legacy::graph::Action::Fixup => {
             script
                 .commands
-                .push(crate::git::Command::Fixup(node.commit.id));
+                .push(crate::legacy::git::Command::Fixup(node.commit.id));
             // We can't re-target the branches of the commit we are squashing into, so the ops that
             // creates a `Fixup` option has to handle that.
             for branch in node.branches.iter() {
                 if let Some(local_name) = branch.local_name() {
                     script
                         .commands
-                        .push(crate::git::Command::CreateBranch(local_name.to_owned()));
+                        .push(crate::legacy::git::Command::CreateBranch(
+                            local_name.to_owned(),
+                        ));
                 }
             }
 
@@ -1011,7 +1017,7 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
                 extend_dependents(node, &mut script, node_dependents, transaction);
             }
         }
-        crate::graph::Action::Protected => {
+        crate::legacy::graph::Action::Protected => {
             let node_dependents: Vec<_> = node
                 .children
                 .iter()
@@ -1022,13 +1028,15 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
                 let stack_mark = node.commit.id;
                 script
                     .commands
-                    .push(crate::git::Command::SwitchCommit(stack_mark));
+                    .push(crate::legacy::git::Command::SwitchCommit(stack_mark));
                 // We might be updating protected branches as part of a `pull --rebase`,
                 for branch in node.branches.iter() {
                     if let Some(local_name) = branch.local_name() {
                         script
                             .commands
-                            .push(crate::git::Command::CreateBranch(local_name.to_owned()));
+                            .push(crate::legacy::git::Command::CreateBranch(
+                                local_name.to_owned(),
+                            ));
                     }
                 }
 
@@ -1037,12 +1045,14 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
                 extend_dependents(node, &mut script, node_dependents, transaction);
             }
         }
-        crate::graph::Action::Delete => {
+        crate::legacy::graph::Action::Delete => {
             for branch in node.branches.iter() {
                 if let Some(local_name) = branch.local_name() {
                     script
                         .commands
-                        .push(crate::git::Command::CreateBranch(local_name.to_owned()));
+                        .push(crate::legacy::git::Command::CreateBranch(
+                            local_name.to_owned(),
+                        ));
                 }
             }
 
@@ -1069,8 +1079,8 @@ fn node_to_script(graph: &Graph, node_id: git2::Oid) -> Option<crate::git::Scrip
 
 fn extend_dependents(
     node: &Node,
-    script: &mut crate::git::Script,
-    mut dependents: Vec<crate::git::Script>,
+    script: &mut crate::legacy::git::Script,
+    mut dependents: Vec<crate::legacy::git::Script>,
     transaction: bool,
 ) {
     // Create transactions at the branch boundaries
@@ -1083,11 +1093,11 @@ fn extend_dependents(
         let stack_mark = node.commit.id;
         script
             .commands
-            .push(crate::git::Command::RegisterMark(stack_mark));
+            .push(crate::legacy::git::Command::RegisterMark(stack_mark));
         for dependent in dependents.iter_mut() {
             dependent
                 .commands
-                .insert(0, crate::git::Command::SwitchMark(stack_mark));
+                .insert(0, crate::legacy::git::Command::SwitchMark(stack_mark));
         }
         script.dependents.extend(dependents);
     }

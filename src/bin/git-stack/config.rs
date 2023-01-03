@@ -10,7 +10,7 @@ pub fn dump_config(
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
-    let repo_config = git_stack::config::RepoConfig::from_all(&repo)
+    let repo_config = git_stack::legacy::config::RepoConfig::from_all(&repo)
         .with_code(proc_exit::sysexits::CONFIG_ERR)?
         .update(args.to_config());
 
@@ -32,7 +32,7 @@ pub fn protect(args: &crate::args::Args, ignore: &str) -> proc_exit::ExitResult 
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
-    let mut repo_config = git_stack::config::RepoConfig::from_repo(&repo)
+    let mut repo_config = git_stack::legacy::config::RepoConfig::from_repo(&repo)
         .with_code(proc_exit::sysexits::CONFIG_ERR)?
         .update(args.to_config());
     repo_config
@@ -52,17 +52,17 @@ pub fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
-    let repo_config = git_stack::config::RepoConfig::from_all(&repo)
+    let repo_config = git_stack::legacy::config::RepoConfig::from_all(&repo)
         .with_code(proc_exit::sysexits::CONFIG_ERR)?
         .update(args.to_config());
-    let protected = git_stack::git::ProtectedBranches::new(
+    let protected = git_stack::legacy::git::ProtectedBranches::new(
         repo_config.protected_branches().iter().map(|s| s.as_str()),
     )
     .with_code(proc_exit::sysexits::CONFIG_ERR)?;
 
-    let repo = git_stack::git::GitRepo::new(repo);
-    let mut branches = git_stack::git::Branches::new([]);
-    let mut protected_branches = git_stack::git::Branches::new([]);
+    let repo = git_stack::legacy::git::GitRepo::new(repo);
+    let mut branches = git_stack::legacy::git::Branches::new([]);
+    let mut protected_branches = git_stack::legacy::git::Branches::new([]);
     for branch in repo.local_branches() {
         if protected.is_protected(&branch.name) {
             log::trace!("Branch {} is protected", branch);

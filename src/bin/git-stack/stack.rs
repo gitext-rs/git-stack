@@ -7,16 +7,16 @@ use itertools::Itertools;
 use proc_exit::prelude::*;
 
 struct State {
-    repo: git_stack::git::GitRepo,
-    branches: git_stack::git::Branches,
-    protected_branches: git_stack::git::Branches,
-    head_commit: std::rc::Rc<git_stack::git::Commit>,
+    repo: git_stack::legacy::git::GitRepo,
+    branches: git_stack::legacy::git::Branches,
+    protected_branches: git_stack::legacy::git::Branches,
+    head_commit: std::rc::Rc<git_stack::legacy::git::Commit>,
     stacks: Vec<StackState>,
 
     rebase: bool,
     pull: bool,
     push: bool,
-    fixup: git_stack::config::Fixup,
+    fixup: git_stack::legacy::config::Fixup,
     repair: bool,
     dry_run: bool,
     snapshot_capacity: Option<usize>,
@@ -24,17 +24,17 @@ struct State {
     protect_commit_age: std::time::Duration,
     protect_commit_time: std::time::SystemTime,
 
-    show_format: git_stack::config::Format,
-    show_commits: git_stack::config::ShowCommits,
+    show_format: git_stack::legacy::config::Format,
+    show_commits: git_stack::legacy::config::ShowCommits,
     show_stacked: bool,
 }
 
 impl State {
     fn new(
-        mut repo: git_stack::git::GitRepo,
+        mut repo: git_stack::legacy::git::GitRepo,
         args: &crate::args::Args,
     ) -> Result<Self, proc_exit::Exit> {
-        let repo_config = git_stack::config::RepoConfig::from_all(repo.raw())
+        let repo_config = git_stack::legacy::config::RepoConfig::from_all(repo.raw())
             .with_code(proc_exit::sysexits::CONFIG_ERR)?
             .update(args.to_config());
 
@@ -51,7 +51,7 @@ impl State {
             (_, true) => repo_config.auto_fixup(),
             _ => {
                 // Assume the user is only wanting to show the tree and not modify it.
-                let no_op = git_stack::config::Fixup::Ignore;
+                let no_op = git_stack::legacy::config::Fixup::Ignore;
                 if no_op != repo_config.auto_fixup() {
                     log::trace!(
                         "Ignoring `auto-fixup={}` without an explicit `--rebase`",
@@ -76,7 +76,7 @@ impl State {
             }
         };
         let push = args.push;
-        let protected = git_stack::git::ProtectedBranches::new(
+        let protected = git_stack::legacy::git::ProtectedBranches::new(
             repo_config.protected_branches().iter().map(|s| s.as_str()),
         )
         .with_code(proc_exit::sysexits::CONFIG_ERR)?;
@@ -92,8 +92,8 @@ impl State {
         repo.set_push_remote(repo_config.push_remote());
         repo.set_pull_remote(repo_config.pull_remote());
 
-        let mut branches = git_stack::git::Branches::new([]);
-        let mut protected_branches = git_stack::git::Branches::new([]);
+        let mut branches = git_stack::legacy::git::Branches::new([]);
+        let mut protected_branches = git_stack::legacy::git::Branches::new([]);
         for branch in repo.local_branches() {
             if protected.is_protected(&branch.name) {
                 log::trace!("Branch {} is protected", branch);
@@ -121,18 +121,18 @@ impl State {
             .with_code(proc_exit::sysexits::USAGE_ERR)?;
 
         let stacks = match (base, onto, repo_config.stack()) {
-            (Some(base), Some(onto), git_stack::config::Stack::All) => {
+            (Some(base), Some(onto), git_stack::legacy::config::Stack::All) => {
                 vec![StackState::new(base, onto, branches.all())]
             }
-            (Some(base), None, git_stack::config::Stack::All) => {
+            (Some(base), None, git_stack::legacy::config::Stack::All) => {
                 let onto = resolve_onto_from_base(&repo, &base);
                 vec![StackState::new(base, onto, branches.all())]
             }
-            (None, Some(onto), git_stack::config::Stack::All) => {
+            (None, Some(onto), git_stack::legacy::config::Stack::All) => {
                 let base = resolve_base_from_onto(&repo, &onto);
                 vec![StackState::new(base, onto, branches.all())]
             }
-            (None, None, git_stack::config::Stack::All) => {
+            (None, None, git_stack::legacy::config::Stack::All) => {
                 let mut stack_branches = std::collections::BTreeMap::new();
                 for (branch_id, branch) in branches.iter() {
                     let base_branch = resolve_implicit_base(
@@ -144,7 +144,7 @@ impl State {
                     );
                     stack_branches
                         .entry(base_branch)
-                        .or_insert_with(git_stack::git::Branches::default)
+                        .or_insert_with(git_stack::legacy::git::Branches::default)
                         .extend(branch.iter().cloned());
                 }
                 stack_branches
@@ -198,16 +198,18 @@ impl State {
                     })
                     .with_code(proc_exit::sysexits::USAGE_ERR)?;
                 let stack_branches = match stack {
-                    git_stack::config::Stack::Current => {
+                    git_stack::legacy::config::Stack::Current => {
                         branches.branch(&repo, merge_base_oid, head_commit.id)
                     }
-                    git_stack::config::Stack::Dependents => {
+                    git_stack::legacy::config::Stack::Dependents => {
                         branches.dependents(&repo, merge_base_oid, head_commit.id)
                     }
-                    git_stack::config::Stack::Descendants => {
+                    git_stack::legacy::config::Stack::Descendants => {
                         branches.descendants(&repo, merge_base_oid)
                     }
-                    git_stack::config::Stack::All => unreachable!("Covered in another branch"),
+                    git_stack::legacy::config::Stack::All => {
+                        unreachable!("Covered in another branch")
+                    }
                 };
                 vec![StackState::new(base, onto, stack_branches)]
             }
@@ -263,11 +265,15 @@ impl State {
 struct StackState {
     base: AnnotatedOid,
     onto: AnnotatedOid,
-    branches: git_stack::git::Branches,
+    branches: git_stack::legacy::git::Branches,
 }
 
 impl StackState {
-    fn new(base: AnnotatedOid, onto: AnnotatedOid, mut branches: git_stack::git::Branches) -> Self {
+    fn new(
+        base: AnnotatedOid,
+        onto: AnnotatedOid,
+        mut branches: git_stack::legacy::git::Branches,
+    ) -> Self {
         if let Some(base) = &base.branch {
             branches.insert(base.clone());
         }
@@ -281,7 +287,7 @@ impl StackState {
         }
     }
 
-    fn update(&mut self, repo: &dyn git_stack::git::Repo) -> eyre::Result<()> {
+    fn update(&mut self, repo: &dyn git_stack::legacy::git::Repo) -> eyre::Result<()> {
         self.base.update(repo)?;
         self.onto.update(repo)?;
         self.branches.update(repo);
@@ -297,7 +303,7 @@ pub fn stack(
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
-    let repo = git_stack::git::GitRepo::new(repo);
+    let repo = git_stack::legacy::git::GitRepo::new(repo);
     let mut state = State::new(repo, args)?;
 
     if state.pull {
@@ -341,16 +347,16 @@ pub fn stack(
     let mut success = true;
     let mut backed_up = false;
     let mut stash_id = None;
-    if state.rebase || state.fixup != git_stack::config::Fixup::Ignore || state.repair {
+    if state.rebase || state.fixup != git_stack::legacy::config::Fixup::Ignore || state.repair {
         if stash_id.is_none() && !state.dry_run {
-            stash_id = git_stack::git::stash_push(&mut state.repo, "branch-stash");
+            stash_id = git_stack::legacy::git::stash_push(&mut state.repo, "branch-stash");
         }
         if state.repo.is_dirty() {
             let message = "Working tree is dirty, aborting";
             if state.dry_run {
                 log::error!("{}", message);
             } else {
-                git_stack::git::stash_pop(&mut state.repo, stash_id);
+                git_stack::legacy::git::stash_pop(&mut state.repo, stash_id);
                 return Err(proc_exit::sysexits::USAGE_ERR.with_message(message));
             }
         }
@@ -399,7 +405,7 @@ pub fn stack(
             .collect();
         let scripts = scripts?;
 
-        let mut executor = git_stack::git::Executor::new(&state.repo, state.dry_run);
+        let mut executor = git_stack::legacy::git::Executor::new(&state.repo, state.dry_run);
         for script in scripts {
             let results = executor.run_script(&mut state.repo, &script);
             for (err, name, dependents) in results.iter() {
@@ -423,7 +429,7 @@ pub fn stack(
 
     show(&state, colored_stdout, colored_stderr).with_code(proc_exit::Code::FAILURE)?;
 
-    git_stack::git::stash_pop(&mut state.repo, stash_id);
+    git_stack::legacy::git::stash_pop(&mut state.repo, stash_id);
 
     if backed_up {
         let palette_stderr = if colored_stderr {
@@ -447,26 +453,29 @@ pub fn stack(
     Ok(())
 }
 
-fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::git::Script> {
+fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::legacy::git::Script> {
     log::trace!("Planning stack changes with base={}", stack.base,);
     let graphed_branches = stack.branches.clone();
     let base_commit = state
         .repo
         .find_commit(stack.base.id)
         .expect("base branch is valid");
-    let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
-    graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
-    git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+    let mut graph = git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
+    graph.insert(
+        &state.repo,
+        git_stack::legacy::graph::Node::new(base_commit),
+    )?;
+    git_stack::legacy::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
     if let Some(protect_commit_count) = state.protect_commit_count {
-        git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
+        git_stack::legacy::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
-    git_stack::graph::protect_old_branches(
+    git_stack::legacy::graph::protect_old_branches(
         &mut graph,
         state.protect_commit_time,
         &[state.head_commit.id],
     );
     if let Some(user) = state.repo.user() {
-        git_stack::graph::protect_foreign_branches(&mut graph, &user, &[]);
+        git_stack::legacy::graph::protect_foreign_branches(&mut graph, &user, &[]);
     }
 
     let mut dropped_branches = Vec::new();
@@ -479,66 +488,67 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::gi
             .merge_base(pull_start_id, onto_id)
             .unwrap_or(onto_id);
 
-        git_stack::graph::rebase_development_branches(&mut graph, onto_id);
-        git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
+        git_stack::legacy::graph::rebase_development_branches(&mut graph, onto_id);
+        git_stack::legacy::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
 
-        let pull_range: Vec<_> = git_stack::git::commit_range(&state.repo, onto_id..pull_start_id)?
-            .into_iter()
-            .map(|id| state.repo.find_commit(id).unwrap())
-            .collect();
-        git_stack::graph::drop_squashed_by_tree_id(
+        let pull_range: Vec<_> =
+            git_stack::legacy::git::commit_range(&state.repo, onto_id..pull_start_id)?
+                .into_iter()
+                .map(|id| state.repo.find_commit(id).unwrap())
+                .collect();
+        git_stack::legacy::graph::drop_squashed_by_tree_id(
             &mut graph,
             pull_range.iter().map(|c| c.tree_id),
         );
-        dropped_branches.extend(git_stack::graph::drop_merged_branches(
+        dropped_branches.extend(git_stack::legacy::graph::drop_merged_branches(
             &mut graph,
             pull_range.iter().map(|c| c.id),
             &state.protected_branches,
         ));
     }
-    git_stack::graph::fixup(&mut graph, state.fixup);
+    git_stack::legacy::graph::fixup(&mut graph, state.fixup);
     if state.repair {
         log::trace!("Repairing");
-        git_stack::graph::merge_stacks(&mut graph);
-        git_stack::graph::realign_stacks(&mut graph);
+        git_stack::legacy::graph::merge_stacks(&mut graph);
+        git_stack::legacy::graph::realign_stacks(&mut graph);
     }
 
-    let mut script = git_stack::graph::to_script(&graph);
+    let mut script = git_stack::legacy::graph::to_script(&graph);
     script.commands.extend(
         dropped_branches
             .into_iter()
-            .map(git_stack::git::Command::DeleteBranch),
+            .map(git_stack::legacy::git::Command::DeleteBranch),
     );
 
     Ok(script)
 }
 
 fn push(state: &mut State) -> eyre::Result<()> {
-    let mut graphed_branches = git_stack::git::Branches::new(None.into_iter());
+    let mut graphed_branches = git_stack::legacy::git::Branches::new(None.into_iter());
     for stack in state.stacks.iter() {
         let stack_graphed_branches = stack.branches.clone();
         graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
     }
-    let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
+    let mut graph = git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     graph.insert(
         &state.repo,
-        git_stack::graph::Node::new(state.head_commit.clone()),
+        git_stack::legacy::graph::Node::new(state.head_commit.clone()),
     )?;
 
-    git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+    git_stack::legacy::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
     if let Some(protect_commit_count) = state.protect_commit_count {
-        git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
+        git_stack::legacy::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
-    git_stack::graph::protect_old_branches(
+    git_stack::legacy::graph::protect_old_branches(
         &mut graph,
         state.protect_commit_time,
         &[state.head_commit.id],
     );
     if let Some(user) = state.repo.user() {
-        git_stack::graph::protect_foreign_branches(&mut graph, &user, &[]);
+        git_stack::legacy::graph::protect_foreign_branches(&mut graph, &user, &[]);
     }
 
-    git_stack::graph::pushable(&mut graph);
+    git_stack::legacy::graph::pushable(&mut graph);
 
     git_push(&mut state.repo, &graph, state.dry_run)?;
 
@@ -556,10 +566,10 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
     let mut foreign_stacks = Vec::new();
 
     let abbrev_graph = match state.show_format {
-        git_stack::config::Format::Silent => false,
-        git_stack::config::Format::List => false,
-        git_stack::config::Format::Graph => true,
-        git_stack::config::Format::Debug => true,
+        git_stack::legacy::config::Format::Silent => false,
+        git_stack::legacy::config::Format::List => false,
+        git_stack::legacy::config::Format::Graph => true,
+        git_stack::legacy::config::Format::Debug => true,
     };
 
     let mut graphs = Vec::with_capacity(state.stacks.len());
@@ -578,12 +588,20 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             .repo
             .find_commit(stack.base.id)
             .expect("base branch is valid");
-        let mut graph = git_stack::graph::Graph::from_branches(&state.repo, graphed_branches)?;
-        graph.insert(&state.repo, git_stack::graph::Node::new(base_commit))?;
-        git_stack::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+        let mut graph =
+            git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
+        graph.insert(
+            &state.repo,
+            git_stack::legacy::graph::Node::new(base_commit),
+        )?;
+        git_stack::legacy::graph::protect_branches(
+            &mut graph,
+            &state.repo,
+            &state.protected_branches,
+        );
         if let Some(protect_commit_count) = state.protect_commit_count {
             let protected =
-                git_stack::graph::protect_large_branches(&mut graph, protect_commit_count);
+                git_stack::legacy::graph::protect_large_branches(&mut graph, protect_commit_count);
             if !protected.is_empty() {
                 log::warn!(
                     "Branches contain more than {} commits (should these be protected?): {}",
@@ -594,7 +612,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         }
         if abbrev_graph {
             old_stacks.extend(
-                git_stack::graph::trim_old_branches(
+                git_stack::legacy::graph::trim_old_branches(
                     &mut graph,
                     state.protect_commit_time,
                     &[state.head_commit.id],
@@ -604,7 +622,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             );
             if let Some(user) = state.repo.user() {
                 foreign_stacks.extend(
-                    git_stack::graph::trim_foreign_branches(
+                    git_stack::legacy::graph::trim_foreign_branches(
                         &mut graph,
                         &user,
                         &[state.head_commit.id],
@@ -612,7 +630,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                     .into_iter()
                     .map(|b| format!("{}", palette_stderr.warn.paint(b))),
                 );
-                git_stack::graph::protect_foreign_branches(&mut graph, &user, &[]);
+                git_stack::legacy::graph::protect_foreign_branches(&mut graph, &user, &[]);
             }
         }
 
@@ -627,40 +645,45 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                     .merge_base(pull_start_id, onto_id)
                     .unwrap_or(onto_id);
 
-                git_stack::graph::rebase_development_branches(&mut graph, onto_id);
-                git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
+                git_stack::legacy::graph::rebase_development_branches(&mut graph, onto_id);
+                git_stack::legacy::graph::rebase_pulled_branches(
+                    &mut graph,
+                    pull_start_id,
+                    onto_id,
+                );
 
                 let pull_range: Vec<_> =
-                    git_stack::git::commit_range(&state.repo, onto_id..pull_start_id)?
+                    git_stack::legacy::git::commit_range(&state.repo, onto_id..pull_start_id)?
                         .into_iter()
                         .map(|id| state.repo.find_commit(id).unwrap())
                         .collect();
-                git_stack::graph::drop_squashed_by_tree_id(
+                git_stack::legacy::graph::drop_squashed_by_tree_id(
                     &mut graph,
                     pull_range.iter().map(|c| c.tree_id),
                 );
-                git_stack::graph::drop_merged_branches(
+                git_stack::legacy::graph::drop_merged_branches(
                     &mut graph,
                     pull_range.iter().map(|c| c.id),
                     &state.protected_branches,
                 );
             }
-            git_stack::graph::fixup(&mut graph, state.fixup);
+            git_stack::legacy::graph::fixup(&mut graph, state.fixup);
             if state.repair {
                 log::trace!("Repairing");
-                git_stack::graph::merge_stacks(&mut graph);
-                git_stack::graph::realign_stacks(&mut graph);
+                git_stack::legacy::graph::merge_stacks(&mut graph);
+                git_stack::legacy::graph::realign_stacks(&mut graph);
             }
         }
 
-        git_stack::graph::pushable(&mut graph);
+        git_stack::legacy::graph::pushable(&mut graph);
 
         graphs.push(graph);
     }
     if graphs.is_empty() {
         log::trace!("Rendering empty stack base={}", state.head_commit.id);
-        let graph =
-            git_stack::graph::Graph::new(git_stack::graph::Node::new(state.head_commit.clone()));
+        let graph = git_stack::legacy::graph::Graph::new(git_stack::legacy::graph::Node::new(
+            state.head_commit.clone(),
+        ));
         graphs.push(graph);
     }
     graphs.sort_by_key(|g| {
@@ -681,8 +704,8 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
 
     for graph in graphs {
         match state.show_format {
-            git_stack::config::Format::Silent => {}
-            git_stack::config::Format::List => {
+            git_stack::legacy::config::Format::Silent => {}
+            git_stack::legacy::config::Format::List => {
                 let palette = if colored_stdout {
                     Palette::colored()
                 } else {
@@ -696,7 +719,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                     &palette,
                 )?;
             }
-            git_stack::config::Format::Graph => {
+            git_stack::legacy::config::Format::Graph => {
                 write!(
                     std::io::stdout(),
                     "{}",
@@ -707,7 +730,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                         .protected_branches(&state.protected_branches)
                 )?;
             }
-            git_stack::config::Format::Debug => {
+            git_stack::legacy::config::Format::Debug => {
                 writeln!(std::io::stdout(), "{:#?}", graph)?;
             }
         }
@@ -733,7 +756,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
 struct AnnotatedOid {
     id: git2::Oid,
-    branch: Option<git_stack::git::Branch>,
+    branch: Option<git_stack::legacy::git::Branch>,
 }
 
 impl AnnotatedOid {
@@ -741,14 +764,14 @@ impl AnnotatedOid {
         Self { id, branch: None }
     }
 
-    fn with_branch(branch: git_stack::git::Branch) -> Self {
+    fn with_branch(branch: git_stack::legacy::git::Branch) -> Self {
         Self {
             id: branch.id,
             branch: Some(branch),
         }
     }
 
-    fn update(&mut self, repo: &dyn git_stack::git::Repo) -> eyre::Result<()> {
+    fn update(&mut self, repo: &dyn git_stack::legacy::git::Repo) -> eyre::Result<()> {
         let branch = self.branch.as_ref().and_then(|branch| {
             if let Some(remote) = &branch.remote {
                 repo.find_remote_branch(remote, &branch.name)
@@ -773,7 +796,10 @@ impl std::fmt::Display for AnnotatedOid {
     }
 }
 
-fn resolve_explicit_base(repo: &git_stack::git::GitRepo, base: &str) -> eyre::Result<AnnotatedOid> {
+fn resolve_explicit_base(
+    repo: &git_stack::legacy::git::GitRepo,
+    base: &str,
+) -> eyre::Result<AnnotatedOid> {
     let (obj, r) = repo.raw().revparse_ext(base)?;
     if let Some(r) = r {
         if r.is_tag() {
@@ -799,13 +825,13 @@ fn resolve_explicit_base(repo: &git_stack::git::GitRepo, base: &str) -> eyre::Re
 }
 
 fn resolve_implicit_base(
-    repo: &dyn git_stack::git::Repo,
+    repo: &dyn git_stack::legacy::git::Repo,
     head_oid: git2::Oid,
-    branches: &git_stack::git::Branches,
-    protected_branches: &git_stack::git::Branches,
+    branches: &git_stack::legacy::git::Branches,
+    protected_branches: &git_stack::legacy::git::Branches,
     auto_base_commit_count: Option<usize>,
 ) -> AnnotatedOid {
-    match git_stack::git::find_protected_base(repo, protected_branches, head_oid) {
+    match git_stack::legacy::git::find_protected_base(repo, protected_branches, head_oid) {
         Some(branch) => {
             let merge_base_id = repo
                 .merge_base(branch.id, head_oid)
@@ -819,7 +845,7 @@ fn resolve_implicit_base(
                     .expect("merge_base should ensure a count exists ");
                 if max_commit_count <= ahead_count + behind_count {
                     let assumed_base_oid =
-                        git_stack::git::infer_base(repo, head_oid).unwrap_or(head_oid);
+                        git_stack::legacy::git::infer_base(repo, head_oid).unwrap_or(head_oid);
                     log::warn!(
                         "{} is {} ahead and {} behind {}, using {} as --base instead",
                         branches
@@ -860,7 +886,8 @@ fn resolve_implicit_base(
             AnnotatedOid::with_branch(branch.to_owned())
         }
         None => {
-            let assumed_base_oid = git_stack::git::infer_base(repo, head_oid).unwrap_or(head_oid);
+            let assumed_base_oid =
+                git_stack::legacy::git::infer_base(repo, head_oid).unwrap_or(head_oid);
             log::warn!(
                 "Could not find protected branch for {}, assuming {}",
                 head_oid,
@@ -871,7 +898,10 @@ fn resolve_implicit_base(
     }
 }
 
-fn resolve_base_from_onto(repo: &git_stack::git::GitRepo, onto: &AnnotatedOid) -> AnnotatedOid {
+fn resolve_base_from_onto(
+    repo: &git_stack::legacy::git::GitRepo,
+    onto: &AnnotatedOid,
+) -> AnnotatedOid {
     // HACK: Assuming the local branch is the current base for all the commits
     onto.branch
         .as_ref()
@@ -881,7 +911,10 @@ fn resolve_base_from_onto(repo: &git_stack::git::GitRepo, onto: &AnnotatedOid) -
         .unwrap_or_else(|| onto.clone())
 }
 
-fn resolve_onto_from_base(repo: &git_stack::git::GitRepo, base: &AnnotatedOid) -> AnnotatedOid {
+fn resolve_onto_from_base(
+    repo: &git_stack::legacy::git::GitRepo,
+    base: &AnnotatedOid,
+) -> AnnotatedOid {
     // HACK: Assuming the local branch is the current base for all the commits
     base.branch
         .as_ref()
@@ -892,7 +925,7 @@ fn resolve_onto_from_base(repo: &git_stack::git::GitRepo, base: &AnnotatedOid) -
 }
 
 fn git_prune_development(
-    repo: &mut git_stack::git::GitRepo,
+    repo: &mut git_stack::legacy::git::GitRepo,
     branches: &[&str],
     dry_run: bool,
 ) -> eyre::Result<()> {
@@ -955,8 +988,8 @@ fn git_fetch_upstream(remote: &str, branch_name: &str) -> eyre::Result<()> {
 }
 
 fn git_push(
-    repo: &mut git_stack::git::GitRepo,
-    graph: &git_stack::graph::Graph,
+    repo: &mut git_stack::legacy::git::GitRepo,
+    graph: &git_stack::legacy::graph::Graph,
     dry_run: bool,
 ) -> eyre::Result<()> {
     let mut failed = Vec::new();
@@ -981,8 +1014,8 @@ fn git_push(
 }
 
 fn git_push_node(
-    repo: &mut git_stack::git::GitRepo,
-    node: &git_stack::graph::Node,
+    repo: &mut git_stack::legacy::git::GitRepo,
+    node: &git_stack::legacy::graph::Node,
     dry_run: bool,
 ) -> Vec<String> {
     let mut failed = Vec::new();
@@ -1034,9 +1067,9 @@ fn git_push_node(
 
 fn list(
     writer: &mut dyn std::io::Write,
-    repo: &git_stack::git::GitRepo,
-    graph: &git_stack::graph::Graph,
-    protected_branches: &git_stack::git::Branches,
+    repo: &git_stack::legacy::git::GitRepo,
+    graph: &git_stack::legacy::graph::Graph,
+    protected_branches: &git_stack::legacy::git::Branches,
     palette: &Palette,
 ) -> Result<(), std::io::Error> {
     let head_branch = repo.head_branch().unwrap();
@@ -1062,16 +1095,19 @@ fn list(
 }
 
 struct DisplayTree<'r> {
-    repo: &'r git_stack::git::GitRepo,
-    graph: &'r git_stack::graph::Graph,
-    protected_branches: git_stack::git::Branches,
+    repo: &'r git_stack::legacy::git::GitRepo,
+    graph: &'r git_stack::legacy::graph::Graph,
+    protected_branches: git_stack::legacy::git::Branches,
     palette: Palette,
-    show: git_stack::config::ShowCommits,
+    show: git_stack::legacy::config::ShowCommits,
     stacked: bool,
 }
 
 impl<'r> DisplayTree<'r> {
-    pub fn new(repo: &'r git_stack::git::GitRepo, graph: &'r git_stack::graph::Graph) -> Self {
+    pub fn new(
+        repo: &'r git_stack::legacy::git::GitRepo,
+        graph: &'r git_stack::legacy::graph::Graph,
+    ) -> Self {
         Self {
             repo,
             graph,
@@ -1091,7 +1127,7 @@ impl<'r> DisplayTree<'r> {
         self
     }
 
-    pub fn show(mut self, show: git_stack::config::ShowCommits) -> Self {
+    pub fn show(mut self, show: git_stack::legacy::config::ShowCommits) -> Self {
         self.show = show;
         self
     }
@@ -1101,7 +1137,10 @@ impl<'r> DisplayTree<'r> {
         self
     }
 
-    pub fn protected_branches(mut self, protected_branches: &git_stack::git::Branches) -> Self {
+    pub fn protected_branches(
+        mut self,
+        protected_branches: &git_stack::legacy::git::Branches,
+    ) -> Self {
         self.protected_branches = protected_branches.clone();
         self
     }
@@ -1111,9 +1150,9 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let head_branch = self.repo.head_branch().unwrap();
 
-        let is_visible: Box<dyn Fn(&git_stack::graph::Node) -> bool> = match self.show {
-            git_stack::config::ShowCommits::All => Box::new(|_| true),
-            git_stack::config::ShowCommits::Unprotected => Box::new(|node| {
+        let is_visible: Box<dyn Fn(&git_stack::legacy::graph::Node) -> bool> = match self.show {
+            git_stack::legacy::config::ShowCommits::All => Box::new(|_| true),
+            git_stack::legacy::config::ShowCommits::Unprotected => Box::new(|node| {
                 let interesting_commit = node.commit.id == head_branch.id
                     || node.commit.id == self.graph.root_id()
                     || node.children.is_empty();
@@ -1121,7 +1160,7 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
                 let protected = node.action.is_protected();
                 interesting_commit || !boring_commit || !protected
             }),
-            git_stack::config::ShowCommits::None => Box::new(|node| {
+            git_stack::legacy::config::ShowCommits::None => Box::new(|node| {
                 let interesting_commit = node.commit.id == head_branch.id
                     || node.commit.id == self.graph.root_id()
                     || node.children.is_empty();
@@ -1153,11 +1192,11 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
 }
 
 fn node_to_tree<'r>(
-    repo: &'r git_stack::git::GitRepo,
-    head_branch: &'r git_stack::git::Branch,
-    graph: &'r git_stack::graph::Graph,
+    repo: &'r git_stack::legacy::git::GitRepo,
+    head_branch: &'r git_stack::legacy::git::Branch,
+    graph: &'r git_stack::legacy::graph::Graph,
     mut node_id: git2::Oid,
-    is_visible: &dyn Fn(&git_stack::graph::Node) -> bool,
+    is_visible: &dyn Fn(&git_stack::legacy::graph::Node) -> bool,
 ) -> Tree<'r> {
     for ellide_count in 0.. {
         let node = graph.get(node_id).expect("all children exist");
@@ -1185,11 +1224,11 @@ fn node_to_tree<'r>(
 
 fn append_children<'r>(
     tree: &mut Tree<'r>,
-    repo: &'r git_stack::git::GitRepo,
-    head_branch: &'r git_stack::git::Branch,
-    graph: &'r git_stack::graph::Graph,
-    mut parent_node: &'r git_stack::graph::Node,
-    is_visible: &dyn Fn(&git_stack::graph::Node) -> bool,
+    repo: &'r git_stack::legacy::git::GitRepo,
+    head_branch: &'r git_stack::legacy::git::Branch,
+    graph: &'r git_stack::legacy::graph::Graph,
+    mut parent_node: &'r git_stack::legacy::graph::Node,
+    is_visible: &dyn Fn(&git_stack::legacy::graph::Node) -> bool,
 ) {
     match parent_node.children.len() {
         0 => {}
@@ -1250,7 +1289,10 @@ fn append_children<'r>(
     }
 }
 
-fn default_weight(node: &git_stack::graph::Node, head_branch: &git_stack::git::Branch) -> Weight {
+fn default_weight(
+    node: &git_stack::legacy::graph::Node,
+    head_branch: &git_stack::legacy::git::Branch,
+) -> Weight {
     if node.action.is_protected() {
         Weight::Protected(0)
     } else if node.commit.id == head_branch.id {
@@ -1262,7 +1304,7 @@ fn default_weight(node: &git_stack::graph::Node, head_branch: &git_stack::git::B
 
 #[derive(Debug)]
 struct Tree<'r> {
-    root: &'r git_stack::graph::Node,
+    root: &'r git_stack::legacy::graph::Node,
     stacks: Vec<Vec<Self>>,
     weight: Weight,
 }
@@ -1297,9 +1339,9 @@ impl<'r> Tree<'r> {
 
     fn into_display(
         self,
-        repo: &'r git_stack::git::GitRepo,
-        head_branch: &'r git_stack::git::Branch,
-        protected_branches: &'r git_stack::git::Branches,
+        repo: &'r git_stack::legacy::git::GitRepo,
+        head_branch: &'r git_stack::legacy::git::Branch,
+        protected_branches: &'r git_stack::legacy::git::Branches,
         palette: &'r Palette,
     ) -> termtree::Tree<RenderNode<'r>> {
         let root = RenderNode {
@@ -1410,10 +1452,10 @@ impl std::ops::AddAssign<usize> for Weight {
 
 #[derive(Copy, Clone, Debug)]
 struct RenderNode<'r> {
-    repo: &'r git_stack::git::GitRepo,
-    head_branch: &'r git_stack::git::Branch,
-    protected_branches: &'r git_stack::git::Branches,
-    node: Option<&'r git_stack::graph::Node>,
+    repo: &'r git_stack::legacy::git::GitRepo,
+    head_branch: &'r git_stack::legacy::git::Branch,
+    protected_branches: &'r git_stack::legacy::git::Branches,
+    node: Option<&'r git_stack::legacy::graph::Node>,
     palette: &'r Palette,
 }
 
@@ -1528,10 +1570,10 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
 }
 
 fn format_branch_name<'d>(
-    branch: &'d git_stack::git::Branch,
-    node: &'d git_stack::graph::Node,
-    head_branch: &'d git_stack::git::Branch,
-    protected_branches: &'d git_stack::git::Branches,
+    branch: &'d git_stack::legacy::git::Branch,
+    node: &'d git_stack::legacy::graph::Node,
+    head_branch: &'d git_stack::legacy::git::Branch,
+    protected_branches: &'d git_stack::legacy::git::Branches,
     palette: &'d Palette,
 ) -> impl std::fmt::Display + 'd {
     if head_branch.id == branch.id
@@ -1555,9 +1597,9 @@ fn format_branch_name<'d>(
 }
 
 fn format_branch_status<'d>(
-    branch: &'d git_stack::git::Branch,
-    repo: &'d git_stack::git::GitRepo,
-    node: &'d git_stack::graph::Node,
+    branch: &'d git_stack::legacy::git::Branch,
+    repo: &'d git_stack::legacy::git::GitRepo,
+    node: &'d git_stack::legacy::graph::Node,
     palette: &'d Palette,
 ) -> String {
     // See format_commit_status
@@ -1612,8 +1654,8 @@ fn format_branch_status<'d>(
 }
 
 fn format_commit_status<'d>(
-    repo: &'d git_stack::git::GitRepo,
-    node: &'d git_stack::graph::Node,
+    repo: &'d git_stack::legacy::git::GitRepo,
+    node: &'d git_stack::legacy::graph::Node,
     palette: &'d Palette,
 ) -> String {
     // See format_branch_status
@@ -1634,7 +1676,7 @@ fn format_commit_status<'d>(
 }
 
 fn commit_relation(
-    repo: &git_stack::git::GitRepo,
+    repo: &git_stack::legacy::git::GitRepo,
     local: git2::Oid,
     remote: Option<git2::Oid>,
 ) -> Option<(usize, usize)> {

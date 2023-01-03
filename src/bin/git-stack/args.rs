@@ -19,7 +19,7 @@ pub struct Args {
 
     /// Which branch stacks to include
     #[arg(short, long, value_enum)]
-    pub stack: Option<git_stack::config::Stack>,
+    pub stack: Option<git_stack::legacy::config::Stack>,
 
     /// Branch to evaluate from (default: most-recent protected branch)
     #[arg(long)]
@@ -31,7 +31,7 @@ pub struct Args {
 
     /// Action to perform with fixup-commits
     #[arg(long, value_enum)]
-    pub fixup: Option<git_stack::config::Fixup>,
+    pub fixup: Option<git_stack::legacy::config::Fixup>,
 
     /// Repair diverging branches.
     #[arg(long, overrides_with("no_repair"))]
@@ -43,10 +43,10 @@ pub struct Args {
     pub dry_run: bool,
 
     #[arg(long, value_enum)]
-    pub format: Option<git_stack::config::Format>,
+    pub format: Option<git_stack::legacy::config::Format>,
 
     #[arg(long, value_enum)]
-    pub show_commits: Option<git_stack::config::ShowCommits>,
+    pub show_commits: Option<git_stack::legacy::config::ShowCommits>,
 
     /// See what branches are protected
     #[arg(long, group = "mode")]
@@ -82,8 +82,8 @@ pub struct Args {
 }
 
 impl Args {
-    pub fn to_config(&self) -> git_stack::config::RepoConfig {
-        git_stack::config::RepoConfig {
+    pub fn to_config(&self) -> git_stack::legacy::config::RepoConfig {
+        git_stack::legacy::config::RepoConfig {
             protected_branches: None,
             protect_commit_count: None,
             protect_commit_age: None,
