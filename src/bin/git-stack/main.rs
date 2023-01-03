@@ -8,6 +8,7 @@ use proc_exit::WithCodeResultExt;
 mod args;
 mod config;
 mod logger;
+mod next;
 mod ops;
 mod prev;
 mod stack;

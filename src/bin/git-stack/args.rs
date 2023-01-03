@@ -89,12 +89,14 @@ pub struct Args {
 pub enum Command {
     #[command(alias = "prev")]
     Previous(crate::prev::PrevArgs),
+    Next(crate::next::NextArgs),
 }
 
 impl Args {
     pub fn exec(&self, colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
         match &self.command {
             Some(Command::Previous(c)) => c.exec(colored_stdout, colored_stderr),
+            Some(Command::Next(c)) => c.exec(colored_stdout, colored_stderr),
             None => {
                 if let Some(output_path) = self.dump_config.as_deref() {
                     crate::config::dump_config(self, output_path)
