@@ -35,7 +35,7 @@ mod test_rebase {
             let result = executor.run(&mut repo, &script);
             assert_eq!(result, vec![]);
         }
-        executor.close(&mut repo, "off_master").unwrap();
+        executor.close(&mut repo, Some("off_master")).unwrap();
         dbg!(&repo);
 
         let master_branch = repo.find_local_branch("master").unwrap();
@@ -72,7 +72,7 @@ mod test_rebase {
             let result = executor.run(&mut repo, &script);
             assert_eq!(result, vec![]);
         }
-        executor.close(&mut repo, "off_master").unwrap();
+        executor.close(&mut repo, Some("off_master")).unwrap();
         dbg!(&repo);
 
         let master_branch = repo.find_local_branch("master").unwrap();
@@ -117,7 +117,7 @@ mod test_fixup {
             let result = executor.run(&mut repo, &script);
             assert_eq!(result, vec![]);
         }
-        executor.close(&mut repo, "off_master").unwrap();
+        executor.close(&mut repo, Some("off_master")).unwrap();
         dbg!(&repo);
 
         let master_branch = repo.find_local_branch("master").unwrap();
@@ -154,7 +154,7 @@ mod test_fixup {
             let result = executor.run(&mut repo, &script);
             assert_eq!(result, vec![]);
         }
-        executor.close(&mut repo, "master").unwrap();
+        executor.close(&mut repo, Some("master")).unwrap();
         dbg!(&repo);
 
         let feature2_branch = repo.find_local_branch("feature2").unwrap();
@@ -227,7 +227,7 @@ mod test_fixup {
             let result = executor.run(&mut repo, &script);
             assert_eq!(result, vec![]);
         }
-        executor.close(&mut repo, "master").unwrap();
+        executor.close(&mut repo, Some("master")).unwrap();
         dbg!(&repo);
 
         let feature2_branch = repo.find_local_branch("feature2").unwrap();
@@ -342,5 +342,5 @@ fn overflow() {
         let result = executor.run(&mut repo, &script);
         assert_eq!(result, vec![]);
     }
-    executor.close(&mut repo, "master").unwrap();
+    executor.close(&mut repo, Some("master")).unwrap();
 }

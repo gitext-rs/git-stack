@@ -831,6 +831,40 @@ pub fn merge_stacks_by_tree_id(graph: &mut Graph, repo: &dyn crate::git::Repo) {
 
 type CommitTimesByTreeId = BTreeMap<git2::Oid, Vec<(std::time::SystemTime, git2::Oid)>>;
 
+pub fn reword_commit(
+    graph: &mut Graph,
+    repo: &dyn crate::git::Repo,
+    id: git2::Oid,
+    message: String,
+) -> Result<(), eyre::Error> {
+    eyre::ensure!(
+        graph.contains_id(id),
+        "cannot rewrite commit {}, not present",
+        id
+    );
+
+    let commit = repo
+        .find_commit(id)
+        .expect("graph.contains_id ensures commit exists");
+    for descendant_id in graph.descendants_of(id) {
+        let descendant_commit = repo
+            .find_commit(descendant_id)
+            .expect("graph.descendants_of ensures commit exists");
+        if Some(commit.summary.as_ref()) == descendant_commit.fixup_summary() {
+            eyre::bail!("cannot reword; first squash dependent fixups")
+        }
+    }
+
+    graph.commit_set(id, Reword(message));
+
+    Ok(())
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Reword(String);
+
+impl crate::any::ResourceTag for Reword {}
+
 pub fn to_scripts(
     graph: &Graph,
     dropped_branches: Vec<super::Branch>,
@@ -925,6 +959,9 @@ fn gather_script(
         match action {
             crate::graph::Action::Pick => {
                 batch.push(id, crate::rewrite::Command::CherryPick(id));
+                if let Some(Reword(message)) = graph.commit_get::<Reword>(id) {
+                    batch.push(id, crate::rewrite::Command::Reword(message.clone()));
+                }
                 for branch in graph.branches.get(id).into_iter().flatten() {
                     if branch.kind().has_user_commits() {
                         if let Some(local_name) = branch.local_name() {

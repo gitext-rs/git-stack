@@ -337,6 +337,7 @@ pub struct Executor {
     branches: Vec<(git2::Oid, String)>,
     delete_branches: Vec<String>,
     post_rewrite: Vec<(git2::Oid, git2::Oid)>,
+    head_id: git2::Oid,
     dry_run: bool,
     detached: bool,
 }
@@ -348,6 +349,7 @@ impl Executor {
             branches: Default::default(),
             delete_branches: Default::default(),
             post_rewrite: Default::default(),
+            head_id: git2::Oid::zero(),
             dry_run,
             detached: false,
         }
@@ -359,6 +361,8 @@ impl Executor {
         script: &'s Script,
     ) -> Vec<(git2::Error, &'s str, Vec<&'s str>)> {
         let mut failures = Vec::new();
+
+        self.head_id = repo.head_commit().id;
 
         let onto_id = script.batches[0].onto_mark();
         let mut labels = NamedLabels::new();
@@ -434,6 +438,7 @@ impl Executor {
                         } else {
                             repo.cherry_pick(head_oid, *cherry_oid)?
                         };
+                        self.update_head(*cherry_oid, updated_oid);
                         self.post_rewrite.push((*cherry_oid, updated_oid));
                         head_oid = updated_oid;
                     }
@@ -444,6 +449,7 @@ impl Executor {
                         } else {
                             repo.reword(head_oid, &msg)?
                         };
+                        self.update_head(head_oid, updated_oid);
                         for (_old_oid, new_oid) in &mut self.post_rewrite {
                             if *new_oid == head_oid {
                                 *new_oid = updated_oid;
@@ -469,6 +475,7 @@ impl Executor {
                         } else {
                             repo.squash(*squash_oid, head_oid)?
                         };
+                        self.update_head(*squash_oid, updated_oid);
                         for (_old_oid, new_oid) in &mut self.post_rewrite {
                             if *new_oid == head_oid {
                                 *new_oid = updated_oid;
@@ -489,6 +496,13 @@ impl Executor {
         }
 
         Ok(())
+    }
+
+    pub fn update_head(&mut self, old_id: git2::Oid, new_id: git2::Oid) {
+        if self.head_id == old_id && old_id != new_id {
+            log::trace!("head changed from {} to {}", old_id, new_id);
+            self.head_id = new_id;
+        }
     }
 
     pub fn commit(&mut self, repo: &mut dyn crate::git::Repo) -> Result<(), git2::Error> {
@@ -580,14 +594,23 @@ impl Executor {
     pub fn close(
         &mut self,
         repo: &mut dyn crate::git::Repo,
-        restore_branch: &str,
+        restore_branch: Option<&str>,
     ) -> Result<(), git2::Error> {
         assert_eq!(&self.branches, &[]);
         assert_eq!(self.delete_branches, Vec::<String>::new());
-        log::trace!("git switch {}", restore_branch);
-        if !self.dry_run {
-            if self.detached {
-                repo.switch_branch(restore_branch)?;
+        if let Some(restore_branch) = restore_branch {
+            log::trace!("git switch {}", restore_branch);
+            if !self.dry_run {
+                if self.detached {
+                    repo.switch_branch(restore_branch)?;
+                }
+            }
+        } else if self.head_id != git2::Oid::zero() {
+            log::trace!("git switch {}", self.head_id);
+            if !self.dry_run {
+                if self.detached {
+                    repo.switch_commit(self.head_id)?;
+                }
             }
         }
 

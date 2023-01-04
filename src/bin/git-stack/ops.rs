@@ -123,3 +123,56 @@ pub fn render_id(
             .to_owned()
     }
 }
+
+pub fn sanitize_message(message: &str) -> String {
+    let mut lines = LinesWithTerminator::new(message).collect::<Vec<_>>();
+    lines.retain(|l| !l.starts_with('#'));
+    while !lines.is_empty() {
+        if lines.first().unwrap().trim().is_empty() {
+            lines.remove(0);
+        } else {
+            break;
+        }
+    }
+    while !lines.is_empty() {
+        if lines.last().unwrap().trim().is_empty() {
+            lines.pop();
+        } else {
+            break;
+        }
+    }
+    let message = lines.join("");
+    message.trim_end().to_owned()
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct LinesWithTerminator<'a> {
+    data: &'a str,
+}
+
+impl<'a> LinesWithTerminator<'a> {
+    pub(crate) fn new(data: &'a str) -> LinesWithTerminator<'a> {
+        LinesWithTerminator { data }
+    }
+}
+
+impl<'a> Iterator for LinesWithTerminator<'a> {
+    type Item = &'a str;
+
+    #[inline]
+    fn next(&mut self) -> Option<&'a str> {
+        match self.data.find('\n') {
+            None if self.data.is_empty() => None,
+            None => {
+                let line = self.data;
+                self.data = "";
+                Some(line)
+            }
+            Some(end) => {
+                let line = &self.data[..end + 1];
+                self.data = &self.data[end + 1..];
+                Some(line)
+            }
+        }
+    }
+}

@@ -11,6 +11,7 @@ mod logger;
 mod next;
 mod ops;
 mod prev;
+mod reword;
 mod stack;
 
 fn main() {
