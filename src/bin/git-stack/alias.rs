@@ -40,9 +40,9 @@ fn register(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResul
         .with_code(proc_exit::Code::FAILURE)?;
 
     let stderr_palette = if colored_stderr {
-        Palette::colored()
+        crate::ops::Palette::colored()
     } else {
-        Palette::plain()
+        crate::ops::Palette::plain()
     };
     let mut stderr = std::io::stderr().lock();
 
@@ -109,9 +109,9 @@ fn unregister(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitRes
         .with_code(proc_exit::Code::FAILURE)?;
 
     let stderr_palette = if colored_stderr {
-        Palette::colored()
+        crate::ops::Palette::colored()
     } else {
-        Palette::plain()
+        crate::ops::Palette::plain()
     };
     let mut stderr = std::io::stderr().lock();
 
@@ -163,14 +163,14 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
     };
 
     let stdout_palette = if colored_stdout {
-        Palette::colored()
+        crate::ops::Palette::colored()
     } else {
-        Palette::plain()
+        crate::ops::Palette::plain()
     };
     let stderr_palette = if colored_stderr {
-        Palette::colored()
+        crate::ops::Palette::colored()
     } else {
-        Palette::plain()
+        crate::ops::Palette::plain()
     };
     let mut stdout = std::io::stdout().lock();
     let mut stderr = std::io::stderr().lock();
@@ -286,35 +286,4 @@ fn open_repo_config() -> Result<git2::Config, eyre::Error> {
     let repo = git2::Repository::discover(&cwd)?;
     let config = repo.config()?;
     Ok(config)
-}
-
-#[derive(Copy, Clone, Debug)]
-struct Palette {
-    error: yansi::Style,
-    warn: yansi::Style,
-    info: yansi::Style,
-    good: yansi::Style,
-    hint: yansi::Style,
-}
-
-impl Palette {
-    pub fn colored() -> Self {
-        Self {
-            error: yansi::Style::new(yansi::Color::Red).bold(),
-            warn: yansi::Style::new(yansi::Color::Yellow).bold(),
-            info: yansi::Style::new(yansi::Color::Blue).bold(),
-            good: yansi::Style::new(yansi::Color::Cyan).bold(),
-            hint: yansi::Style::new(yansi::Color::Unset).dimmed(),
-        }
-    }
-
-    pub fn plain() -> Self {
-        Self {
-            error: yansi::Style::default(),
-            warn: yansi::Style::default(),
-            info: yansi::Style::default(),
-            good: yansi::Style::default(),
-            hint: yansi::Style::default(),
-        }
-    }
 }

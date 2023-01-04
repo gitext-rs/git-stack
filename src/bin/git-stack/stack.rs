@@ -433,9 +433,9 @@ pub fn stack(
 
     if backed_up {
         let palette_stderr = if colored_stderr {
-            Palette::colored()
+            crate::ops::Palette::colored()
         } else {
-            Palette::plain()
+            crate::ops::Palette::plain()
         };
         log::info!(
             "{}",
@@ -557,9 +557,9 @@ fn push(state: &mut State) -> eyre::Result<()> {
 
 fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Result<()> {
     let palette_stderr = if colored_stderr {
-        Palette::colored()
+        crate::ops::Palette::colored()
     } else {
-        Palette::plain()
+        crate::ops::Palette::plain()
     };
     let mut empty_stacks = Vec::new();
     let mut old_stacks = Vec::new();
@@ -707,9 +707,9 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             git_stack::legacy::config::Format::Silent => {}
             git_stack::legacy::config::Format::List => {
                 let palette = if colored_stdout {
-                    Palette::colored()
+                    crate::ops::Palette::colored()
                 } else {
-                    Palette::plain()
+                    crate::ops::Palette::plain()
                 };
                 list(
                     &mut std::io::stdout(),
@@ -1070,7 +1070,7 @@ fn list(
     repo: &git_stack::legacy::git::GitRepo,
     graph: &git_stack::legacy::graph::Graph,
     protected_branches: &git_stack::legacy::git::Branches,
-    palette: &Palette,
+    palette: &crate::ops::Palette,
 ) -> Result<(), std::io::Error> {
     let head_branch = repo.head_branch().unwrap();
     for node in graph.breadth_first_iter() {
@@ -1098,7 +1098,7 @@ struct DisplayTree<'r> {
     repo: &'r git_stack::legacy::git::GitRepo,
     graph: &'r git_stack::legacy::graph::Graph,
     protected_branches: git_stack::legacy::git::Branches,
-    palette: Palette,
+    palette: crate::ops::Palette,
     show: git_stack::legacy::config::ShowCommits,
     stacked: bool,
 }
@@ -1112,7 +1112,7 @@ impl<'r> DisplayTree<'r> {
             repo,
             graph,
             protected_branches: Default::default(),
-            palette: Palette::plain(),
+            palette: crate::ops::Palette::plain(),
             show: Default::default(),
             stacked: Default::default(),
         }
@@ -1120,9 +1120,9 @@ impl<'r> DisplayTree<'r> {
 
     pub fn colored(mut self, yes: bool) -> Self {
         if yes {
-            self.palette = Palette::colored()
+            self.palette = crate::ops::Palette::colored()
         } else {
-            self.palette = Palette::plain()
+            self.palette = crate::ops::Palette::plain()
         }
         self
     }
@@ -1342,7 +1342,7 @@ impl<'r> Tree<'r> {
         repo: &'r git_stack::legacy::git::GitRepo,
         head_branch: &'r git_stack::legacy::git::Branch,
         protected_branches: &'r git_stack::legacy::git::Branches,
-        palette: &'r Palette,
+        palette: &'r crate::ops::Palette,
     ) -> termtree::Tree<RenderNode<'r>> {
         let root = RenderNode {
             repo,
@@ -1456,7 +1456,7 @@ struct RenderNode<'r> {
     head_branch: &'r git_stack::legacy::git::Branch,
     protected_branches: &'r git_stack::legacy::git::Branches,
     node: Option<&'r git_stack::legacy::graph::Node>,
-    palette: &'r Palette,
+    palette: &'r crate::ops::Palette,
 }
 
 const GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
@@ -1574,7 +1574,7 @@ fn format_branch_name<'d>(
     node: &'d git_stack::legacy::graph::Node,
     head_branch: &'d git_stack::legacy::git::Branch,
     protected_branches: &'d git_stack::legacy::git::Branches,
-    palette: &'d Palette,
+    palette: &'d crate::ops::Palette,
 ) -> impl std::fmt::Display + 'd {
     if head_branch.id == branch.id
         && head_branch.remote == branch.remote
@@ -1600,7 +1600,7 @@ fn format_branch_status<'d>(
     branch: &'d git_stack::legacy::git::Branch,
     repo: &'d git_stack::legacy::git::GitRepo,
     node: &'d git_stack::legacy::graph::Node,
-    palette: &'d Palette,
+    palette: &'d crate::ops::Palette,
 ) -> String {
     // See format_commit_status
     if node.action.is_protected() {
@@ -1656,7 +1656,7 @@ fn format_branch_status<'d>(
 fn format_commit_status<'d>(
     repo: &'d git_stack::legacy::git::GitRepo,
     node: &'d git_stack::legacy::graph::Node,
-    palette: &'d Palette,
+    palette: &'d crate::ops::Palette,
 ) -> String {
     // See format_branch_status
     if node.action.is_protected() {
@@ -1689,38 +1689,4 @@ fn commit_relation(
     let local_count = repo.commit_count(base, local)?;
     let remote_count = repo.commit_count(base, remote)?;
     Some((local_count, remote_count))
-}
-
-#[derive(Copy, Clone, Debug)]
-struct Palette {
-    error: yansi::Style,
-    warn: yansi::Style,
-    info: yansi::Style,
-    good: yansi::Style,
-    highlight: yansi::Style,
-    hint: yansi::Style,
-}
-
-impl Palette {
-    pub fn colored() -> Self {
-        Self {
-            error: yansi::Style::new(yansi::Color::Red).bold(),
-            warn: yansi::Style::new(yansi::Color::Yellow).bold(),
-            info: yansi::Style::new(yansi::Color::Blue).bold(),
-            good: yansi::Style::new(yansi::Color::Cyan).bold(),
-            highlight: yansi::Style::new(yansi::Color::Green).bold(),
-            hint: yansi::Style::new(yansi::Color::Unset).dimmed(),
-        }
-    }
-
-    pub fn plain() -> Self {
-        Self {
-            error: yansi::Style::default(),
-            warn: yansi::Style::default(),
-            info: yansi::Style::default(),
-            good: yansi::Style::default(),
-            highlight: yansi::Style::default(),
-            hint: yansi::Style::default(),
-        }
-    }
 }

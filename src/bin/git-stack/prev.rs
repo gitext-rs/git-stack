@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use proc_exit::prelude::*;
 
 /// Switch to an ancestor commit
@@ -39,7 +41,13 @@ impl PrevArgs {
         }
     }
 
-    pub fn exec(&self, _colored_stdout: bool, _colored_stderr: bool) -> proc_exit::ExitResult {
+    pub fn exec(&self, _colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
+        let stderr_palette = if colored_stderr {
+            crate::ops::Palette::colored()
+        } else {
+            crate::ops::Palette::plain()
+        };
+
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
         let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
         let mut repo = git_stack::git::GitRepo::new(repo);
@@ -62,7 +70,12 @@ impl PrevArgs {
         if repo.is_dirty() {
             let message = "Working tree is dirty, aborting";
             if self.dry_run {
-                log::error!("{}", message);
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "{}: {}",
+                    stderr_palette.error.paint("error"),
+                    message
+                );
             } else {
                 return Err(proc_exit::sysexits::USAGE_ERR.with_message(message));
             }
@@ -83,15 +96,20 @@ impl PrevArgs {
             );
             if is_current_protected && !self.protected {
                 if progress == 0 {
-                    log::warn!("no unprotected parent commit");
+                    let _ = writeln!(
+                        std::io::stderr(),
+                        "{}: no unprotected parent commit; to traverse protected commits, pass `--protected`",
+                        stderr_palette.info.paint("note"),
+                    );
                 } else {
-                    log::warn!(
-                        "not enough unprotected parent {}, only able to go back {}",
+                    let _ = writeln!(
+                        std::io::stderr(),
+                        "{}: not enough unprotected parent {}, only able to go back {}; to traverse protected commits, pass `--protected`",
+                        stderr_palette.info.paint("note"),
                         if self.branch { "branches" } else { "commits" },
                         self.num_commits
                     );
                 }
-                log::info!("to traverse protected commits, pass `--protected`");
                 break;
             }
 
@@ -100,10 +118,16 @@ impl PrevArgs {
                 .with_code(proc_exit::Code::FAILURE)?;
             if next_ids.is_empty() {
                 if progress == 0 {
-                    log::warn!("no parent commit");
+                    let _ = writeln!(
+                        std::io::stderr(),
+                        "{}: no parent commit",
+                        stderr_palette.info.paint("note"),
+                    );
                 } else {
-                    log::warn!(
-                        "not enough parent {}, only able to go back {}",
+                    let _ = writeln!(
+                        std::io::stderr(),
+                        "{}: not enough parent {}, only able to go forward {}",
+                        stderr_palette.info.paint("note"),
                         if self.branch { "branches" } else { "commits" },
                         self.num_commits
                     );
@@ -168,10 +192,14 @@ impl PrevArgs {
                 let mut current = current.to_owned();
                 current.sort_by_key(|b| b.kind());
                 let current_branch = current.first().expect("always at least one");
-                log::info!(
-                    "Switching to {}: {}",
-                    current_branch.display_name(),
-                    current_commit.summary
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "{} to {}: {}",
+                    stderr_palette.good.paint("Switching"),
+                    stderr_palette
+                        .highlight
+                        .paint(current_branch.display_name()),
+                    stderr_palette.hint.paint(&current_commit.summary)
                 );
                 if !self.dry_run {
                     repo.switch_branch(
@@ -188,10 +216,12 @@ impl PrevArgs {
                     .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
                     .short_id()
                     .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
-                log::info!(
-                    "Switching to {}: {}",
-                    abbrev_id.as_str().unwrap(),
-                    current_commit.summary
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "{} to {}: {}",
+                    stderr_palette.good.paint("Switching"),
+                    stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
+                    stderr_palette.hint.paint(&current_commit.summary)
                 );
                 if !self.dry_run {
                     repo.switch_commit(current_id)

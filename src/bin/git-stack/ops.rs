@@ -176,3 +176,38 @@ impl<'a> Iterator for LinesWithTerminator<'a> {
         }
     }
 }
+
+#[derive(Copy, Clone, Debug)]
+#[non_exhaustive]
+pub struct Palette {
+    pub error: yansi::Style,
+    pub warn: yansi::Style,
+    pub info: yansi::Style,
+    pub good: yansi::Style,
+    pub highlight: yansi::Style,
+    pub hint: yansi::Style,
+}
+
+impl Palette {
+    pub fn colored() -> Self {
+        Self {
+            error: yansi::Style::new(yansi::Color::Red).bold(),
+            warn: yansi::Style::new(yansi::Color::Yellow).bold(),
+            info: yansi::Style::new(yansi::Color::Blue).bold(),
+            good: yansi::Style::new(yansi::Color::Cyan).bold(),
+            highlight: yansi::Style::new(yansi::Color::Green).bold(),
+            hint: yansi::Style::new(yansi::Color::Unset).dimmed(),
+        }
+    }
+
+    pub fn plain() -> Self {
+        Self {
+            error: yansi::Style::default(),
+            warn: yansi::Style::default(),
+            info: yansi::Style::default(),
+            good: yansi::Style::default(),
+            highlight: yansi::Style::default(),
+            hint: yansi::Style::default(),
+        }
+    }
+}
