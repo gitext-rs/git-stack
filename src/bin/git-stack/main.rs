@@ -14,6 +14,7 @@ mod next;
 mod ops;
 mod prev;
 mod reword;
+mod run;
 mod stack;
 mod sync;
 

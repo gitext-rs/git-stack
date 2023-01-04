@@ -280,6 +280,7 @@ const ALIASES: &[Alias] = &[
     crate::reword::RewordArgs::alias(),
     crate::amend::AmendArgs::alias(),
     crate::sync::SyncArgs::alias(),
+    crate::run::RunArgs::alias(),
 ];
 
 fn open_repo_config() -> Result<git2::Config, eyre::Error> {
