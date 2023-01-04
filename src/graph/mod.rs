@@ -46,7 +46,7 @@ impl Graph {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
-                format!("at least one branch is required to make a graph"),
+                "at least one branch is required to make a graph",
             )
         })?;
 
@@ -140,7 +140,7 @@ impl Graph {
     pub fn primary_parent_of(&self, root_id: git2::Oid) -> Option<git2::Oid> {
         self.graph
             .edges_directed(root_id, petgraph::Direction::Outgoing)
-            .filter_map(|(_child, parent, weight)| (*weight == 0).then(|| parent))
+            .filter_map(|(_child, parent, weight)| (*weight == 0).then_some(parent))
             .next()
     }
 
@@ -163,7 +163,7 @@ impl Graph {
     pub fn primary_children_of(&self, root_id: git2::Oid) -> impl Iterator<Item = git2::Oid> + '_ {
         self.graph
             .edges_directed(root_id, petgraph::Direction::Incoming)
-            .filter_map(|(child, _parent, weight)| (*weight == 0).then(|| child))
+            .filter_map(|(child, _parent, weight)| (*weight == 0).then_some(child))
     }
 
     pub fn ancestors_of(&self, root_id: git2::Oid) -> AncestorsIter {

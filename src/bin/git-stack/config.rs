@@ -8,7 +8,7 @@ pub fn dump_config(
 ) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
+    let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
     let repo_config = git_stack::legacy::config::RepoConfig::from_all(&repo)
         .with_code(proc_exit::sysexits::CONFIG_ERR)?
@@ -30,7 +30,7 @@ pub fn dump_config(
 pub fn protect(args: &crate::args::Args, ignore: &str) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
+    let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
     let mut repo_config = git_stack::legacy::config::RepoConfig::from_repo(&repo)
         .with_code(proc_exit::sysexits::CONFIG_ERR)?
@@ -50,7 +50,7 @@ pub fn protect(args: &crate::args::Args, ignore: &str) -> proc_exit::ExitResult 
 pub fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
-    let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
+    let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
     let repo_config = git_stack::legacy::config::RepoConfig::from_all(&repo)
         .with_code(proc_exit::sysexits::CONFIG_ERR)?

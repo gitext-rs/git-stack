@@ -49,7 +49,7 @@ impl PrevArgs {
         };
 
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
-        let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
+        let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
         let mut repo = git_stack::git::GitRepo::new(repo);
 
         let repo_config = git_stack::config::RepoConfig::from_all(repo.raw())

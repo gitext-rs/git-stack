@@ -52,7 +52,7 @@ pub struct Branch {
 
 impl Branch {
     pub fn local_name(&self) -> Option<&str> {
-        self.remote.is_none().then(|| self.name.as_str())
+        self.remote.is_none().then_some(self.name.as_str())
     }
 }
 

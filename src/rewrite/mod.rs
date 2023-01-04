@@ -199,7 +199,7 @@ fn sort_batches(
     for id in petgraph::algo::toposort(&graph, None)
         .unwrap()
         .into_iter()
-        .filter_map(|(id, is_batch)| is_batch.then(|| id))
+        .filter_map(|(id, is_batch)| is_batch.then_some(id))
     {
         batches.push(unsorted.remove(&id).unwrap());
     }
@@ -365,18 +365,18 @@ impl Executor {
         self.head_id = repo.head_commit().id;
 
         let onto_id = script.batches[0].onto_mark();
-        let mut labels = NamedLabels::new();
+        let labels = NamedLabels::new();
         labels.register_onto(onto_id);
         for (i, batch) in script.batches.iter().enumerate() {
             let branch_name = batch.branch().unwrap_or("detached");
             if !failures.is_empty() {
                 log::trace!("Ignoring `{}`", branch_name);
-                log::trace!("Script:\n{}", batch.display(&mut labels));
+                log::trace!("Script:\n{}", batch.display(&labels));
                 continue;
             }
 
             log::trace!("Applying `{}`", branch_name);
-            log::trace!("Script:\n{}", batch.display(&mut labels));
+            log::trace!("Script:\n{}", batch.display(&labels));
             let res = self.stage_batch(repo, batch);
             match res.and_then(|_| self.commit(repo)) {
                 Ok(()) => {
@@ -447,7 +447,7 @@ impl Executor {
                         let updated_oid = if self.dry_run {
                             head_oid
                         } else {
-                            repo.reword(head_oid, &msg)?
+                            repo.reword(head_oid, msg)?
                         };
                         self.update_head(head_oid, updated_oid);
                         for (_old_oid, new_oid) in &mut self.post_rewrite {
@@ -600,17 +600,13 @@ impl Executor {
         assert_eq!(self.delete_branches, Vec::<String>::new());
         if let Some(restore_branch) = restore_branch {
             log::trace!("git switch {}", restore_branch);
-            if !self.dry_run {
-                if self.detached {
-                    repo.switch_branch(restore_branch)?;
-                }
+            if !self.dry_run && self.detached {
+                repo.switch_branch(restore_branch)?;
             }
         } else if self.head_id != git2::Oid::zero() {
             log::trace!("git switch {}", self.head_id);
-            if !self.dry_run {
-                if self.detached {
-                    repo.switch_commit(self.head_id)?;
-                }
+            if !self.dry_run && self.detached {
+                repo.switch_commit(self.head_id)?;
             }
         }
 

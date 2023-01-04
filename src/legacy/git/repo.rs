@@ -55,7 +55,7 @@ pub struct Branch {
 
 impl Branch {
     pub fn local_name(&self) -> Option<&str> {
-        self.remote.is_none().then(|| self.name.as_str())
+        self.remote.is_none().then_some(self.name.as_str())
     }
 }
 
@@ -569,8 +569,8 @@ impl GitRepo {
     ) -> Result<Branch, git2::Error> {
         let id = branch.get().target().unwrap();
 
-        let push_id = (remote == self.push_remote()).then(|| id);
-        let pull_id = (remote == self.pull_remote()).then(|| id);
+        let push_id = (remote == self.push_remote()).then_some(id);
+        let pull_id = (remote == self.pull_remote()).then_some(id);
 
         Ok(Branch {
             remote: Some(remote.to_owned()),

@@ -359,7 +359,7 @@ impl RepoConfig {
         let protect_commit_count = self
             .protect_commit_count
             .unwrap_or(DEFAULT_PROTECT_COMMIT_COUNT);
-        (protect_commit_count != 0).then(|| protect_commit_count)
+        (protect_commit_count != 0).then_some(protect_commit_count)
     }
 
     pub fn protect_commit_age(&self) -> std::time::Duration {
@@ -371,7 +371,7 @@ impl RepoConfig {
         let auto_base_commit_count = self
             .auto_base_commit_count
             .unwrap_or(DEFAULT_AUTO_BASE_COMMIT_COUNT);
-        (auto_base_commit_count != 0).then(|| auto_base_commit_count)
+        (auto_base_commit_count != 0).then_some(auto_base_commit_count)
     }
 
     pub fn push_remote(&self) -> &str {
@@ -410,7 +410,7 @@ impl RepoConfig {
 
     pub fn capacity(&self) -> Option<usize> {
         let capacity = self.capacity.unwrap_or(DEFAULT_CAPACITY);
-        (capacity != 0).then(|| capacity)
+        (capacity != 0).then_some(capacity)
     }
 }
 

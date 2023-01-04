@@ -14,7 +14,7 @@ impl ProtectedBranches {
     }
 
     pub fn is_protected(&self, name: &str) -> bool {
-        let name_match = self.ignores.matched_path_or_any_parents(&name, false);
+        let name_match = self.ignores.matched_path_or_any_parents(name, false);
         match name_match {
             ignore::Match::None => false,
             ignore::Match::Ignore(glob) => {

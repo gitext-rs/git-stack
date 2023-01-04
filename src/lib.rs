@@ -1,4 +1,6 @@
 #![allow(clippy::collapsible_else_if)]
+#![allow(clippy::bool_to_int_with_if)]
+#![allow(clippy::if_same_then_else)]
 
 #[macro_use]
 mod any;

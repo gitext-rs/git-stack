@@ -121,20 +121,17 @@ fn unregister(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitRes
     while let Some(entry) = entries.next() {
         let entry = entry.with_code(proc_exit::Code::FAILURE)?;
         let Some(key) = entry.name() else {continue};
-        let name = key.split_once(".").map(|n| n.1).unwrap_or(key);
+        let name = key.split_once('.').map(|n| n.1).unwrap_or(key);
         let Some(value) = entry.value() else {continue};
 
         let mut unregister = false;
-        if let Some(alias) = ALIASES.into_iter().find(|a| a.alias == name) {
+        if let Some(alias) = ALIASES.iter().find(|a| a.alias == name) {
             if value == alias.action {
                 unregister = true;
             } else if value.starts_with(alias.action_base) {
                 unregister = true;
             }
-        } else if let Some(_alias) = ALIASES
-            .into_iter()
-            .find(|a| value.starts_with(a.action_base))
-        {
+        } else if let Some(_alias) = ALIASES.iter().find(|a| value.starts_with(a.action_base)) {
             unregister = true;
         }
 
@@ -184,10 +181,10 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
     while let Some(entry) = entries.next() {
         let entry = entry.with_code(proc_exit::Code::FAILURE)?;
         let Some(name) = entry.name() else {continue};
-        let name = name.split_once(".").map(|n| n.1).unwrap_or(name);
+        let name = name.split_once('.').map(|n| n.1).unwrap_or(name);
         let Some(value) = entry.value() else {continue};
 
-        if let Some(alias) = ALIASES.into_iter().find(|a| a.alias == name) {
+        if let Some(alias) = ALIASES.iter().find(|a| a.alias == name) {
             if value == alias.action {
                 let _ = writeln!(
                     stdout,
@@ -223,10 +220,7 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
                 );
             }
             covered.insert(name.to_owned());
-        } else if let Some(_alias) = ALIASES
-            .into_iter()
-            .find(|a| value.starts_with(a.action_base))
-        {
+        } else if let Some(_alias) = ALIASES.iter().find(|a| value.starts_with(a.action_base)) {
             let _ = writeln!(stdout, "    {} = {}", name, value);
             registered = true;
         }
@@ -285,7 +279,7 @@ const ALIASES: &[Alias] = &[
 
 fn open_repo_config() -> Result<git2::Config, eyre::Error> {
     let cwd = std::env::current_dir()?;
-    let repo = git2::Repository::discover(&cwd)?;
+    let repo = git2::Repository::discover(cwd)?;
     let config = repo.config()?;
     Ok(config)
 }
