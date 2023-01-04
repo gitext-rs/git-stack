@@ -102,18 +102,12 @@ undoing `git stack` operations:
 $ cargo install git-branch-stash-cli
 ```
 
-### Uninstall
-
-See the uninstall method for your installer.
-
-Once removed, `git-stack` leaves behind:
-- `.git/branch-stash`
-
-Removing this is safe and will have no effect.
-
-## Getting Started
-
 ### Configuring `git-stack`
+
+**Aliases:** To avoid name collisions while keeping things brief, `git-stack`
+ships as one binary but can help configure aliases by running `git
+stack alias --register`.  You can then modify the aliases if you want to make
+some flags the default.
 
 **Protected branches:** These are branches that `git-stack` should not modify.
 `git-stack` will also rebase local protected branches against
@@ -132,24 +126,40 @@ To see the config, run `git-stack --dump-config -`.
 
 For more, see [Configuration Reference](docs/reference.md#configuration).
 
+### Uninstall
+
+If you registered aliases, you'll want to run `git stack alias --unregister` to remove them.
+
+See the uninstall method for your installer.
+
+Once removed, `git-stack` leaves behind:
+- `.git/branch-stash`
+
+Removing this is safe and will have no effect.
+
+## Getting Started
+
 ### Using
 
 ```console
 $ # Update branches against upstream
-$ git stack --pull
+$ git sync
 
 $ # Start a new branch / PR
 $ git switch -c feature1
 $ git add -A; git commit -m "Work"
 $ git add -A; git commit -m "More Work"
-$ git add -A; git commit --fixup HEAD~~
+$ git run cargo check
+$ git prev
+$ git add -A; git amend  # Fix problems in "Work" commit
+$ git run cargo check
+$ git next
 
 $ # See what this looks like
 $ git stack
 
 $ # Clean up in preparation for a push
-$ git stack --pull
-$ git stack --fixup squash
+$ git sync
 
 $ # Push whats ready
 $ git stack --push

@@ -29,6 +29,12 @@ This may be the same as the `pull-remote` when working directly in the upstream 
 
 ## Commands
 
+### `git stack alias`
+
+View, register, and unregister `git stack` specific aliases.
+
+Use case: keep commands short while avoiding name conflicts with existing aliases or other installed commands.
+
 ### `git stack`
 
 Visualizes the branch stacks on top of their protected bases.
@@ -39,7 +45,8 @@ Why not `git log --graph --all --oneline --decorate main..HEAD`?
 - Have to manually select your base to limit to relevant commits
 - Slower because it loads the entire commit graph into memory to sort it
 
-### `git stack --pull`
+### `git sync`
+*i.e. `git stack sync`*
 
 Pulls your protected branches from the `stack.pull-remote` and then rebases
 your development branches on top of their relevant protected branches.
@@ -49,6 +56,8 @@ Unlike `--rebase`, this does not perform any "auto" operations.
 Note:
 - This also performs a fetch of your `stack.push-remote` to prune any removed remotes
 
+Use case: detect merge and semantic conflicts early
+
 Why not `git pull --rebase upstream main`?
 - Have to manually select your remote/branch
 - Only updates current branch
@@ -57,6 +66,59 @@ Why not `git pull --rebase upstream main`?
   you do it in a way to avoid conflicts.
 - Have to manually delete merged branches
 - Only fetches from `upstream`, leaving your deleted `origin` branches lingering locally
+
+### `git next`
+*i.e. `git stack next`*
+
+Switch to a child commit.
+
+Use case: easily navigate to edit commits with commands like `git amend`.
+
+Why not `git stack && git checkout <ref>`?
+- Saves you from having to type or copy/paste `<ref>`
+
+### `git prev`
+*i.e. `git stack prev`*
+
+Switch to a parent commit.
+
+Use case: easily navigate to edit commits with commands like `git amend`.
+
+Why not `git stack && git checkout <ref>`?
+- Saves you from having to type or copy/paste `<ref>`
+
+### `git reword`
+*i.e. `git stack reword`*
+
+Edit the current commit's message.
+
+Use case: easily edit parent commits.
+
+Why not `git commit --amend`?
+- Automatically rebases all children commits / branches
+- Avoid accidentally editing a protected commit or a commit with fixups referencing it
+
+Why not `git rebase -i <ref>` and setting it the action to `r`?
+- Fewer steps (no need to choose ref, go to correct line and edit it to then edit the message)
+- Automatically rebases all children commits / branches
+
+### `git amend`
+*i.e. `git stack amend`*
+
+Squash staged changes into the current commit.
+
+Use case: easily edit parent commits.
+
+Why not `git commit --amend --no-edit`?
+- Automatically rebases all children commits / branches
+- Avoid accidentally editing a protected commit or a commit with fixups referencing it
+
+### `git run`
+*i.e. `git stack run`*
+
+Run a command across the current stack of commits.
+
+Use case: verify your commits still build after editing history.
 
 ### `git stack --rebase`
 
