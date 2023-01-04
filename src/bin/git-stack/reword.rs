@@ -129,6 +129,11 @@ impl RewordArgs {
         git_stack::graph::reword_commit(&mut graph, &repo, head_id, new_message)
             .with_code(proc_exit::Code::FAILURE)?;
 
+        let mut stash_id = None;
+        if !self.dry_run {
+            stash_id = git_stack::git::stash_push(&mut repo, "reword");
+        }
+
         let mut success = true;
         let scripts = git_stack::graph::to_scripts(&graph, vec![]);
         let mut executor = git_stack::rewrite::Executor::new(self.dry_run);
@@ -145,6 +150,8 @@ impl RewordArgs {
         executor
             .close(&mut repo, head_branch.as_ref().and_then(|b| b.local_name()))
             .with_code(proc_exit::Code::FAILURE)?;
+
+        git_stack::git::stash_pop(&mut repo, stash_id);
 
         if success {
             Ok(())
