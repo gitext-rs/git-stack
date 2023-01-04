@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.9.0] - 2023-01-04
+
 ### Features
 
 New `git stack` subcommands, including
@@ -399,7 +401,8 @@ With `git stack alias` for creating alias for these
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.8.5...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/gitext-rs/git-stack/compare/v0.8.5...v0.9.0
 [0.8.5]: https://github.com/gitext-rs/git-stack/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/gitext-rs/git-stack/compare/v0.8.3...v0.8.4
 [0.8.3]: https://github.com/gitext-rs/git-stack/compare/v0.8.2...v0.8.3
