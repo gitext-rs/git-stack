@@ -1,203 +1,354 @@
-mod actions;
-mod node;
+mod branch;
+mod commit;
 mod ops;
 
-pub use actions::*;
-pub use node::*;
+pub use branch::*;
+pub use commit::*;
 pub use ops::*;
 
-use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::collections::VecDeque;
 
+use crate::any::AnyId;
+use crate::any::BoxedEntry;
+use crate::any::BoxedResource;
+use crate::any::Resource;
+
 #[derive(Clone, Debug)]
 pub struct Graph {
+    graph: petgraph::graphmap::DiGraphMap<git2::Oid, usize>,
     root_id: git2::Oid,
-    nodes: BTreeMap<git2::Oid, Node>,
+    commits: BTreeMap<git2::Oid, BTreeMap<AnyId, BoxedResource>>,
+    pub branches: BranchSet,
 }
 
 impl Graph {
-    pub fn new(node: Node) -> Self {
-        let root_id = node.commit.id;
-        let mut nodes = BTreeMap::new();
-        nodes.insert(root_id, node);
-        Self { root_id, nodes }
-    }
-
     pub fn from_branches(
         repo: &dyn crate::git::Repo,
-        mut branches: crate::git::Branches,
-    ) -> eyre::Result<Self> {
-        if branches.is_empty() {
-            eyre::bail!("No branches to graph");
+        branches: BranchSet,
+    ) -> crate::git::Result<Self> {
+        let mut root_id = None;
+        for branch_id in branches.oids() {
+            if let Some(old_root_id) = root_id {
+                root_id = repo.merge_base(old_root_id, branch_id);
+                if root_id.is_none() {
+                    return Err(git2::Error::new(
+                        git2::ErrorCode::NotFound,
+                        git2::ErrorClass::Reference,
+                        format!("no merge base between {} and {}", old_root_id, branch_id),
+                    ));
+                }
+            } else {
+                root_id = Some(branch_id);
+            }
         }
+        let root_id = root_id.ok_or_else(|| {
+            git2::Error::new(
+                git2::ErrorCode::NotFound,
+                git2::ErrorClass::Reference,
+                "at least one branch is required to make a graph",
+            )
+        })?;
 
-        let mut branch_ids: Vec<_> = branches.oids().collect();
-        // Be more reproducible to make it easier to debug
-        branch_ids.sort_by_key(|id| {
-            let first_branch = &branches.get(*id).unwrap()[0];
-            (first_branch.remote.as_deref(), first_branch.name.as_str())
-        });
-
-        let branch_id = branch_ids.remove(0);
-        let branch_commit = repo.find_commit(branch_id).unwrap();
-        let root = Node::new(branch_commit).with_branches(&mut branches);
-        let mut graph = Self::new(root);
-
-        for branch_id in branch_ids {
-            let branch_commit = repo.find_commit(branch_id).unwrap();
-            let node = Node::new(branch_commit).with_branches(&mut branches);
-            graph.insert(repo, node)?;
+        let mut graph = Graph::with_base_id(root_id);
+        graph.branches = branches;
+        for branch_id in graph.branches.oids() {
+            for commit_id in crate::git::commit_range(repo, branch_id..root_id)? {
+                for (weight, parent_id) in repo.parent_ids(commit_id)?.into_iter().enumerate() {
+                    graph.graph.add_edge(commit_id, parent_id, weight);
+                }
+            }
         }
 
         Ok(graph)
     }
 
-    pub fn insert(&mut self, repo: &dyn crate::git::Repo, node: Node) -> eyre::Result<()> {
-        let node_id = node.commit.id;
-        if let Some(local) = self.get_mut(node_id) {
-            local.update(node);
-        } else {
-            let merge_base_id = repo
-                .merge_base(self.root_id, node_id)
-                .ok_or_else(|| eyre::eyre!("Could not find merge base"))?;
-            if merge_base_id != self.root_id {
-                let root_action = self.root().action;
-                self.populate(repo, merge_base_id, self.root_id, root_action)?;
-                self.root_id = merge_base_id;
-            }
-            if merge_base_id != node_id {
-                self.populate(repo, merge_base_id, node_id, node.action)?;
-            }
-            self.get_mut(node_id)
-                .expect("populate added node_id")
-                .update(node);
+    pub fn insert(&mut self, node: Node, parent_id: git2::Oid) {
+        assert!(self.contains_id(parent_id));
+        let Node {
+            id,
+            branches,
+            commit,
+        } = node;
+        self.graph.add_edge(id, parent_id, 0);
+        for branch in branches.into_iter().flatten() {
+            self.branches.insert(branch);
         }
-        Ok(())
+        if let Some(commit) = commit {
+            self.commits.insert(id, commit);
+        }
     }
 
-    pub fn extend(&mut self, repo: &dyn crate::git::Repo, other: Self) -> eyre::Result<()> {
-        if self.get(other.root_id).is_none() {
-            self.insert(repo, other.root().clone())?;
-        }
-        for node in other.nodes.into_values() {
-            match self.nodes.entry(node.commit.id) {
-                Entry::Occupied(mut o) => o.get_mut().update(node),
-                Entry::Vacant(v) => {
-                    v.insert(node);
+    pub fn rebase(&mut self, id: git2::Oid, from: git2::Oid, to: git2::Oid) {
+        assert!(self.contains_id(id));
+        assert!(self.contains_id(from));
+        assert!(self.contains_id(to));
+        assert_eq!(
+            self.parents_of(id).find(|parent| *parent == from),
+            Some(from)
+        );
+        assert_ne!(id, self.root_id, "Cannot rebase root");
+        let weight = self.graph.remove_edge(id, from).unwrap();
+        self.graph.add_edge(id, to, weight);
+    }
+
+    pub fn remove(&mut self, id: git2::Oid) -> Option<Node> {
+        assert_ne!(id, self.root_id, "Cannot remove root");
+        let children = self.children_of(id).collect::<Vec<_>>();
+        if !children.is_empty() {
+            let parents = self.parents_of(id).collect::<Vec<_>>();
+            for child_id in children.iter().copied() {
+                for (weight, parent_id) in parents.iter().copied().enumerate() {
+                    self.graph.add_edge(child_id, parent_id, weight);
                 }
             }
         }
-
-        Ok(())
+        self.graph.remove_node(id).then(|| {
+            let branches = self.branches.remove(id);
+            let commit = self.commits.remove(&id);
+            Node {
+                id,
+                branches,
+                commit,
+            }
+        })
     }
+}
 
-    pub fn remove_child(&mut self, parent_id: git2::Oid, child_id: git2::Oid) -> Option<Self> {
-        let parent = self.get_mut(parent_id)?;
-        if !parent.children.remove(&child_id) {
-            return None;
+impl Graph {
+    pub fn with_base_id(root_id: git2::Oid) -> Self {
+        let mut graph = petgraph::graphmap::DiGraphMap::new();
+        graph.add_node(root_id);
+        let commits = BTreeMap::new();
+        let branches = BranchSet::new();
+        Self {
+            graph,
+            root_id,
+            commits,
+            branches,
         }
-
-        let child = self.nodes.remove(&child_id)?;
-        let mut node_queue = VecDeque::new();
-        node_queue.extend(child.children.iter().copied());
-        let mut removed = Self::new(child);
-        while let Some(current_id) = node_queue.pop_front() {
-            let current = self.nodes.remove(&current_id).expect("all children exist");
-            node_queue.extend(current.children.iter().copied());
-            removed.nodes.insert(current_id, current);
-        }
-
-        Some(removed)
-    }
-
-    pub fn root(&self) -> &Node {
-        self.nodes.get(&self.root_id).expect("root always exists")
     }
 
     pub fn root_id(&self) -> git2::Oid {
         self.root_id
     }
 
-    pub fn get(&self, id: git2::Oid) -> Option<&Node> {
-        self.nodes.get(&id)
+    pub fn contains_id(&self, id: git2::Oid) -> bool {
+        self.graph.contains_node(id)
     }
 
-    pub fn get_mut(&mut self, id: git2::Oid) -> Option<&mut Node> {
-        self.nodes.get_mut(&id)
+    pub fn primary_parent_of(&self, root_id: git2::Oid) -> Option<git2::Oid> {
+        self.graph
+            .edges_directed(root_id, petgraph::Direction::Outgoing)
+            .filter_map(|(_child, parent, weight)| (*weight == 0).then_some(parent))
+            .next()
     }
 
-    pub fn breadth_first_iter(&self) -> BreadthFirstIter<'_> {
-        BreadthFirstIter::new(self, self.root_id())
+    pub fn parents_of(
+        &self,
+        root_id: git2::Oid,
+    ) -> petgraph::graphmap::NeighborsDirected<'_, git2::Oid, petgraph::Directed> {
+        self.graph
+            .neighbors_directed(root_id, petgraph::Direction::Outgoing)
     }
 
-    fn populate(
-        &mut self,
-        repo: &dyn crate::git::Repo,
-        base_oid: git2::Oid,
-        head_oid: git2::Oid,
-        default_action: crate::graph::Action,
-    ) -> Result<(), git2::Error> {
-        log::trace!("Populating data for {}..{}", base_oid, head_oid);
-        debug_assert_eq!(
-            repo.merge_base(base_oid, head_oid),
-            Some(base_oid),
-            "HEAD must be a descendant of base"
-        );
+    pub fn children_of(
+        &self,
+        root_id: git2::Oid,
+    ) -> petgraph::graphmap::NeighborsDirected<'_, git2::Oid, petgraph::Directed> {
+        self.graph
+            .neighbors_directed(root_id, petgraph::Direction::Incoming)
+    }
 
-        let mut child_id = None;
-        for commit_id in crate::git::commit_range(repo, head_oid..=base_oid)? {
-            match self.nodes.entry(commit_id) {
-                Entry::Occupied(mut o) => {
-                    let current = o.get_mut();
-                    if let Some(child_id) = child_id {
-                        current.children.insert(child_id);
-                        // Tapped into previous entries, don't bother going further
-                        break;
+    pub fn primary_children_of(&self, root_id: git2::Oid) -> impl Iterator<Item = git2::Oid> + '_ {
+        self.graph
+            .edges_directed(root_id, petgraph::Direction::Incoming)
+            .filter_map(|(child, _parent, weight)| (*weight == 0).then_some(child))
+    }
+
+    pub fn ancestors_of(&self, root_id: git2::Oid) -> AncestorsIter {
+        let cursor = AncestorsCursor::new(self, root_id);
+        AncestorsIter {
+            cursor,
+            graph: self,
+        }
+    }
+
+    pub fn descendants(&self) -> DescendantsIter {
+        self.descendants_of(self.root_id)
+    }
+
+    pub fn descendants_of(&self, root_id: git2::Oid) -> DescendantsIter {
+        let cursor = DescendantsCursor::new(self, root_id);
+        DescendantsIter {
+            cursor,
+            graph: self,
+        }
+    }
+
+    pub fn commit_get<R: Resource>(&self, id: git2::Oid) -> Option<&R> {
+        let commit = self.commits.get(&id)?;
+        let boxed_resource = commit.get(&AnyId::of::<R>())?;
+        let resource = boxed_resource.as_ref::<R>();
+        Some(resource)
+    }
+
+    pub fn commit_get_mut<R: Resource>(&mut self, id: git2::Oid) -> Option<&mut R> {
+        let commit = self.commits.get_mut(&id)?;
+        let boxed_resource = commit.get_mut(&AnyId::of::<R>())?;
+        let resource = boxed_resource.as_mut::<R>();
+        Some(resource)
+    }
+
+    pub fn commit_set<R: Into<BoxedEntry>>(&mut self, id: git2::Oid, r: R) -> bool {
+        let BoxedEntry { id: key, value } = r.into();
+        self.commits
+            .entry(id)
+            .or_default()
+            .insert(key, value)
+            .is_some()
+    }
+}
+
+#[derive(Debug)]
+pub struct Node {
+    id: git2::Oid,
+    commit: Option<BTreeMap<AnyId, BoxedResource>>,
+    branches: Option<Vec<Branch>>,
+}
+
+impl Node {
+    pub fn new(id: git2::Oid) -> Self {
+        Self {
+            id,
+            commit: None,
+            branches: None,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct AncestorsIter<'g> {
+    cursor: AncestorsCursor,
+    graph: &'g Graph,
+}
+
+impl<'g> AncestorsIter<'g> {
+    pub fn into_cursor(self) -> AncestorsCursor {
+        self.cursor
+    }
+}
+
+impl<'g> Iterator for AncestorsIter<'g> {
+    type Item = git2::Oid;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.cursor.next(self.graph)
+    }
+}
+
+#[derive(Debug)]
+pub struct AncestorsCursor {
+    node_queue: VecDeque<git2::Oid>,
+    primary_parents: bool,
+    prior: Option<git2::Oid>,
+    seen: std::collections::HashSet<git2::Oid>,
+}
+
+impl AncestorsCursor {
+    fn new(graph: &Graph, root_id: git2::Oid) -> Self {
+        let mut node_queue = VecDeque::new();
+        if graph.graph.contains_node(root_id) {
+            node_queue.push_back(root_id);
+        }
+        Self {
+            node_queue,
+            primary_parents: false,
+            prior: None,
+            seen: Default::default(),
+        }
+    }
+
+    pub fn primary_parents(mut self, yes: bool) -> Self {
+        self.primary_parents = yes;
+        self
+    }
+}
+
+impl AncestorsCursor {
+    fn next(&mut self, graph: &Graph) -> Option<git2::Oid> {
+        if let Some(prior) = self.prior {
+            if self.primary_parents {
+                // Single path, no chance for duplicating paths
+                self.node_queue.extend(graph.primary_parent_of(prior));
+            } else {
+                for parent_id in graph.parents_of(prior) {
+                    if self.seen.insert(parent_id) {
+                        self.node_queue.push_back(parent_id);
                     }
-                    // `head_oid` might already exist but none of its parents, so keep going
-                    child_id = Some(current.commit.id);
-                }
-                Entry::Vacant(v) => {
-                    let commit = repo
-                        .find_commit(commit_id)
-                        .expect("commit_range always returns valid ids");
-                    let current = v.insert(Node::new(commit));
-                    current.action = default_action;
-                    if let Some(child_id) = child_id {
-                        current.children.insert(child_id);
-                    }
-
-                    child_id = Some(current.commit.id);
                 }
             }
         }
+        let next = self.node_queue.pop_front()?;
+        self.prior = Some(next);
+        Some(next)
+    }
 
-        Ok(())
+    pub fn stop(&mut self) {
+        self.prior = None;
     }
 }
 
-pub struct BreadthFirstIter<'g> {
+#[derive(Debug)]
+pub struct DescendantsIter<'g> {
+    cursor: DescendantsCursor,
     graph: &'g Graph,
-    node_queue: VecDeque<git2::Oid>,
 }
 
-impl<'g> BreadthFirstIter<'g> {
-    pub fn new(graph: &'g Graph, root_id: git2::Oid) -> Self {
+impl<'g> DescendantsIter<'g> {
+    pub fn into_cursor(self) -> DescendantsCursor {
+        self.cursor
+    }
+}
+
+impl<'g> Iterator for DescendantsIter<'g> {
+    type Item = git2::Oid;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.cursor.next(self.graph)
+    }
+}
+
+#[derive(Debug)]
+pub struct DescendantsCursor {
+    node_queue: VecDeque<git2::Oid>,
+    prior: Option<git2::Oid>,
+}
+
+impl DescendantsCursor {
+    fn new(graph: &Graph, root_id: git2::Oid) -> Self {
         let mut node_queue = VecDeque::new();
-        if graph.nodes.contains_key(&root_id) {
+        if graph.graph.contains_node(root_id) {
             node_queue.push_back(root_id);
         }
-        Self { graph, node_queue }
+        Self {
+            node_queue,
+            prior: None,
+        }
     }
 }
 
-impl<'g> Iterator for BreadthFirstIter<'g> {
-    type Item = &'g Node;
-    fn next(&mut self) -> Option<Self::Item> {
-        let next_id = self.node_queue.pop_front()?;
-        let next = self.graph.get(next_id)?;
-        self.node_queue.extend(next.children.iter().copied());
+impl DescendantsCursor {
+    fn next(&mut self, graph: &Graph) -> Option<git2::Oid> {
+        if let Some(prior) = self.prior {
+            self.node_queue.extend(graph.primary_children_of(prior));
+        }
+        let next = self.node_queue.pop_front()?;
+        self.prior = Some(next);
         Some(next)
+    }
+
+    pub fn stop(&mut self) {
+        self.prior = None;
     }
 }

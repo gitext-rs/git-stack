@@ -4,6 +4,7 @@
         color = concolor_clap::color_choice(),
     )]
 #[command(group = clap::ArgGroup::new("mode").multiple(false))]
+#[command(args_conflicts_with_subcommands = true)]
 pub struct Args {
     /// Rebase the selected stacks
     #[arg(short, long, group = "mode")]
@@ -19,7 +20,7 @@ pub struct Args {
 
     /// Which branch stacks to include
     #[arg(short, long, value_enum)]
-    pub stack: Option<git_stack::config::Stack>,
+    pub stack: Option<git_stack::legacy::config::Stack>,
 
     /// Branch to evaluate from (default: most-recent protected branch)
     #[arg(long)]
@@ -31,7 +32,7 @@ pub struct Args {
 
     /// Action to perform with fixup-commits
     #[arg(long, value_enum)]
-    pub fixup: Option<git_stack::config::Fixup>,
+    pub fixup: Option<git_stack::legacy::config::Fixup>,
 
     /// Repair diverging branches.
     #[arg(long, overrides_with("no_repair"))]
@@ -43,10 +44,10 @@ pub struct Args {
     pub dry_run: bool,
 
     #[arg(long, value_enum)]
-    pub format: Option<git_stack::config::Format>,
+    pub format: Option<git_stack::legacy::config::Format>,
 
     #[arg(long, value_enum)]
-    pub show_commits: Option<git_stack::config::ShowCommits>,
+    pub show_commits: Option<git_stack::legacy::config::ShowCommits>,
 
     /// See what branches are protected
     #[arg(long, group = "mode")]
@@ -79,11 +80,49 @@ pub struct Args {
 
     #[command(flatten)]
     pub verbose: clap_verbosity_flag::Verbosity<clap_verbosity_flag::InfoLevel>,
+
+    #[command(subcommand)]
+    command: Option<Command>,
+}
+
+#[derive(clap::Subcommand)]
+pub enum Command {
+    #[command(alias = "prev")]
+    Previous(crate::prev::PrevArgs),
+    Next(crate::next::NextArgs),
+    Reword(crate::reword::RewordArgs),
+    Amend(crate::amend::AmendArgs),
+    Sync(crate::sync::SyncArgs),
+    Run(crate::run::RunArgs),
+    Alias(crate::alias::AliasArgs),
 }
 
 impl Args {
-    pub fn to_config(&self) -> git_stack::config::RepoConfig {
-        git_stack::config::RepoConfig {
+    pub fn exec(&self, colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
+        match &self.command {
+            Some(Command::Previous(c)) => c.exec(colored_stdout, colored_stderr),
+            Some(Command::Next(c)) => c.exec(colored_stdout, colored_stderr),
+            Some(Command::Reword(c)) => c.exec(colored_stdout, colored_stderr),
+            Some(Command::Amend(c)) => c.exec(colored_stdout, colored_stderr),
+            Some(Command::Sync(c)) => c.exec(colored_stdout, colored_stderr),
+            Some(Command::Run(c)) => c.exec(colored_stdout, colored_stderr),
+            Some(Command::Alias(c)) => c.exec(colored_stdout, colored_stderr),
+            None => {
+                if let Some(output_path) = self.dump_config.as_deref() {
+                    crate::config::dump_config(self, output_path)
+                } else if let Some(ignore) = self.protect.as_deref() {
+                    crate::config::protect(self, ignore)
+                } else if self.protected {
+                    crate::config::protected(self)
+                } else {
+                    crate::stack::stack(self, colored_stdout, colored_stderr)
+                }
+            }
+        }
+    }
+
+    pub fn to_config(&self) -> git_stack::legacy::config::RepoConfig {
+        git_stack::legacy::config::RepoConfig {
             protected_branches: None,
             protect_commit_count: None,
             protect_commit_age: None,

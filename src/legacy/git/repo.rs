@@ -1,14 +1,9 @@
 use bstr::ByteSlice;
 use itertools::Itertools;
 
-pub type Error = git2::Error;
-pub type Result<T, E = Error> = std::result::Result<T, E>;
-
 pub trait Repo {
     fn path(&self) -> Option<&std::path::Path>;
     fn user(&self) -> Option<std::rc::Rc<str>>;
-    fn push_remote(&self) -> &str;
-    fn pull_remote(&self) -> &str;
 
     fn is_dirty(&self) -> bool;
     fn merge_base(&self, one: git2::Oid, two: git2::Oid) -> Option<git2::Oid>;
@@ -17,30 +12,36 @@ pub trait Repo {
     fn head_commit(&self) -> std::rc::Rc<Commit>;
     fn head_branch(&self) -> Option<Branch>;
     fn resolve(&self, revspec: &str) -> Option<std::rc::Rc<Commit>>;
-    fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>>;
+    fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error>;
     fn commit_count(&self, base_id: git2::Oid, head_id: git2::Oid) -> Option<usize>;
     fn commit_range(
         &self,
         base_bound: std::ops::Bound<&git2::Oid>,
         head_bound: std::ops::Bound<&git2::Oid>,
-    ) -> Result<Vec<git2::Oid>>;
-    fn contains_commit(&self, haystack_id: git2::Oid, needle_id: git2::Oid) -> Result<bool>;
-    fn cherry_pick(&mut self, head_id: git2::Oid, cherry_id: git2::Oid) -> Result<git2::Oid>;
-    fn reword(&mut self, head_oid: git2::Oid, msg: &str) -> Result<git2::Oid>;
-    fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid>;
+    ) -> Result<Vec<git2::Oid>, git2::Error>;
+    fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error>;
+    fn cherry_pick(
+        &mut self,
+        head_id: git2::Oid,
+        cherry_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error>;
+    fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid, git2::Error>;
 
-    fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid>;
-    fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<()>;
+    fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid, git2::Error>;
+    fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<(), git2::Error>;
 
-    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<()>;
-    fn delete_branch(&mut self, name: &str) -> Result<()>;
+    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error>;
+    fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error>;
     fn find_local_branch(&self, name: &str) -> Option<Branch>;
     fn find_remote_branch(&self, remote: &str, name: &str) -> Option<Branch>;
     fn local_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_>;
     fn remote_branches(&self) -> Box<dyn Iterator<Item = Branch> + '_>;
-    fn detach(&mut self) -> Result<()>;
-    fn switch_branch(&mut self, name: &str) -> Result<()>;
-    fn switch_commit(&mut self, id: git2::Oid) -> Result<()>;
+    fn detach(&mut self) -> Result<(), git2::Error>;
+    fn switch(&mut self, name: &str) -> Result<(), git2::Error>;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -48,6 +49,8 @@ pub struct Branch {
     pub remote: Option<String>,
     pub name: String,
     pub id: git2::Oid,
+    pub push_id: Option<git2::Oid>,
+    pub pull_id: Option<git2::Oid>,
 }
 
 impl Branch {
@@ -252,10 +255,29 @@ impl GitRepo {
         let name = resolved.shorthand()?;
         let id = resolved.target()?;
 
+        let push_id = self
+            .repo
+            .find_branch(
+                &format!("{}/{}", self.push_remote(), name),
+                git2::BranchType::Remote,
+            )
+            .ok()
+            .and_then(|b| b.get().target());
+        let pull_id = self
+            .repo
+            .find_branch(
+                &format!("{}/{}", self.pull_remote(), name),
+                git2::BranchType::Remote,
+            )
+            .ok()
+            .and_then(|b| b.get().target());
+
         Some(Branch {
             remote: None,
             name: name.to_owned(),
             id,
+            push_id,
+            pull_id,
         })
     }
 
@@ -264,7 +286,7 @@ impl GitRepo {
         self.find_commit(id)
     }
 
-    pub fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>> {
+    pub fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error> {
         let commit = self.repo.find_commit(head_id)?;
         Ok(commit.parent_ids().collect())
     }
@@ -303,7 +325,7 @@ impl GitRepo {
         &self,
         base_bound: std::ops::Bound<&git2::Oid>,
         head_bound: std::ops::Bound<&git2::Oid>,
-    ) -> Result<Vec<git2::Oid>> {
+    ) -> Result<Vec<git2::Oid>, git2::Error> {
         let head_id = match head_bound {
             std::ops::Bound::Included(head_id) | std::ops::Bound::Excluded(head_id) => *head_id,
             std::ops::Bound::Unbounded => panic!("commit_range's HEAD cannot be unbounded"),
@@ -339,7 +361,11 @@ impl GitRepo {
         Ok(result)
     }
 
-    pub fn contains_commit(&self, haystack_id: git2::Oid, needle_id: git2::Oid) -> Result<bool> {
+    pub fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
         let needle_commit = self.repo.find_commit(needle_id)?;
         let needle_ann_commit = self.repo.find_annotated_commit(needle_id)?;
         let haystack_ann_commit = self.repo.find_annotated_commit(haystack_id)?;
@@ -396,24 +422,28 @@ impl GitRepo {
         }
     }
 
-    pub fn cherry_pick(&mut self, head_id: git2::Oid, cherry_id: git2::Oid) -> Result<git2::Oid> {
+    fn cherry_pick(
+        &mut self,
+        head_id: git2::Oid,
+        cherry_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
         git2_ext::ops::cherry_pick(&self.repo, head_id, cherry_id)
     }
 
-    pub fn reword(&mut self, head_oid: git2::Oid, msg: &str) -> Result<git2::Oid> {
-        git2_ext::ops::reword(&self.repo, head_oid, msg)
-    }
-
-    pub fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid> {
+    pub fn squash(
+        &mut self,
+        head_id: git2::Oid,
+        into_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
         git2_ext::ops::squash(&self.repo, head_id, into_id)
     }
 
-    pub fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid> {
+    pub fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid, git2::Error> {
         let signature = self.repo.signature()?;
         self.repo.stash_save2(&signature, message, None)
     }
 
-    pub fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<()> {
+    pub fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<(), git2::Error> {
         let mut index = None;
         self.repo.stash_foreach(|i, _, id| {
             if *id == stash_id {
@@ -424,7 +454,7 @@ impl GitRepo {
             }
         })?;
         let index = index.ok_or_else(|| {
-            Error::new(
+            git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
                 "stash ID not found",
@@ -433,13 +463,13 @@ impl GitRepo {
         self.repo.stash_pop(index, None)
     }
 
-    pub fn branch(&mut self, name: &str, id: git2::Oid) -> Result<()> {
+    pub fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
         let commit = self.repo.find_commit(id)?;
         self.repo.branch(name, &commit, true)?;
         Ok(())
     }
 
-    pub fn delete_branch(&mut self, name: &str) -> Result<()> {
+    pub fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error> {
         // HACK: We shouldn't limit ourselves to `Local`
         let mut branch = self.repo.find_branch(name, git2::BranchType::Local)?;
         branch.delete()
@@ -502,13 +532,32 @@ impl GitRepo {
             })
     }
 
-    fn load_local_branch(&self, branch: &git2::Branch, name: &str) -> Result<Branch> {
+    fn load_local_branch(&self, branch: &git2::Branch, name: &str) -> Result<Branch, git2::Error> {
         let id = branch.get().target().unwrap();
+
+        let push_id = self
+            .repo
+            .find_branch(
+                &format!("{}/{}", self.push_remote(), name),
+                git2::BranchType::Remote,
+            )
+            .ok()
+            .and_then(|b| b.get().target());
+        let pull_id = self
+            .repo
+            .find_branch(
+                &format!("{}/{}", self.pull_remote(), name),
+                git2::BranchType::Remote,
+            )
+            .ok()
+            .and_then(|b| b.get().target());
 
         Ok(Branch {
             remote: None,
             name: name.to_owned(),
             id,
+            push_id,
+            pull_id,
         })
     }
 
@@ -517,17 +566,22 @@ impl GitRepo {
         branch: &git2::Branch,
         remote: &str,
         name: &str,
-    ) -> Result<Branch> {
+    ) -> Result<Branch, git2::Error> {
         let id = branch.get().target().unwrap();
+
+        let push_id = (remote == self.push_remote()).then_some(id);
+        let pull_id = (remote == self.pull_remote()).then_some(id);
 
         Ok(Branch {
             remote: Some(remote.to_owned()),
             name: name.to_owned(),
             id,
+            push_id,
+            pull_id,
         })
     }
 
-    pub fn detach(&mut self) -> Result<()> {
+    pub fn detach(&mut self) -> Result<(), git2::Error> {
         let head_id = self
             .repo
             .head()
@@ -540,18 +594,10 @@ impl GitRepo {
         Ok(())
     }
 
-    pub fn switch_branch(&mut self, name: &str) -> Result<()> {
+    pub fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
         // HACK: We shouldn't limit ourselves to `Local`
         let branch = self.repo.find_branch(name, git2::BranchType::Local)?;
         self.repo.set_head(branch.get().name().unwrap())?;
-        let mut builder = git2::build::CheckoutBuilder::new();
-        builder.force();
-        self.repo.checkout_head(Some(&mut builder))?;
-        Ok(())
-    }
-
-    pub fn switch_commit(&mut self, id: git2::Oid) -> Result<()> {
-        self.repo.set_head_detached(id)?;
         let mut builder = git2::build::CheckoutBuilder::new();
         builder.force();
         self.repo.checkout_head(Some(&mut builder))?;
@@ -587,12 +633,6 @@ impl Repo for GitRepo {
     fn user(&self) -> Option<std::rc::Rc<str>> {
         self.user()
     }
-    fn push_remote(&self) -> &str {
-        self.push_remote()
-    }
-    fn pull_remote(&self) -> &str {
-        self.pull_remote()
-    }
 
     fn is_dirty(&self) -> bool {
         self.is_dirty()
@@ -618,7 +658,7 @@ impl Repo for GitRepo {
         self.resolve(revspec)
     }
 
-    fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>> {
+    fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error> {
         self.parent_ids(head_id)
     }
 
@@ -630,39 +670,43 @@ impl Repo for GitRepo {
         &self,
         base_bound: std::ops::Bound<&git2::Oid>,
         head_bound: std::ops::Bound<&git2::Oid>,
-    ) -> Result<Vec<git2::Oid>> {
+    ) -> Result<Vec<git2::Oid>, git2::Error> {
         self.commit_range(base_bound, head_bound)
     }
 
-    fn contains_commit(&self, haystack_id: git2::Oid, needle_id: git2::Oid) -> Result<bool> {
+    fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
         self.contains_commit(haystack_id, needle_id)
     }
 
-    fn cherry_pick(&mut self, head_id: git2::Oid, cherry_id: git2::Oid) -> Result<git2::Oid> {
+    fn cherry_pick(
+        &mut self,
+        head_id: git2::Oid,
+        cherry_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
         self.cherry_pick(head_id, cherry_id)
     }
 
-    fn reword(&mut self, head_oid: git2::Oid, msg: &str) -> Result<git2::Oid> {
-        self.reword(head_oid, msg)
-    }
-
-    fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid> {
+    fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid, git2::Error> {
         self.squash(head_id, into_id)
     }
 
-    fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid> {
+    fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid, git2::Error> {
         self.stash_push(message)
     }
 
-    fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<()> {
+    fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<(), git2::Error> {
         self.stash_pop(stash_id)
     }
 
-    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<()> {
+    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
         self.branch(name, id)
     }
 
-    fn delete_branch(&mut self, name: &str) -> Result<()> {
+    fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error> {
         self.delete_branch(name)
     }
 
@@ -682,16 +726,12 @@ impl Repo for GitRepo {
         Box::new(self.remote_branches())
     }
 
-    fn detach(&mut self) -> Result<()> {
+    fn detach(&mut self) -> Result<(), git2::Error> {
         self.detach()
     }
 
-    fn switch_branch(&mut self, name: &str) -> Result<()> {
-        self.switch_branch(name)
-    }
-
-    fn switch_commit(&mut self, id: git2::Oid) -> Result<()> {
-        self.switch_commit(id)
+    fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
+        self.switch(name)
     }
 }
 
@@ -749,14 +789,6 @@ impl InMemoryRepo {
         self.branches.insert(branch.name.clone(), branch);
     }
 
-    pub fn push_remote(&self) -> &str {
-        "origin"
-    }
-
-    pub fn pull_remote(&self) -> &str {
-        "origin"
-    }
-
     fn user(&self) -> Option<std::rc::Rc<str>> {
         None
     }
@@ -793,7 +825,7 @@ impl InMemoryRepo {
         self.find_commit(branch.id)
     }
 
-    pub fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>> {
+    pub fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error> {
         let next = self
             .commits
             .get(&head_id)
@@ -822,7 +854,7 @@ impl InMemoryRepo {
         &self,
         base_bound: std::ops::Bound<&git2::Oid>,
         head_bound: std::ops::Bound<&git2::Oid>,
-    ) -> Result<Vec<git2::Oid>> {
+    ) -> Result<Vec<git2::Oid>, git2::Error> {
         let head_id = match head_bound {
             std::ops::Bound::Included(head_id) | std::ops::Bound::Excluded(head_id) => *head_id,
             std::ops::Bound::Unbounded => panic!("commit_range's HEAD cannot be unbounded"),
@@ -853,7 +885,11 @@ impl InMemoryRepo {
         Ok(result)
     }
 
-    pub fn contains_commit(&self, haystack_id: git2::Oid, needle_id: git2::Oid) -> Result<bool> {
+    pub fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
         // Because we don't have the information for likeness matches, just checking for Oid
         let mut next = Some(haystack_id);
         while let Some(current) = next {
@@ -865,9 +901,13 @@ impl InMemoryRepo {
         Ok(false)
     }
 
-    pub fn cherry_pick(&mut self, head_id: git2::Oid, cherry_id: git2::Oid) -> Result<git2::Oid> {
+    pub fn cherry_pick(
+        &mut self,
+        head_id: git2::Oid,
+        cherry_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
         let cherry_commit = self.find_commit(cherry_id).ok_or_else(|| {
-            Error::new(
+            git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
                 format!("could not find commit {:?}", cherry_id),
@@ -881,79 +921,70 @@ impl InMemoryRepo {
         Ok(new_id)
     }
 
-    pub fn reword(&mut self, head_id: git2::Oid, msg: &str) -> Result<git2::Oid> {
-        let (head_parent, head_commit) = self.commits.get(&head_id).cloned().ok_or_else(|| {
+    pub fn squash(
+        &mut self,
+        head_id: git2::Oid,
+        into_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
+        self.commits.get(&head_id).cloned().ok_or_else(|| {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
                 format!("could not find commit {:?}", head_id),
             )
         })?;
-
-        let mut reworded_commit = Commit::clone(&head_commit);
-        let new_id = self.gen_id();
-        reworded_commit.id = new_id;
-        reworded_commit.summary = msg.into();
-        self.commits
-            .insert(new_id, (head_parent, std::rc::Rc::new(reworded_commit)));
-        Ok(new_id)
-    }
-
-    pub fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid> {
-        self.commits.get(&head_id).cloned().ok_or_else(|| {
-            Error::new(
-                git2::ErrorCode::NotFound,
-                git2::ErrorClass::Reference,
-                format!("could not find commit {:?}", head_id),
-            )
-        })?;
         let (intos_parent, into_commit) = self.commits.get(&into_id).cloned().ok_or_else(|| {
-            Error::new(
+            git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
                 format!("could not find commit {:?}", into_id),
             )
         })?;
+        let intos_parent = intos_parent.unwrap();
 
         let mut squashed_commit = Commit::clone(&into_commit);
         let new_id = self.gen_id();
         squashed_commit.id = new_id;
-        self.commits
-            .insert(new_id, (intos_parent, std::rc::Rc::new(squashed_commit)));
+        self.commits.insert(
+            new_id,
+            (Some(intos_parent), std::rc::Rc::new(squashed_commit)),
+        );
         Ok(new_id)
     }
 
-    pub fn stash_push(&mut self, _message: Option<&str>) -> Result<git2::Oid> {
-        Err(Error::new(
+    pub fn stash_push(&mut self, _message: Option<&str>) -> Result<git2::Oid, git2::Error> {
+        Err(git2::Error::new(
             git2::ErrorCode::NotFound,
             git2::ErrorClass::Reference,
             "stash is unsupported",
         ))
     }
 
-    pub fn stash_pop(&mut self, _stash_id: git2::Oid) -> Result<()> {
-        Err(Error::new(
+    pub fn stash_pop(&mut self, _stash_id: git2::Oid) -> Result<(), git2::Error> {
+        Err(git2::Error::new(
             git2::ErrorCode::NotFound,
             git2::ErrorClass::Reference,
             "stash is unsupported",
         ))
     }
 
-    pub fn branch(&mut self, name: &str, id: git2::Oid) -> Result<()> {
+    pub fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
         self.branches.insert(
             name.to_owned(),
             Branch {
                 remote: None,
                 name: name.to_owned(),
                 id,
+                push_id: None,
+                pull_id: None,
             },
         );
         Ok(())
     }
 
-    pub fn delete_branch(&mut self, name: &str) -> Result<()> {
+    pub fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error> {
         self.branches.remove(name).map(|_| ()).ok_or_else(|| {
-            Error::new(
+            git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
                 format!("could not remove branch {:?}", name),
@@ -977,24 +1008,19 @@ impl InMemoryRepo {
         None.into_iter()
     }
 
-    pub fn detach(&mut self) -> Result<()> {
+    pub fn detach(&mut self) -> Result<(), git2::Error> {
         Ok(())
     }
 
-    pub fn switch_branch(&mut self, name: &str) -> Result<()> {
+    pub fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
         let branch = self.find_local_branch(name).ok_or_else(|| {
-            Error::new(
+            git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
                 format!("could not find branch {:?}", name),
             )
         })?;
         self.head_id = Some(branch.id);
-        Ok(())
-    }
-
-    pub fn switch_commit(&mut self, id: git2::Oid) -> Result<()> {
-        self.head_id = Some(id);
         Ok(())
     }
 }
@@ -1031,12 +1057,6 @@ impl Repo for InMemoryRepo {
     fn user(&self) -> Option<std::rc::Rc<str>> {
         self.user()
     }
-    fn push_remote(&self) -> &str {
-        self.push_remote()
-    }
-    fn pull_remote(&self) -> &str {
-        self.pull_remote()
-    }
 
     fn is_dirty(&self) -> bool {
         self.is_dirty()
@@ -1058,7 +1078,7 @@ impl Repo for InMemoryRepo {
         self.resolve(revspec)
     }
 
-    fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>> {
+    fn parent_ids(&self, head_id: git2::Oid) -> Result<Vec<git2::Oid>, git2::Error> {
         self.parent_ids(head_id)
     }
 
@@ -1070,23 +1090,27 @@ impl Repo for InMemoryRepo {
         &self,
         base_bound: std::ops::Bound<&git2::Oid>,
         head_bound: std::ops::Bound<&git2::Oid>,
-    ) -> Result<Vec<git2::Oid>> {
+    ) -> Result<Vec<git2::Oid>, git2::Error> {
         self.commit_range(base_bound, head_bound)
     }
 
-    fn contains_commit(&self, haystack_id: git2::Oid, needle_id: git2::Oid) -> Result<bool> {
+    fn contains_commit(
+        &self,
+        haystack_id: git2::Oid,
+        needle_id: git2::Oid,
+    ) -> Result<bool, git2::Error> {
         self.contains_commit(haystack_id, needle_id)
     }
 
-    fn cherry_pick(&mut self, head_id: git2::Oid, cherry_id: git2::Oid) -> Result<git2::Oid> {
+    fn cherry_pick(
+        &mut self,
+        head_id: git2::Oid,
+        cherry_id: git2::Oid,
+    ) -> Result<git2::Oid, git2::Error> {
         self.cherry_pick(head_id, cherry_id)
     }
 
-    fn reword(&mut self, head_oid: git2::Oid, msg: &str) -> Result<git2::Oid> {
-        self.reword(head_oid, msg)
-    }
-
-    fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid> {
+    fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid, git2::Error> {
         self.squash(head_id, into_id)
     }
 
@@ -1094,19 +1118,19 @@ impl Repo for InMemoryRepo {
         self.head_branch()
     }
 
-    fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid> {
+    fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid, git2::Error> {
         self.stash_push(message)
     }
 
-    fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<()> {
+    fn stash_pop(&mut self, stash_id: git2::Oid) -> Result<(), git2::Error> {
         self.stash_pop(stash_id)
     }
 
-    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<()> {
+    fn branch(&mut self, name: &str, id: git2::Oid) -> Result<(), git2::Error> {
         self.branch(name, id)
     }
 
-    fn delete_branch(&mut self, name: &str) -> Result<()> {
+    fn delete_branch(&mut self, name: &str) -> Result<(), git2::Error> {
         self.delete_branch(name)
     }
 
@@ -1126,16 +1150,12 @@ impl Repo for InMemoryRepo {
         Box::new(self.remote_branches())
     }
 
-    fn detach(&mut self) -> Result<()> {
+    fn detach(&mut self) -> Result<(), git2::Error> {
         self.detach()
     }
 
-    fn switch_branch(&mut self, name: &str) -> Result<()> {
-        self.switch_branch(name)
-    }
-
-    fn switch_commit(&mut self, id: git2::Oid) -> Result<()> {
-        self.switch_commit(id)
+    fn switch(&mut self, name: &str) -> Result<(), git2::Error> {
+        self.switch(name)
     }
 }
 
@@ -1178,7 +1198,7 @@ pub fn stash_pop(repo: &mut dyn Repo, stash_id: Option<git2::Oid>) {
 pub fn commit_range(
     repo: &dyn Repo,
     head_to_base: impl std::ops::RangeBounds<git2::Oid>,
-) -> Result<Vec<git2::Oid>> {
+) -> Result<Vec<git2::Oid>, git2::Error> {
     let head_bound = head_to_base.start_bound();
     let base_bound = head_to_base.end_bound();
     repo.commit_range(base_bound, head_bound)

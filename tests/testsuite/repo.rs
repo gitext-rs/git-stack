@@ -397,14 +397,14 @@ fn switch() {
     let mut repo = GitRepo::new(repo);
 
     {
-        let actual = repo.switch("non-existent");
+        let actual = repo.switch_branch("non-existent");
         assert!(actual.is_err());
     }
 
     {
         assert!(!repo.is_dirty());
 
-        repo.switch("master").unwrap();
+        repo.switch_branch("master").unwrap();
         let actual = repo.head_commit();
         let expected = repo.find_local_branch("master").unwrap();
         assert_eq!(actual.id, expected.id);

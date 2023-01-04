@@ -80,7 +80,7 @@ pub struct Executor {
 }
 
 impl Executor {
-    pub fn new(repo: &dyn crate::git::Repo, dry_run: bool) -> Executor {
+    pub fn new(repo: &dyn crate::legacy::git::Repo, dry_run: bool) -> Executor {
         let head_oid = repo.head_commit().id;
         Self {
             head_oid,
@@ -95,7 +95,7 @@ impl Executor {
 
     pub fn run_script<'s>(
         &mut self,
-        repo: &mut dyn crate::git::Repo,
+        repo: &mut dyn crate::legacy::git::Repo,
         script: &'s Script,
     ) -> Vec<(git2::Error, &'s str, Vec<&'s str>)> {
         let mut failures = Vec::new();
@@ -129,7 +129,7 @@ impl Executor {
 
     pub fn stage_single(
         &mut self,
-        repo: &mut dyn crate::git::Repo,
+        repo: &mut dyn crate::legacy::git::Repo,
         command: &Command,
     ) -> Result<(), git2::Error> {
         match command {
@@ -217,7 +217,7 @@ impl Executor {
         Ok(())
     }
 
-    pub fn commit(&mut self, repo: &mut dyn crate::git::Repo) -> Result<(), git2::Error> {
+    pub fn commit(&mut self, repo: &mut dyn crate::legacy::git::Repo) -> Result<(), git2::Error> {
         let hook_repo = repo.path().map(git2::Repository::open).transpose()?;
         let hooks = if self.dry_run {
             None
@@ -297,7 +297,7 @@ impl Executor {
         Ok(())
     }
 
-    pub fn abandon(&mut self, repo: &dyn crate::git::Repo) {
+    pub fn abandon(&mut self, repo: &dyn crate::legacy::git::Repo) {
         self.head_oid = repo.head_commit().id;
         self.branches.clear();
         self.delete_branches.clear();
@@ -306,7 +306,7 @@ impl Executor {
 
     pub fn close(
         &mut self,
-        repo: &mut dyn crate::git::Repo,
+        repo: &mut dyn crate::legacy::git::Repo,
         restore_branch: &str,
     ) -> Result<(), git2::Error> {
         assert_eq!(&self.branches, &[]);

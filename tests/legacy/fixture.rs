@@ -1,6 +1,9 @@
 use bstr::ByteSlice;
 
-pub fn populate_repo(repo: &mut git_stack::git::InMemoryRepo, fixture: git_fixture::TodoList) {
+pub fn populate_repo(
+    repo: &mut git_stack::legacy::git::InMemoryRepo,
+    fixture: git_fixture::TodoList,
+) {
     if fixture.init {
         repo.clear();
     }
@@ -22,7 +25,7 @@ pub fn populate_repo(repo: &mut git_stack::git::InMemoryRepo, fixture: git_fixtu
                 let commit_id = repo.gen_id();
                 let message = bstr::BString::from(tree.message.as_deref().unwrap_or("Automated"));
                 let summary = message.lines().next().unwrap().to_owned();
-                let commit = git_stack::git::Commit {
+                let commit = git_stack::legacy::git::Commit {
                     id: commit_id,
                     tree_id: commit_id,
                     summary: bstr::BString::from(summary),
@@ -42,7 +45,7 @@ pub fn populate_repo(repo: &mut git_stack::git::InMemoryRepo, fixture: git_fixtu
             }
             git_fixture::Command::Branch(branch) => {
                 let current_oid = last_oid.unwrap();
-                let branch = git_stack::git::Branch {
+                let branch = git_stack::legacy::git::Branch {
                     remote: None,
                     name: branch.as_str().to_owned(),
                     id: current_oid,

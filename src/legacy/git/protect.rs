@@ -18,11 +18,11 @@ impl ProtectedBranches {
         match name_match {
             ignore::Match::None => false,
             ignore::Match::Ignore(glob) => {
-                log::trace!("`{}` is ignored by {:?}", name, glob.original());
+                log::trace!("{}: ignored {:?}", name, glob.original());
                 true
             }
             ignore::Match::Whitelist(glob) => {
-                log::trace!("`{}` is allowed by {:?}", name, glob.original());
+                log::trace!("{}: allowed {:?}", name, glob.original());
                 false
             }
         }

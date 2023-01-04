@@ -1,14 +1,23 @@
 #![allow(clippy::collapsible_else_if)]
 #![allow(clippy::let_and_return)]
 #![allow(clippy::if_same_then_else)]
+#![allow(clippy::bool_to_int_with_if)]
 
 use clap::Parser;
 use proc_exit::WithCodeResultExt;
 
+mod alias;
+mod amend;
 mod args;
 mod config;
 mod logger;
+mod next;
+mod ops;
+mod prev;
+mod reword;
+mod run;
 mod stack;
+mod sync;
 
 fn main() {
     human_panic::setup_panic!();
@@ -46,15 +55,5 @@ fn run() -> proc_exit::ExitResult {
         std::env::set_current_dir(current_dir).with_code(proc_exit::sysexits::USAGE_ERR)?;
     }
 
-    if let Some(output_path) = args.dump_config.as_deref() {
-        config::dump_config(&args, output_path)?;
-    } else if let Some(ignore) = args.protect.as_deref() {
-        config::protect(&args, ignore)?;
-    } else if args.protected {
-        config::protected(&args)?;
-    } else {
-        stack::stack(&args, colored_stdout, colored_stderr)?;
-    }
-
-    Ok(())
+    args.exec(colored_stdout, colored_stderr)
 }
