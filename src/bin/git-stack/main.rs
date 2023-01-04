@@ -15,6 +15,7 @@ mod ops;
 mod prev;
 mod reword;
 mod stack;
+mod sync;
 
 fn main() {
     human_panic::setup_panic!();
