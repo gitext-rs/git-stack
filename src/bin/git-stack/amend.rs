@@ -254,6 +254,20 @@ impl AmendArgs {
             .close(&mut repo, head_branch.as_ref().and_then(|b| b.local_name()))
             .with_code(proc_exit::Code::FAILURE)?;
 
+        let abbrev_id = repo
+            .raw()
+            .find_object(head_id, None)
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .short_id()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+        let _ = writeln!(
+            std::io::stderr(),
+            "{} to {}: {}",
+            stderr_palette.good.paint("Amended"),
+            stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
+            stderr_palette.hint.paint(&head.summary)
+        );
+
         git_stack::git::stash_pop(&mut repo, stash_id);
         if backed_up {
             log::info!(
