@@ -217,6 +217,16 @@ pub struct Node {
     branches: Option<Vec<Branch>>,
 }
 
+impl Node {
+    pub fn new(id: git2::Oid) -> Self {
+        Self {
+            id,
+            commit: None,
+            branches: None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct AncestorsIter<'g> {
     cursor: AncestorsCursor,
