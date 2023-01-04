@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+New `git stack` subcommands, including
+- `next` and `prev`
+- `sync` (with the aim of replacing `git stack --pull`)
+- `amend`
+- `reword`
+- `run`
+
+With `git stack alias` for creating alias for these
+
 ## [0.8.5] - 2022-09-06
 
 ### Fixes
