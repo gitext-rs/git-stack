@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use itertools::Itertools;
 use proc_exit::prelude::*;
 
@@ -117,7 +119,13 @@ impl AmendArgs {
             index
                 .update_all(
                     ["*"].iter(),
-                    Some(&mut |_, _| {
+                    Some(&mut |path, _| {
+                        let _ = writeln!(
+                            std::io::stderr(),
+                            "{} {}",
+                            stderr_palette.good.paint("Adding"),
+                            path.display()
+                        );
                         if self.dry_run {
                             // skip
                             1
