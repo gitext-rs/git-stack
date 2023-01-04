@@ -211,3 +211,5 @@ impl Palette {
         }
     }
 }
+
+pub const STASH_STACK_NAME: &str = "git-stack";

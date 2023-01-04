@@ -343,7 +343,6 @@ pub fn stack(
         state.update().with_code(proc_exit::Code::FAILURE)?;
     }
 
-    const STASH_STACK_NAME: &str = "git-stack";
     let mut success = true;
     let mut backed_up = false;
     let mut stash_id = None;
@@ -365,7 +364,8 @@ pub fn stack(
             let stash_repo =
                 git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
             let stash_repo = git_branch_stash::GitRepo::new(stash_repo);
-            let mut snapshots = git_branch_stash::Stack::new(STASH_STACK_NAME, &stash_repo);
+            let mut snapshots =
+                git_branch_stash::Stack::new(crate::ops::STASH_STACK_NAME, &stash_repo);
             snapshots.capacity(state.snapshot_capacity);
             let snapshot = git_branch_stash::Snapshot::from_repo(&stash_repo)
                 .with_code(proc_exit::Code::FAILURE)?;
@@ -441,7 +441,7 @@ pub fn stack(
             "{}",
             palette_stderr.hint.paint(format_args!(
                 "To undo, run `git branch-stash pop {}`",
-                STASH_STACK_NAME
+                crate::ops::STASH_STACK_NAME
             ))
         );
     }

@@ -48,7 +48,13 @@ impl AmendArgs {
         }
     }
 
-    pub fn exec(&self, _colored_stdout: bool, _colored_stderr: bool) -> proc_exit::ExitResult {
+    pub fn exec(&self, _colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
+        let stderr_palette = if colored_stderr {
+            crate::ops::Palette::colored()
+        } else {
+            crate::ops::Palette::plain()
+        };
+
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
         let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
         let mut repo = git_stack::git::GitRepo::new(repo);
@@ -130,6 +136,24 @@ impl AmendArgs {
         } else if !self.dry_run {
             stash_id = git_stack::git::stash_push(&mut repo, "amend");
         }
+
+        let mut backed_up = false;
+        {
+            let stash_repo =
+                git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
+            let stash_repo = git_branch_stash::GitRepo::new(stash_repo);
+            let mut snapshots =
+                git_branch_stash::Stack::new(crate::ops::STASH_STACK_NAME, &stash_repo);
+            let snapshot_capacity = repo_config.capacity();
+            snapshots.capacity(snapshot_capacity);
+            let snapshot = git_branch_stash::Snapshot::from_repo(&stash_repo)
+                .with_code(proc_exit::Code::FAILURE)?;
+            if !self.dry_run {
+                snapshots.push(snapshot).to_sysexits()?;
+                backed_up = true;
+            }
+        }
+
         if !self.dry_run {
             let raw_commit = repo
                 .raw()
@@ -223,6 +247,16 @@ impl AmendArgs {
             .with_code(proc_exit::Code::FAILURE)?;
 
         git_stack::git::stash_pop(&mut repo, stash_id);
+        if backed_up {
+            log::info!(
+                "{}: to undo, run {}",
+                stderr_palette.info.paint("note"),
+                stderr_palette.highlight.paint(format_args!(
+                    "`git branch-stash pop {}`",
+                    crate::ops::STASH_STACK_NAME
+                ))
+            );
+        }
 
         if success {
             Ok(())
