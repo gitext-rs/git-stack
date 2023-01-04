@@ -92,6 +92,7 @@ pub enum Command {
     Next(crate::next::NextArgs),
     Reword(crate::reword::RewordArgs),
     Amend(crate::amend::AmendArgs),
+    Alias(crate::alias::AliasArgs),
 }
 
 impl Args {
@@ -101,6 +102,7 @@ impl Args {
             Some(Command::Next(c)) => c.exec(colored_stdout, colored_stderr),
             Some(Command::Reword(c)) => c.exec(colored_stdout, colored_stderr),
             Some(Command::Amend(c)) => c.exec(colored_stdout, colored_stderr),
+            Some(Command::Alias(c)) => c.exec(colored_stdout, colored_stderr),
             None => {
                 if let Some(output_path) = self.dump_config.as_deref() {
                     crate::config::dump_config(self, output_path)

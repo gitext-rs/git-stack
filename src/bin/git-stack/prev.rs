@@ -29,6 +29,16 @@ pub struct PrevArgs {
 }
 
 impl PrevArgs {
+    pub const fn alias() -> crate::alias::Alias {
+        let alias = "prev";
+        let action = "stack previous";
+        crate::alias::Alias {
+            alias,
+            action,
+            action_base: action,
+        }
+    }
+
     pub fn exec(&self, _colored_stdout: bool, _colored_stderr: bool) -> proc_exit::ExitResult {
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
         let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;

@@ -5,6 +5,7 @@
 use clap::Parser;
 use proc_exit::WithCodeResultExt;
 
+mod alias;
 mod amend;
 mod args;
 mod config;
