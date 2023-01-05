@@ -401,11 +401,11 @@ impl GitRepo {
     }
 
     pub fn reword(&mut self, head_oid: git2::Oid, msg: &str) -> Result<git2::Oid> {
-        git2_ext::ops::reword(&self.repo, head_oid, msg)
+        git2_ext::ops::reword(&self.repo, head_oid, msg, None)
     }
 
     pub fn squash(&mut self, head_id: git2::Oid, into_id: git2::Oid) -> Result<git2::Oid> {
-        git2_ext::ops::squash(&self.repo, head_id, into_id)
+        git2_ext::ops::squash(&self.repo, head_id, into_id, None)
     }
 
     pub fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid> {
