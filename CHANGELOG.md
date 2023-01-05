@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.10.0] - 2023-01-05
+
 ### Features
 
 - Initial `gpgSign` support.  This is untested so if `commit.gpgSign` is causing `git-stack` to fail, you can use `stack.gpgSign` to disable it.
@@ -405,7 +407,8 @@ With `git stack alias` for creating alias for these
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.9.0...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/gitext-rs/git-stack/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/gitext-rs/git-stack/compare/v0.8.5...v0.9.0
 [0.8.5]: https://github.com/gitext-rs/git-stack/compare/v0.8.4...v0.8.5
 [0.8.4]: https://github.com/gitext-rs/git-stack/compare/v0.8.3...v0.8.4
