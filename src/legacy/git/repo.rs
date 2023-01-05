@@ -119,6 +119,7 @@ impl Commit {
 
 pub struct GitRepo {
     repo: git2::Repository,
+    sign: Option<git2_ext::ops::UserSign>,
     push_remote: Option<String>,
     pull_remote: Option<String>,
     commits: std::cell::RefCell<std::collections::HashMap<git2::Oid, std::rc::Rc<Commit>>>,
@@ -131,6 +132,7 @@ impl GitRepo {
     pub fn new(repo: git2::Repository) -> Self {
         Self {
             repo,
+            sign: None,
             push_remote: None,
             pull_remote: None,
             commits: Default::default(),
@@ -138,6 +140,17 @@ impl GitRepo {
             bases: Default::default(),
             counts: Default::default(),
         }
+    }
+
+    pub fn set_sign(&mut self, yes: bool) -> Result<(), git2::Error> {
+        if yes {
+            let config = self.repo.config()?;
+            let sign = git2_ext::ops::UserSign::from_config(&self.repo, &config)?;
+            self.sign = Some(sign);
+        } else {
+            self.sign = None;
+        }
+        Ok(())
     }
 
     pub fn set_push_remote(&mut self, remote: &str) {
@@ -435,7 +448,12 @@ impl GitRepo {
         head_id: git2::Oid,
         into_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error> {
-        git2_ext::ops::squash(&self.repo, head_id, into_id, None)
+        git2_ext::ops::squash(
+            &self.repo,
+            head_id,
+            into_id,
+            self.sign.as_ref().map(|s| s as &dyn git2_ext::ops::Sign),
+        )
     }
 
     pub fn stash_push(&mut self, message: Option<&str>) -> Result<git2::Oid, git2::Error> {
