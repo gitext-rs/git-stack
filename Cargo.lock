@@ -258,9 +258,9 @@ dependencies = [
 
 [[package]]
 name = "env_logger"
-version = "0.9.1"
+version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c90bf5f19754d10198ccb95b70664fc925bd1fc090a0fd9a6ebc54acc8cd6272"
+checksum = "85cdab6a89accf66733ad5a1693a4dcced6aeff64602b634530dd73c1f3ee9f0"
 dependencies = [
  "log",
  "termcolor",
@@ -413,7 +413,7 @@ dependencies = [
  "git-config-env",
  "git-fixture",
  "git2",
- "git2-ext 0.1.0",
+ "git2-ext 0.2.0",
  "human-panic",
  "humantime",
  "ignore",
@@ -456,9 +456,9 @@ dependencies = [
 
 [[package]]
 name = "git2-ext"
-version = "0.1.0"
+version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5cff5a22c81e3a7366c87760965d8a195791a2b8920dee7385e99c2f8a89b57e"
+checksum = "db1a4850838d33bf9be386e0fe79949b2fd9ebd8239032d55d244a95187dea62"
 dependencies = [
  "git2",
  "itertools",
@@ -734,9 +734,9 @@ dependencies = [
 
 [[package]]
 name = "names"
-version = "0.13.0"
+version = "0.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7d66043b25d4a6cccb23619d10c19c25304b355a7dccd4a8e11423dd2382146"
+checksum = "7bddcd3bf5144b6392de80e04c347cd7fab2508f6df16a85fc496ecd5cec39bc"
 dependencies = [
  "rand",
 ]

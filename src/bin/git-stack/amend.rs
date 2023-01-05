@@ -174,17 +174,16 @@ impl AmendArgs {
                 .find_tree(tree_id)
                 .with_code(proc_exit::Code::FAILURE)?;
             let message = format!("fixup! {}", head.summary);
-            let id = repo
-                .raw()
-                .commit(
-                    None,
-                    &raw_commit.author(),
-                    &raw_commit.committer(),
-                    &message,
-                    &tree,
-                    &[&raw_commit],
-                )
-                .with_code(proc_exit::Code::FAILURE)?;
+            let id = git2_ext::ops::commit(
+                repo.raw(),
+                &raw_commit.author(),
+                &raw_commit.committer(),
+                &message,
+                &tree,
+                &[&raw_commit],
+                None,
+            )
+            .with_code(proc_exit::Code::FAILURE)?;
             log::debug!("committed {} {}", id, message);
             graph.insert(git_stack::graph::Node::new(id), head.id);
             graph.commit_set(id, git_stack::graph::Fixup);
