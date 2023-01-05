@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- Initial `gpgSign` support.  This is untested so if `commit.gpgSign` is causing `git-stack` to fail, you can use `stack.gpgSign` to disable it.
+
 ## [0.9.0] - 2023-01-04
 
 ### Features
