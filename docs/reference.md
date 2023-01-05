@@ -201,3 +201,4 @@ Configuration is read from the following (in precedence order):
 | stack.show-stacked     | \-       | bool                       | Show branches as stacked on top of each other, where possible |
 | stack.auto-fixup       | --fixup  | "ignore", "move", "squash" | Default fixup operation with `--rebase` |
 | stack.auto-repair      | \-       | bool                       | Perform branch repair with `--rebase` |
+| stack.gpgSign          | \-       | bool                       | Sign commits, falling back to `commit.gpgSign` |

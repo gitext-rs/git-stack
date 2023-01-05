@@ -35,6 +35,17 @@ impl SyncArgs {
             .with_code(proc_exit::sysexits::CONFIG_ERR)?;
         repo.set_push_remote(repo_config.push_remote());
         repo.set_pull_remote(repo_config.pull_remote());
+        let config = repo
+            .raw()
+            .config()
+            .with_code(proc_exit::sysexits::CONFIG_ERR)?;
+        repo.set_sign(
+            config
+                .get_bool("stack.gpgSign")
+                .or_else(|_| config.get_bool("commit.gpgSign"))
+                .unwrap_or_default(),
+        )
+        .with_code(proc_exit::Code::FAILURE)?;
 
         let protected = git_stack::git::ProtectedBranches::new(
             repo_config.protected_branches().iter().map(|s| s.as_str()),
