@@ -8,6 +8,12 @@ pub struct RunArgs {
     #[arg(value_names = ["COMMAND", "ARG"], trailing_var_arg = true, required=true)]
     command: Vec<std::ffi::OsString>,
 
+    /// Keep going on failure
+    #[arg(long, alias = "no-ff")]
+    no_fail_fast: bool,
+    #[arg(long, alias = "ff", hide = true, overrides_with = "no_fail_fast")]
+    fail_fast: bool,
+
     /// Don't actually switch
     #[arg(short = 'n', long)]
     dry_run: bool,
@@ -88,7 +94,8 @@ impl RunArgs {
             .with_code(proc_exit::Code::FAILURE)?;
 
         let mut success = true;
-        for current_id in graph.descendants_of(merge_base_oid) {
+        let mut cursor = graph.descendants_of(merge_base_oid).into_cursor();
+        while let Some(current_id) = cursor.next(&graph) {
             let current_commit = repo
                 .find_commit(current_id)
                 .expect("children/head are always present");
@@ -108,6 +115,7 @@ impl RunArgs {
             let status = std::process::Command::new(&self.command[0])
                 .args(&self.command[1..])
                 .status();
+            let mut current_success = true;
             match status {
                 Ok(status) if status.success() => {
                     let _ = writeln!(
@@ -124,7 +132,7 @@ impl RunArgs {
                             stderr_palette.error.paint("Failed"),
                             code,
                         );
-                        success = false;
+                        current_success = false;
                     }
                     None => {
                         let _ = writeln!(
@@ -132,7 +140,7 @@ impl RunArgs {
                             "{}: signal caught",
                             stderr_palette.error.paint("Failed"),
                         );
-                        success = false;
+                        current_success = false;
                     }
                 },
                 Err(err) => {
@@ -142,8 +150,14 @@ impl RunArgs {
                         stderr_palette.error.paint("Failed"),
                         err
                     );
-                    success = false;
+                    current_success = false;
                 }
+            }
+            if !current_success {
+                if self.fail_fast() {
+                    cursor.stop();
+                }
+                success = false;
             }
         }
 
@@ -166,5 +180,18 @@ impl RunArgs {
         } else {
             Err(proc_exit::Code::FAILURE.as_exit())
         }
+    }
+
+    fn fail_fast(&self) -> bool {
+        resolve_bool_arg(self.fail_fast, self.no_fail_fast).unwrap_or(true)
+    }
+}
+
+fn resolve_bool_arg(yes: bool, no: bool) -> Option<bool> {
+    match (yes, no) {
+        (true, false) => Some(true),
+        (false, true) => Some(false),
+        (false, false) => None,
+        (_, _) => unreachable!("clap should make this impossible"),
     }
 }
