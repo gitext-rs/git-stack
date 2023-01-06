@@ -156,49 +156,14 @@ impl NextArgs {
         }
 
         if current_id != head_id {
-            let current_commit = repo
-                .find_commit(current_id)
-                .expect("children/head are always present");
-            if let Some(current) = branches.get(current_id) {
-                let mut current = current.to_owned();
-                current.sort_by_key(|b| b.kind());
-                let current_branch = current.first().expect("always at least one");
-                let _ = writeln!(
-                    std::io::stderr(),
-                    "{} to {}: {}",
-                    stderr_palette.good.paint("Switching"),
-                    stderr_palette
-                        .highlight
-                        .paint(current_branch.display_name()),
-                    stderr_palette.hint.paint(&current_commit.summary)
-                );
-                if !self.dry_run {
-                    repo.switch_branch(
-                        current_branch
-                            .local_name()
-                            .expect("only local branches present"),
-                    )
-                    .with_code(proc_exit::Code::FAILURE)?;
-                }
-            } else {
-                let abbrev_id = repo
-                    .raw()
-                    .find_object(current_id, None)
-                    .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
-                    .short_id()
-                    .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
-                let _ = writeln!(
-                    std::io::stderr(),
-                    "{} to {}: {}",
-                    stderr_palette.good.paint("Switching"),
-                    stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
-                    stderr_palette.hint.paint(&current_commit.summary)
-                );
-                if !self.dry_run {
-                    repo.switch_commit(current_id)
-                        .with_code(proc_exit::Code::FAILURE)?;
-                }
-            }
+            crate::ops::switch(
+                &mut repo,
+                &branches,
+                current_id,
+                stderr_palette,
+                self.dry_run,
+            )
+            .with_code(proc_exit::Code::FAILURE)?;
         }
 
         Ok(())

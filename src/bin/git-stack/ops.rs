@@ -165,6 +165,65 @@ pub fn git_fetch_upstream(remote: &str, branch_name: &str) -> eyre::Result<()> {
     Ok(())
 }
 
+/// Switch to the best-guess branch
+///
+/// # Panic
+///
+/// Panics if `current_id` is not present
+pub fn switch(
+    repo: &mut git_stack::git::GitRepo,
+    branches: &git_stack::graph::BranchSet,
+    current_id: git2::Oid,
+    stderr_palette: Palette,
+    dry_run: bool,
+) -> Result<(), git2::Error> {
+    use std::io::Write;
+
+    let current_commit = repo
+        .find_commit(current_id)
+        .expect("children/head are always present");
+    if let Some(current) = branches.get(current_id) {
+        let mut current = current.to_owned();
+        current.sort_by_key(|b| b.kind());
+        let current_branch = current.first().expect("always at least one");
+        let _ = writeln!(
+            std::io::stderr(),
+            "{} to {}: {}",
+            stderr_palette.good.paint("Switching"),
+            stderr_palette
+                .highlight
+                .paint(current_branch.display_name()),
+            stderr_palette.hint.paint(&current_commit.summary)
+        );
+        if !dry_run {
+            repo.switch_branch(
+                current_branch
+                    .local_name()
+                    .expect("only local branches present"),
+            )?;
+        }
+    } else {
+        let abbrev_id = repo
+            .raw()
+            .find_object(current_id, None)
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .short_id()
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+        let _ = writeln!(
+            std::io::stderr(),
+            "{} to {}: {}",
+            stderr_palette.good.paint("Switching"),
+            stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
+            stderr_palette.hint.paint(&current_commit.summary)
+        );
+        if !dry_run {
+            repo.switch_commit(current_id)?;
+        }
+    }
+
+    Ok(())
+}
+
 pub fn render_id(
     repo: &git_stack::git::GitRepo,
     branches: &git_stack::graph::BranchSet,

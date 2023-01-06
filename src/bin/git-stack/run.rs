@@ -14,6 +14,10 @@ pub struct RunArgs {
     #[arg(long, alias = "ff", hide = true, overrides_with = "no_fail_fast")]
     fail_fast: bool,
 
+    /// Switch to the first commit that failed
+    #[arg(short, long)]
+    switch: bool,
+
     /// Don't actually switch
     #[arg(short = 'n', long)]
     dry_run: bool,
@@ -54,7 +58,7 @@ impl RunArgs {
             .with_code(proc_exit::Code::FAILURE)?;
 
         let mut stash_id = None;
-        if !self.dry_run {
+        if !self.dry_run && !self.switch {
             stash_id = git_stack::git::stash_push(&mut repo, "run");
         }
         if repo.is_dirty() {
@@ -92,6 +96,8 @@ impl RunArgs {
         let stack_branches = branches.dependents(&repo, merge_base_oid, head_id);
         let graph = git_stack::graph::Graph::from_branches(&repo, stack_branches)
             .with_code(proc_exit::Code::FAILURE)?;
+
+        let mut first_failure = None;
 
         let mut success = true;
         let mut cursor = graph.descendants_of(merge_base_oid).into_cursor();
@@ -154,6 +160,7 @@ impl RunArgs {
                 }
             }
             if !current_success {
+                first_failure.get_or_insert(current_id);
                 if self.fail_fast() {
                     cursor.stop();
                 }
@@ -161,19 +168,34 @@ impl RunArgs {
             }
         }
 
-        if let Some(branch) = head_branch {
-            if !self.dry_run {
-                repo.switch_branch(branch.local_name().expect("HEAD is always local"))
-                    .with_code(proc_exit::Code::FAILURE)?;
-            }
+        if !success && self.switch && first_failure != Some(head_id) {
+            assert!(
+                stash_id.is_none(),
+                "prevented earlier to avoid people losing track of their work"
+            );
+            crate::ops::switch(
+                &mut repo,
+                &branches,
+                first_failure.unwrap(),
+                stderr_palette,
+                self.dry_run,
+            )
+            .with_code(proc_exit::Code::FAILURE)?;
         } else {
-            if !self.dry_run {
-                repo.switch_commit(head_id)
-                    .with_code(proc_exit::Code::FAILURE)?;
+            if let Some(branch) = head_branch {
+                if !self.dry_run {
+                    repo.switch_branch(branch.local_name().expect("HEAD is always local"))
+                        .with_code(proc_exit::Code::FAILURE)?;
+                }
+            } else {
+                if !self.dry_run {
+                    repo.switch_commit(head_id)
+                        .with_code(proc_exit::Code::FAILURE)?;
+                }
             }
-        }
 
-        git_stack::git::stash_pop(&mut repo, stash_id);
+            git_stack::git::stash_pop(&mut repo, stash_id);
+        }
 
         if success {
             Ok(())
