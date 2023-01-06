@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- `git run --switch` to checkout the commit that failed
+- `git run --fail-fast` now exists and is the default, disable with `--no-fail-fast` / `--no-ff`
+
+### Fixes
+
+- `git sync` now rebases onto the fetched branch
+
 ## [0.10.0] - 2023-01-05
 
 ### Features
