@@ -57,12 +57,13 @@ impl SyncArgs {
         let head = repo.head_commit();
         let head_id = head.id;
         let mut head_branch = repo.head_branch();
-        let base = crate::ops::resolve_implicit_base(
+        let onto = crate::ops::resolve_implicit_base(
             &repo,
             head_id,
             &branches,
             repo_config.auto_base_commit_count(),
         );
+        let base = crate::ops::resolve_base_from_onto(&repo, &onto);
         let merge_base_oid = repo
             .merge_base(base.id, head_id)
             .ok_or_else(|| {
@@ -119,7 +120,7 @@ impl SyncArgs {
             }
         }
 
-        if let Some(branch) = &base.branch {
+        if let Some(branch) = &onto.branch {
             if let Some(remote) = &branch.remote {
                 match crate::ops::git_fetch_upstream(remote, branch.name.as_str()) {
                     Ok(_) => (),
@@ -136,6 +137,7 @@ impl SyncArgs {
         let scripts = plan_changes(
             &repo,
             &base,
+            &onto,
             &stack_branches,
             protect_commit_count,
             protect_commit_time,
@@ -198,6 +200,7 @@ impl SyncArgs {
 fn plan_changes(
     repo: &dyn git_stack::git::Repo,
     base: &crate::ops::AnnotatedOid,
+    onto: &crate::ops::AnnotatedOid,
     branches: &git_stack::graph::BranchSet,
     protect_commit_count: Option<usize>,
     protect_commit_time: std::time::SystemTime,
@@ -216,10 +219,10 @@ fn plan_changes(
     }
 
     let mut dropped_branches = Vec::new();
-    let onto_id = base.id;
-    let pull_start_id = onto_id;
-    let pull_start_id = repo.merge_base(pull_start_id, onto_id).unwrap_or(onto_id);
 
+    let onto_id = onto.id;
+    let pull_start_id = base.id;
+    let pull_start_id = repo.merge_base(pull_start_id, onto_id).unwrap_or(onto_id);
     git_stack::graph::rebase_development_branches(&mut graph, onto_id);
     git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
 

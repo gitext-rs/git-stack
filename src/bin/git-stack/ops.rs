@@ -102,6 +102,16 @@ pub fn resolve_implicit_base(
     }
 }
 
+pub fn resolve_base_from_onto(repo: &git_stack::git::GitRepo, onto: &AnnotatedOid) -> AnnotatedOid {
+    // HACK: Assuming the local branch is the current base for all the commits
+    onto.branch
+        .as_ref()
+        .filter(|b| b.remote.is_some())
+        .and_then(|b| repo.find_local_branch(&b.name))
+        .map(AnnotatedOid::with_branch)
+        .unwrap_or_else(|| onto.clone())
+}
+
 pub fn git_prune_development(
     repo: &mut git_stack::git::GitRepo,
     branches: &[&str],
