@@ -276,7 +276,7 @@ impl AncestorsCursor {
 }
 
 impl AncestorsCursor {
-    fn next(&mut self, graph: &Graph) -> Option<git2::Oid> {
+    pub fn next(&mut self, graph: &Graph) -> Option<git2::Oid> {
         if let Some(prior) = self.prior {
             if self.primary_parents {
                 // Single path, no chance for duplicating paths
@@ -339,7 +339,7 @@ impl DescendantsCursor {
 }
 
 impl DescendantsCursor {
-    fn next(&mut self, graph: &Graph) -> Option<git2::Oid> {
+    pub fn next(&mut self, graph: &Graph) -> Option<git2::Oid> {
         if let Some(prior) = self.prior {
             self.node_queue.extend(graph.primary_children_of(prior));
         }
