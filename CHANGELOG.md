@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Features
+
+- `git reword` now takes an optional rev for rewording commits other than HEAD
+
+### Fixes
+
+- `git amend -m` didn't work, now it does
+- `git amend` can no work on detached HEADS
+
 ## [0.10.1] - 2023-01-06
 
 ### Features
