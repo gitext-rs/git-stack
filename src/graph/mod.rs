@@ -64,7 +64,10 @@ impl Graph {
     }
 
     pub fn insert(&mut self, node: Node, parent_id: git2::Oid) {
-        assert!(self.contains_id(parent_id));
+        assert!(
+            self.contains_id(parent_id),
+            "expected to contain {parent_id}",
+        );
         let Node {
             id,
             branches,
@@ -80,20 +83,20 @@ impl Graph {
     }
 
     pub fn rebase(&mut self, id: git2::Oid, from: git2::Oid, to: git2::Oid) {
-        assert!(self.contains_id(id));
-        assert!(self.contains_id(from));
-        assert!(self.contains_id(to));
+        assert!(self.contains_id(id), "expected to contain {id}");
+        assert!(self.contains_id(from), "expected to contain {from}");
+        assert!(self.contains_id(to), "expected to contain {to}");
         assert_eq!(
             self.parents_of(id).find(|parent| *parent == from),
             Some(from)
         );
-        assert_ne!(id, self.root_id, "Cannot rebase root");
+        assert_ne!(id, self.root_id, "Cannot rebase root ({id})");
         let weight = self.graph.remove_edge(id, from).unwrap();
         self.graph.add_edge(id, to, weight);
     }
 
     pub fn remove(&mut self, id: git2::Oid) -> Option<Node> {
-        assert_ne!(id, self.root_id, "Cannot remove root");
+        assert_ne!(id, self.root_id, "Cannot remove root ({id})");
         let children = self.children_of(id).collect::<Vec<_>>();
         if !children.is_empty() {
             let parents = self.parents_of(id).collect::<Vec<_>>();
