@@ -256,6 +256,10 @@ impl GitRepo {
     }
 
     pub fn head_branch(&self) -> Option<Branch> {
+        if self.repo.head_detached().unwrap_or(true) {
+            return None;
+        }
+
         let resolved = self
             .repo
             .head()
