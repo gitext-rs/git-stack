@@ -173,34 +173,6 @@ impl AmendArgs {
             }
         }
 
-        if !self.dry_run {
-            let raw_commit = repo
-                .raw()
-                .find_commit(head.id)
-                .expect("head_commit is always valid");
-
-            let tree_id = index.write_tree().with_code(proc_exit::Code::FAILURE)?;
-            let tree = repo
-                .raw()
-                .find_tree(tree_id)
-                .with_code(proc_exit::Code::FAILURE)?;
-            let message = format!("fixup! {}", head.summary);
-            let id = git2_ext::ops::commit(
-                repo.raw(),
-                &raw_commit.author(),
-                &raw_commit.committer(),
-                &message,
-                &tree,
-                &[&raw_commit],
-                None,
-            )
-            .with_code(proc_exit::Code::FAILURE)?;
-            log::debug!("committed {} {}", id, message);
-            graph.insert(git_stack::graph::Node::new(id), head.id);
-            graph.commit_set(id, git_stack::graph::Fixup);
-        }
-        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
-
         let new_message = if let Some(message) = self.message.as_deref() {
             Some(message.trim().to_owned())
         } else if self.edit {
@@ -246,6 +218,34 @@ impl AmendArgs {
             git_stack::graph::reword_commit(&mut graph, &repo, head_id, new_message)
                 .with_code(proc_exit::Code::FAILURE)?;
         }
+
+        if !self.dry_run {
+            let raw_commit = repo
+                .raw()
+                .find_commit(head.id)
+                .expect("head_commit is always valid");
+
+            let tree_id = index.write_tree().with_code(proc_exit::Code::FAILURE)?;
+            let tree = repo
+                .raw()
+                .find_tree(tree_id)
+                .with_code(proc_exit::Code::FAILURE)?;
+            let message = format!("fixup! {}", head.summary);
+            let id = git2_ext::ops::commit(
+                repo.raw(),
+                &raw_commit.author(),
+                &raw_commit.committer(),
+                &message,
+                &tree,
+                &[&raw_commit],
+                None,
+            )
+            .with_code(proc_exit::Code::FAILURE)?;
+            log::debug!("committed {} {}", id, message);
+            graph.insert(git_stack::graph::Node::new(id), head.id);
+            graph.commit_set(id, git_stack::graph::Fixup);
+        }
+        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
 
         let mut success = true;
         let scripts = git_stack::graph::to_scripts(&graph, vec![]);
