@@ -30,6 +30,38 @@ impl std::fmt::Display for AnnotatedOid {
     }
 }
 
+pub fn resolve_explicit_base(
+    repo: &git_stack::git::GitRepo,
+    base: &str,
+) -> eyre::Result<AnnotatedOid> {
+    let (obj, r) = repo.raw().revparse_ext(base)?;
+    if let Some(r) = r {
+        if r.is_tag() {
+            return Ok(AnnotatedOid::new(obj.id()));
+        }
+
+        let branch = if r.is_remote() {
+            let shorthand = r
+                .shorthand()
+                .ok_or_else(|| eyre::eyre!("Expected branch, got `{}`", base))?;
+            let (remote, name) = shorthand
+                .split_once('/')
+                .expect("removes should always have at least one `/`");
+            repo.find_remote_branch(remote, name)
+                .ok_or_else(|| eyre::eyre!("Could not find branch {:?}", r.shorthand()))
+        } else {
+            let shorthand = r
+                .shorthand()
+                .ok_or_else(|| eyre::eyre!("Expected branch, got `{}`", base))?;
+            repo.find_local_branch(shorthand)
+                .ok_or_else(|| eyre::eyre!("Could not find branch {:?}", shorthand))
+        }?;
+        Ok(AnnotatedOid::with_branch(branch))
+    } else {
+        Ok(AnnotatedOid::new(obj.id()))
+    }
+}
+
 pub fn resolve_implicit_base(
     repo: &dyn git_stack::git::Repo,
     head_oid: git2::Oid,

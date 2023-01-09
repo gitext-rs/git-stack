@@ -59,3 +59,4 @@ scrawl = "1.1.0"
 [dev-dependencies]
 git-fixture = { version = "0.3", features = ["yaml"] }
 assert_fs = "1"
+snapbox = { version = "0.4.4", features = ["cmd", "path"] }
