@@ -1,6 +1,45 @@
 use bstr::ByteSlice;
 
 #[test]
+fn reword_protected_fails() {
+    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root_path = root.path().unwrap();
+    let plan = git_fixture::TodoList {
+        init: true,
+        sleep: None,
+        author: None,
+        commands: vec![
+            git_fixture::Command::Tree(git_fixture::Tree {
+                files: [("a", "a")]
+                    .into_iter()
+                    .map(|(p, c)| (p.into(), c.into()))
+                    .collect::<std::collections::HashMap<_, _>>(),
+                message: Some("A".to_owned()),
+                author: None,
+            }),
+            git_fixture::Command::Branch("main".into()),
+        ],
+    };
+    plan.run(root_path).unwrap();
+
+    snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
+        .arg("reword")
+        .arg("--message=hahahaha")
+        .current_dir(root_path)
+        .assert()
+        .failure()
+        .stdout_eq(
+            "\
+",
+        )
+        .stderr_eq(
+            "\
+cannot reword protected commits
+",
+        );
+}
+
+#[test]
 fn reword_implicit_head() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
