@@ -7,6 +7,10 @@ use proc_exit::prelude::*;
 /// reworded version of the commit.
 #[derive(clap::Args)]
 pub struct RewordArgs {
+    /// Commit to rewrite
+    #[arg(default_value = "HEAD")]
+    rev: String,
+
     /// Commit message
     #[arg(short, long)]
     message: Option<String>,
@@ -61,9 +65,11 @@ impl RewordArgs {
         let branches = git_stack::graph::BranchSet::from_repo(&repo, &protected)
             .with_code(proc_exit::Code::FAILURE)?;
 
-        let head = repo.head_commit();
-        let head_id = head.id;
-        let head_branch = repo.head_branch();
+        let head_ann_id = crate::ops::resolve_explicit_base(&repo, &self.rev)
+            .with_code(proc_exit::Code::FAILURE)?;
+        let head_id = head_ann_id.id;
+        let head = repo.find_commit(head_id).expect("resolve found a commit");
+        let head_branch = head_ann_id.branch.as_ref();
         let base = crate::ops::resolve_implicit_base(
             &repo,
             head_id,
