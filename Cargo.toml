@@ -1,7 +1,7 @@
 [package]
 name = "git-stack"
 description = "Stacked branch management for Git"
-version = "0.10.1"
+version = "0.10.2"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/gitext-rs/git-stack.git"
 documentation = "https://github.com/gitext-rs/git-stack.git"
