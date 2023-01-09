@@ -1,3 +1,4 @@
+mod amend;
 mod branches;
 mod fixture;
 mod graph;
