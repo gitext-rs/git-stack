@@ -99,6 +99,7 @@ impl SyncArgs {
         }
 
         // Update status of remote unprotected branches
+        let mut update_branches = false;
         let mut push_branches: Vec<_> = branches
             .iter()
             .flat_map(|(_, b)| b.iter())
@@ -113,22 +114,23 @@ impl SyncArgs {
         push_branches.sort_unstable();
         if !push_branches.is_empty() {
             match crate::ops::git_prune_development(&mut repo, &push_branches, self.dry_run) {
-                Ok(_) => (),
+                Ok(_) => update_branches = true,
                 Err(err) => {
                     log::warn!("Skipping fetch of `{}`, {}", repo.push_remote(), err);
                 }
             }
         }
-
         if let Some(branch) = &onto.branch {
             if let Some(remote) = &branch.remote {
                 match crate::ops::git_fetch_upstream(remote, branch.name.as_str()) {
-                    Ok(_) => (),
+                    Ok(_) => update_branches = true,
                     Err(err) => {
                         log::warn!("Skipping pull of `{}`, {}", branch, err);
                     }
                 }
             }
+        }
+        if update_branches {
             branches.update(&repo).with_code(proc_exit::Code::FAILURE)?;
         }
 
