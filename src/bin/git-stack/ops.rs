@@ -174,6 +174,12 @@ pub fn git_prune_development(
         .filter_map(|l| l.strip_prefix("refs/heads/"))
         .collect();
 
+    if !branches.is_empty() {
+        log::trace!("Local branches:\n  {}", branches.join("\n  "));
+    }
+    if !remote_branches.is_empty() {
+        log::trace!("Remote branches:\n  {}", remote_branches.join("\n  "));
+    }
     for branch in branches {
         if !remote_branches.contains(branch) {
             let remote_branch = format!("{}/{}", remote, branch);
