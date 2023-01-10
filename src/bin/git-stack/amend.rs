@@ -124,7 +124,6 @@ impl AmendArgs {
             }
         }
 
-        let mut stash_id = None;
         let mut index = repo.raw().index().with_code(proc_exit::Code::FAILURE)?;
         if self.all {
             index
@@ -152,8 +151,6 @@ impl AmendArgs {
             // - https://github.com/arxanas/git-branchless/blob/master/git-branchless-record/src/lib.rs#L196
             // - https://github.com/arxanas/git-branchless/tree/master/git-record
             todo!("interactive support")
-        } else if !self.dry_run {
-            stash_id = git_stack::git::stash_push(&mut repo, "amend");
         }
 
         let mut backed_up = false;
@@ -278,7 +275,6 @@ impl AmendArgs {
             stderr_palette.hint.paint(&head.summary)
         );
 
-        git_stack::git::stash_pop(&mut repo, stash_id);
         if backed_up {
             log::info!(
                 "{}: to undo, run {}",
