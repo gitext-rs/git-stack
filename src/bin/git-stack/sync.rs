@@ -74,7 +74,7 @@ impl SyncArgs {
                 )
             })
             .with_code(proc_exit::sysexits::USAGE_ERR)?;
-        let stack_branches = branches.descendants(&repo, merge_base_oid);
+        let mut branches = branches.descendants(&repo, merge_base_oid);
 
         let mut stash_id = None;
         if !self.dry_run {
@@ -99,7 +99,7 @@ impl SyncArgs {
         }
 
         // Update status of remote unprotected branches
-        let mut push_branches: Vec<_> = stack_branches
+        let mut push_branches: Vec<_> = branches
             .iter()
             .flat_map(|(_, b)| b.iter())
             .filter(|b| match b.kind() {
@@ -129,6 +129,7 @@ impl SyncArgs {
                     }
                 }
             }
+            branches.update(&repo).with_code(proc_exit::Code::FAILURE)?;
         }
 
         let protect_commit_count = repo_config.protect_commit_count();
@@ -138,7 +139,7 @@ impl SyncArgs {
             &repo,
             &base,
             &onto,
-            &stack_branches,
+            &branches,
             protect_commit_count,
             protect_commit_time,
         )
