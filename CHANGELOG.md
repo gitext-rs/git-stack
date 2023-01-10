@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- `git amend` can commit staged changes
+
 ## [0.10.2] - 2023-01-09
 
 ### Features
@@ -16,7 +20,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 ### Fixes
 
 - `git amend -m` didn't work, now it does
-- `git amend` can no work on detached HEADS
+- `git amend` can now work on detached HEADS
 
 ## [0.10.1] - 2023-01-06
 
