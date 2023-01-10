@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- `git amend` correctly checks out new HEAD when amending a detached HEAD
+
 ## [0.10.4] - 2023-01-10
 
 ### Fixes
