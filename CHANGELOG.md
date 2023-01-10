@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.10.3] - 2023-01-10
+
 ### Fixes
 
 - `git amend` can commit staged changes
@@ -433,7 +435,8 @@ With `git stack alias` for creating alias for these
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.2...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.3...HEAD
+[0.10.3]: https://github.com/gitext-rs/git-stack/compare/v0.10.2...v0.10.3
 [0.10.2]: https://github.com/gitext-rs/git-stack/compare/v0.10.1...v0.10.2
 [0.10.1]: https://github.com/gitext-rs/git-stack/compare/v0.10.0...v0.10.1
 [0.10.0]: https://github.com/gitext-rs/git-stack/compare/v0.9.0...v0.10.0
