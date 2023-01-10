@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- `git sync` rebases to the fetched remote, not the remote at process start
+
 ## [0.10.3] - 2023-01-10
 
 ### Fixes
