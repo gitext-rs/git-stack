@@ -363,6 +363,11 @@ fn amend_detached() {
     };
     plan.run(root_path).unwrap();
 
+    let repo = git2::Repository::discover(root_path).unwrap();
+    let repo = git_stack::git::GitRepo::new(repo);
+
+    let old_head_id = repo.head_commit().id;
+
     std::fs::write(root_path.join("b"), "new b").unwrap();
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
@@ -381,6 +386,9 @@ Amended to [..]: B
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );
+
+    let new_head_id = repo.head_commit().id;
+    assert_ne!(old_head_id, new_head_id);
 
     root.close().unwrap();
 }
