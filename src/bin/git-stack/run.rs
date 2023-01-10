@@ -126,16 +126,22 @@ impl RunArgs {
                 Ok(status) if status.success() => {
                     let _ = writeln!(
                         std::io::stderr(),
-                        "{}",
+                        "{} with {}",
                         stderr_palette.good.paint("Success"),
+                        stderr_palette
+                            .highlight
+                            .paint(crate::ops::render_id(&repo, &branches, current_id)),
                     );
                 }
                 Ok(status) => match status.code() {
                     Some(code) => {
                         let _ = writeln!(
                             std::io::stderr(),
-                            "{}: exit code {}",
+                            "{} with {}: exit code {}",
                             stderr_palette.error.paint("Failed"),
+                            stderr_palette
+                                .highlight
+                                .paint(crate::ops::render_id(&repo, &branches, current_id)),
                             code,
                         );
                         current_success = false;
@@ -143,8 +149,11 @@ impl RunArgs {
                     None => {
                         let _ = writeln!(
                             std::io::stderr(),
-                            "{}: signal caught",
+                            "{} with {}: signal caught",
                             stderr_palette.error.paint("Failed"),
+                            stderr_palette
+                                .highlight
+                                .paint(crate::ops::render_id(&repo, &branches, current_id)),
                         );
                         current_success = false;
                     }
@@ -152,8 +161,11 @@ impl RunArgs {
                 Err(err) => {
                     let _ = writeln!(
                         std::io::stderr(),
-                        "{}: {}",
+                        "{} with {}: {}",
                         stderr_palette.error.paint("Failed"),
+                        stderr_palette
+                            .highlight
+                            .paint(crate::ops::render_id(&repo, &branches, current_id)),
                         err
                     );
                     current_success = false;
@@ -173,15 +185,38 @@ impl RunArgs {
                 stash_id.is_none(),
                 "prevented earlier to avoid people losing track of their work"
             );
+            let first_failure = first_failure.unwrap();
+            let _ = writeln!(
+                std::io::stderr(),
+                "{} to failed commit {}",
+                stderr_palette.error.paint("Switching"),
+                stderr_palette.highlight.paint(crate::ops::render_id(
+                    &repo,
+                    &branches,
+                    first_failure
+                )),
+            );
             crate::ops::switch(
                 &mut repo,
                 &branches,
-                first_failure.unwrap(),
+                first_failure,
                 stderr_palette,
                 self.dry_run,
             )
             .with_code(proc_exit::Code::FAILURE)?;
         } else {
+            if let Some(first_failure) = first_failure {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "{} starting at {}",
+                    stderr_palette.error.paint("Failed"),
+                    stderr_palette.highlight.paint(crate::ops::render_id(
+                        &repo,
+                        &branches,
+                        first_failure
+                    )),
+                );
+            }
             if let Some(branch) = head_branch {
                 if !self.dry_run {
                     repo.switch_branch(branch.local_name().expect("HEAD is always local"))
