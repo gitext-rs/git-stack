@@ -57,13 +57,13 @@ impl SyncArgs {
         let head = repo.head_commit();
         let head_id = head.id;
         let mut head_branch = repo.head_branch();
-        let onto = crate::ops::resolve_implicit_base(
+        let mut onto = crate::ops::resolve_implicit_base(
             &repo,
             head_id,
             &branches,
             repo_config.auto_base_commit_count(),
         );
-        let base = crate::ops::resolve_base_from_onto(&repo, &onto);
+        let mut base = crate::ops::resolve_base_from_onto(&repo, &onto);
         let merge_base_oid = repo
             .merge_base(base.id, head_id)
             .ok_or_else(|| {
@@ -132,6 +132,8 @@ impl SyncArgs {
         }
         if update_branches {
             branches.update(&repo).with_code(proc_exit::Code::FAILURE)?;
+            base.update(&repo).with_code(proc_exit::Code::FAILURE)?;
+            onto.update(&repo).with_code(proc_exit::Code::FAILURE)?;
         }
 
         let protect_commit_count = repo_config.protect_commit_count();
