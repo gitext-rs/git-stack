@@ -210,7 +210,7 @@ fn plan_changes(
     protect_commit_count: Option<usize>,
     protect_commit_time: std::time::SystemTime,
 ) -> eyre::Result<Vec<git_stack::rewrite::Script>> {
-    log::trace!("Planning stack changes with base={}", base);
+    log::trace!("Planning stack changes with base={}, onto={}", base, onto);
     let graphed_branches = branches.clone();
     let mut graph = git_stack::graph::Graph::from_branches(repo, graphed_branches)?;
     git_stack::graph::protect_branches(&mut graph);
