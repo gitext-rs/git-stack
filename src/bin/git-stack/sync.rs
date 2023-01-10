@@ -57,13 +57,13 @@ impl SyncArgs {
         let head = repo.head_commit();
         let head_id = head.id;
         let mut head_branch = repo.head_branch();
-        let onto = crate::ops::resolve_implicit_base(
+        let mut onto = crate::ops::resolve_implicit_base(
             &repo,
             head_id,
             &branches,
             repo_config.auto_base_commit_count(),
         );
-        let base = crate::ops::resolve_base_from_onto(&repo, &onto);
+        let mut base = crate::ops::resolve_base_from_onto(&repo, &onto);
         let merge_base_oid = repo
             .merge_base(base.id, head_id)
             .ok_or_else(|| {
@@ -99,6 +99,7 @@ impl SyncArgs {
         }
 
         // Update status of remote unprotected branches
+        let mut update_branches = false;
         let mut push_branches: Vec<_> = branches
             .iter()
             .flat_map(|(_, b)| b.iter())
@@ -113,23 +114,26 @@ impl SyncArgs {
         push_branches.sort_unstable();
         if !push_branches.is_empty() {
             match crate::ops::git_prune_development(&mut repo, &push_branches, self.dry_run) {
-                Ok(_) => (),
+                Ok(_) => update_branches = true,
                 Err(err) => {
                     log::warn!("Skipping fetch of `{}`, {}", repo.push_remote(), err);
                 }
             }
         }
-
         if let Some(branch) = &onto.branch {
             if let Some(remote) = &branch.remote {
                 match crate::ops::git_fetch_upstream(remote, branch.name.as_str()) {
-                    Ok(_) => (),
+                    Ok(_) => update_branches = true,
                     Err(err) => {
                         log::warn!("Skipping pull of `{}`, {}", branch, err);
                     }
                 }
             }
+        }
+        if update_branches {
             branches.update(&repo).with_code(proc_exit::Code::FAILURE)?;
+            base.update(&repo).with_code(proc_exit::Code::FAILURE)?;
+            onto.update(&repo).with_code(proc_exit::Code::FAILURE)?;
         }
 
         let protect_commit_count = repo_config.protect_commit_count();
@@ -206,7 +210,7 @@ fn plan_changes(
     protect_commit_count: Option<usize>,
     protect_commit_time: std::time::SystemTime,
 ) -> eyre::Result<Vec<git_stack::rewrite::Script>> {
-    log::trace!("Planning stack changes with base={}", base);
+    log::trace!("Planning stack changes with base={}, onto={}", base, onto);
     let graphed_branches = branches.clone();
     let mut graph = git_stack::graph::Graph::from_branches(repo, graphed_branches)?;
     git_stack::graph::protect_branches(&mut graph);

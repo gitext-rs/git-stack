@@ -18,6 +18,20 @@ impl AnnotatedOid {
             branch: Some(branch),
         }
     }
+
+    pub fn update(&mut self, repo: &dyn git_stack::git::Repo) -> eyre::Result<()> {
+        let branch = self.branch.as_ref().and_then(|branch| {
+            if let Some(remote) = &branch.remote {
+                repo.find_remote_branch(remote, &branch.name)
+            } else {
+                repo.find_local_branch(&branch.name)
+            }
+        });
+        if let Some(branch) = branch {
+            *self = Self::with_branch(branch);
+        }
+        Ok(())
+    }
 }
 
 impl std::fmt::Display for AnnotatedOid {
@@ -174,6 +188,12 @@ pub fn git_prune_development(
         .filter_map(|l| l.strip_prefix("refs/heads/"))
         .collect();
 
+    if !branches.is_empty() {
+        log::trace!("Local branches:\n  {}", branches.join("\n  "));
+    }
+    if !remote_branches.is_empty() {
+        log::trace!("Remote branches:\n  {}", remote_branches.join("\n  "));
+    }
     for branch in branches {
         if !remote_branches.contains(branch) {
             let remote_branch = format!("{}/{}", remote, branch);

@@ -56,8 +56,17 @@ impl BranchSet {
                     repo.find_remote_branch(repo.push_remote(), old_branch.base_name())
                         .map(|b| b.id)
                 });
+                if new_branch.id() != old_branch.id() {
+                    log::debug!(
+                        "{} moved from {} to {}",
+                        new_branch.display_name(),
+                        old_branch.id(),
+                        new_branch.id()
+                    );
+                }
                 new_branch
             } else {
+                log::debug!("{} no longer exists", old_branch.display_name());
                 let mut old_branch = old_branch.clone();
                 old_branch.kind = BranchKind::Deleted;
                 old_branch.pull_id = None;
