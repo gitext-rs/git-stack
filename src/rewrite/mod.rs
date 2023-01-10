@@ -475,6 +475,7 @@ impl Executor {
                         } else {
                             repo.squash(*squash_oid, head_oid)?
                         };
+                        self.update_head(head_oid, updated_oid);
                         self.update_head(*squash_oid, updated_oid);
                         for (_old_oid, new_oid) in &mut self.post_rewrite {
                             if *new_oid == head_oid {

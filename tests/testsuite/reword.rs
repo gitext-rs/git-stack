@@ -22,6 +22,11 @@ fn reword_protected_fails() {
     };
     plan.run(root_path).unwrap();
 
+    let repo = git2::Repository::discover(root_path).unwrap();
+    let repo = git_stack::git::GitRepo::new(repo);
+
+    let old_head_id = repo.head_commit().id;
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("reword")
         .arg("--message=hahahaha")
@@ -37,6 +42,9 @@ fn reword_protected_fails() {
 cannot reword protected commits
 ",
         );
+
+    let new_head_id = repo.head_commit().id;
+    assert_eq!(old_head_id, new_head_id);
 }
 
 #[test]
@@ -85,6 +93,8 @@ fn reword_implicit_head() {
     let commit = repo.find_commit(branch.id).unwrap();
     snapbox::assert_eq(commit.summary.to_str().unwrap(), "C");
 
+    let old_head_id = repo.head_commit().id;
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("reword")
         .arg("--message=new C")
@@ -104,6 +114,9 @@ note: to undo, run `git branch-stash pop git-stack`
     let branch = repo.find_local_branch("target").unwrap();
     let commit = repo.find_commit(branch.id).unwrap();
     snapbox::assert_eq(commit.summary.to_str().unwrap(), "new C");
+
+    let new_head_id = repo.head_commit().id;
+    assert_ne!(old_head_id, new_head_id);
 
     root.close().unwrap();
 }
@@ -154,6 +167,8 @@ fn reword_explicit_head() {
     let commit = repo.find_commit(branch.id).unwrap();
     snapbox::assert_eq(commit.summary.to_str().unwrap(), "C");
 
+    let old_head_id = repo.head_commit().id;
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("reword")
         .arg("--message=new C")
@@ -174,6 +189,9 @@ note: to undo, run `git branch-stash pop git-stack`
     let branch = repo.find_local_branch("target").unwrap();
     let commit = repo.find_commit(branch.id).unwrap();
     snapbox::assert_eq(commit.summary.to_str().unwrap(), "new C");
+
+    let new_head_id = repo.head_commit().id;
+    assert_ne!(old_head_id, new_head_id);
 
     root.close().unwrap();
 }
@@ -225,6 +243,8 @@ fn reword_branch() {
     let commit = repo.find_commit(branch.id).unwrap();
     snapbox::assert_eq(commit.summary.to_str().unwrap(), "B");
 
+    let old_head_id = repo.head_commit().id;
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("reword")
         .arg("--message=new B")
@@ -245,6 +265,9 @@ note: to undo, run `git branch-stash pop git-stack`
     let branch = repo.find_local_branch("target").unwrap();
     let commit = repo.find_commit(branch.id).unwrap();
     snapbox::assert_eq(commit.summary.to_str().unwrap(), "new B");
+
+    let new_head_id = repo.head_commit().id;
+    assert_ne!(old_head_id, new_head_id);
 
     root.close().unwrap();
 }
