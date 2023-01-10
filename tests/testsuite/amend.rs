@@ -20,6 +20,11 @@ fn reword_protected_fails() {
     };
     plan.run(root_path).unwrap();
 
+    let repo = git2::Repository::discover(root_path).unwrap();
+    let repo = git_stack::git::GitRepo::new(repo);
+
+    let old_head_id = repo.head_commit().id;
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
         .arg("--message=hahahaha")
@@ -35,6 +40,9 @@ fn reword_protected_fails() {
 cannot amend protected commits
 ",
         );
+
+    let new_head_id = repo.head_commit().id;
+    assert_eq!(old_head_id, new_head_id);
 }
 
 #[test]
@@ -76,6 +84,11 @@ fn reword() {
     };
     plan.run(root_path).unwrap();
 
+    let repo = git2::Repository::discover(root_path).unwrap();
+    let repo = git_stack::git::GitRepo::new(repo);
+
+    let old_head_id = repo.head_commit().id;
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
         .arg("--message=new C")
@@ -92,6 +105,9 @@ Amended to [..]: C
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );
+
+    let new_head_id = repo.head_commit().id;
+    assert_ne!(old_head_id, new_head_id);
 
     root.close().unwrap();
 }
@@ -136,6 +152,11 @@ fn reword_rebases() {
     };
     plan.run(root_path).unwrap();
 
+    let repo = git2::Repository::discover(root_path).unwrap();
+    let repo = git_stack::git::GitRepo::new(repo);
+
+    let old_head_id = repo.head_commit().id;
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
         .arg("--message=new B")
@@ -152,6 +173,9 @@ Amended to [..]: C
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );
+
+    let new_head_id = repo.head_commit().id;
+    assert_ne!(old_head_id, new_head_id);
 
     root.close().unwrap();
 }
@@ -195,6 +219,11 @@ fn amend_add() {
     };
     plan.run(root_path).unwrap();
 
+    let repo = git2::Repository::discover(root_path).unwrap();
+    let repo = git_stack::git::GitRepo::new(repo);
+
+    let old_head_id = repo.head_commit().id;
+
     std::fs::write(root_path.join("c"), "new c").unwrap();
 
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
@@ -214,6 +243,9 @@ Amended to [..]: C
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );
+
+    let new_head_id = repo.head_commit().id;
+    assert_ne!(old_head_id, new_head_id);
 
     root.close().unwrap();
 }
@@ -257,8 +289,12 @@ fn amend_staged() {
     };
     plan.run(root_path).unwrap();
 
-    std::fs::write(root_path.join("c"), "new c").unwrap();
+    let repo = git2::Repository::discover(root_path).unwrap();
+    let repo = git_stack::git::GitRepo::new(repo);
 
+    let old_head_id = repo.head_commit().id;
+
+    std::fs::write(root_path.join("c"), "new c").unwrap();
     snapbox::cmd::Command::new("git")
         .arg("add")
         .arg("c")
@@ -280,6 +316,9 @@ Amended to [..]: C
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );
+
+    let new_head_id = repo.head_commit().id;
+    assert_ne!(old_head_id, new_head_id);
 
     root.close().unwrap();
 }
@@ -325,7 +364,6 @@ fn amend_detached() {
     plan.run(root_path).unwrap();
 
     std::fs::write(root_path.join("b"), "new b").unwrap();
-
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
         .arg("-a")
