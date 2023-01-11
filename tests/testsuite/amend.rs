@@ -54,7 +54,6 @@ fn amend_noop() {
         .stderr_matches(
             "\
 error: nothing to amend to [..]: C
-note: to undo, run `git branch-stash pop git-stack`
 ",
         );
 

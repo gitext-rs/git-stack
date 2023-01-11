@@ -194,9 +194,27 @@ impl AmendArgs {
                 .with_code(proc_exit::Code::FAILURE)?;
         }
 
-        let mut stash_id = None;
         let fixup_id = commit_fixup(&repo, head_id, head_id, index_tree)
             .with_code(proc_exit::Code::FAILURE)?;
+
+        if fixup_id.is_none() && new_message.is_none() {
+            let abbrev_id = repo
+                .raw()
+                .find_object(head_id, None)
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+                .short_id()
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            let _ = writeln!(
+                std::io::stderr(),
+                "{} nothing to amend to {}: {}",
+                stderr_palette.error.paint("error:"),
+                stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
+                stderr_palette.hint.paint(&head.summary)
+            );
+            return Err(proc_exit::Code::FAILURE.as_exit());
+        }
+
+        let mut stash_id = None;
         if let Some(fixup_id) = fixup_id {
             graph.insert(git_stack::graph::Node::new(fixup_id), head.id);
             graph.commit_set(fixup_id, git_stack::graph::Fixup);
@@ -229,24 +247,13 @@ impl AmendArgs {
             .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
             .short_id()
             .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
-        if fixup_id.is_some() || new_message.is_some() {
-            let _ = writeln!(
-                std::io::stderr(),
-                "{} to {}: {}",
-                stderr_palette.good.paint("Amended"),
-                stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
-                stderr_palette.hint.paint(&head.summary)
-            );
-        } else {
-            success = false;
-            let _ = writeln!(
-                std::io::stderr(),
-                "{} nothing to amend to {}: {}",
-                stderr_palette.error.paint("error:"),
-                stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
-                stderr_palette.hint.paint(&head.summary)
-            );
-        }
+        let _ = writeln!(
+            std::io::stderr(),
+            "{} to {}: {}",
+            stderr_palette.good.paint("Amended"),
+            stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
+            stderr_palette.hint.paint(&head.summary)
+        );
 
         git_stack::git::stash_pop(&mut repo, stash_id);
         if backed_up {
