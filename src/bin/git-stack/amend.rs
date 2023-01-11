@@ -116,9 +116,7 @@ impl AmendArgs {
             .unwrap_or_default();
         match action {
             git_stack::graph::Action::Pick => {}
-            git_stack::graph::Action::Fixup => {
-                return Err(proc_exit::Code::FAILURE.with_message("cannot amend fixup commits"));
-            }
+            git_stack::graph::Action::Fixup => {}
             git_stack::graph::Action::Protected => {
                 return Err(proc_exit::Code::FAILURE.with_message("cannot amend protected commits"));
             }
