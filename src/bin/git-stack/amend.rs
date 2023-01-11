@@ -124,34 +124,14 @@ impl AmendArgs {
             }
         }
 
-        let mut index = repo.raw().index().with_code(proc_exit::Code::FAILURE)?;
-        if self.all {
-            index
-                .update_all(
-                    ["*"].iter(),
-                    Some(&mut |path, _| {
-                        let _ = writeln!(
-                            std::io::stderr(),
-                            "{} {}",
-                            stderr_palette.good.paint("Adding"),
-                            path.display()
-                        );
-                        if self.dry_run {
-                            // skip
-                            1
-                        } else {
-                            // confirm
-                            0
-                        }
-                    }),
-                )
-                .with_code(proc_exit::Code::FAILURE)?;
-        } else if self.interactive {
-            // See
-            // - https://github.com/arxanas/git-branchless/blob/master/git-branchless-record/src/lib.rs#L196
-            // - https://github.com/arxanas/git-branchless/tree/master/git-record
-            todo!("interactive support")
-        }
+        let mut index = stage_fixup(
+            &repo,
+            self.all,
+            self.interactive,
+            stderr_palette,
+            self.dry_run,
+        )
+        .with_code(proc_exit::Code::FAILURE)?;
 
         let mut backed_up = false;
         {
@@ -297,4 +277,40 @@ impl AmendArgs {
             Err(proc_exit::Code::FAILURE.as_exit())
         }
     }
+}
+
+fn stage_fixup(
+    repo: &git_stack::git::GitRepo,
+    all: bool,
+    interactive: bool,
+    stderr_palette: crate::ops::Palette,
+    dry_run: bool,
+) -> Result<git2::Index, eyre::Error> {
+    let mut index = repo.raw().index()?;
+    if all {
+        index.update_all(
+            ["*"].iter(),
+            Some(&mut |path, _| {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "{} {}",
+                    stderr_palette.good.paint("Adding"),
+                    path.display()
+                );
+                if dry_run {
+                    // skip
+                    1
+                } else {
+                    // confirm
+                    0
+                }
+            }),
+        )?;
+    } else if interactive {
+        // See
+        // - https://github.com/arxanas/git-branchless/blob/master/git-branchless-record/src/lib.rs#L196
+        // - https://github.com/arxanas/git-branchless/tree/master/git-record
+        todo!("interactive support")
+    }
+    Ok(index)
 }
