@@ -308,7 +308,12 @@ fn commit_fixup(
 
     let tree_id = index.write_tree()?;
     let tree = repo.raw().find_tree(tree_id)?;
-    let message = format!("fixup! {}", target_commit.summary);
+    let message = format!(
+        "fixup! {}",
+        target_commit
+            .fixup_summary()
+            .unwrap_or_else(|| target_commit.summary.as_ref())
+    );
     let id = git2_ext::ops::commit(
         repo.raw(),
         &parent_raw_commit.author(),
