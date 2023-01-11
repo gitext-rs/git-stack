@@ -195,12 +195,10 @@ impl AmendArgs {
         }
 
         let mut stash_id = None;
-        if !self.dry_run {
-            let id =
-                commit_fixup(&repo, head_id, head_id, index).with_code(proc_exit::Code::FAILURE)?;
-            graph.insert(git_stack::graph::Node::new(id), head.id);
-            graph.commit_set(id, git_stack::graph::Fixup);
-        }
+        let id =
+            commit_fixup(&repo, head_id, head_id, index).with_code(proc_exit::Code::FAILURE)?;
+        graph.insert(git_stack::graph::Node::new(id), head.id);
+        graph.commit_set(id, git_stack::graph::Fixup);
         if !self.dry_run {
             stash_id = git_stack::git::stash_push(&mut repo, "amend");
         }
