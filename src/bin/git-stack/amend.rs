@@ -197,10 +197,6 @@ impl AmendArgs {
         } else {
             None
         };
-        if let Some(new_message) = new_message.clone() {
-            git_stack::graph::reword_commit(&mut graph, &repo, head_id, new_message)
-                .with_code(proc_exit::Code::FAILURE)?;
-        }
 
         if fixup_id.is_none() && new_message.is_none() {
             let abbrev_id = repo
@@ -224,9 +220,14 @@ impl AmendArgs {
             graph.insert(git_stack::graph::Node::new(fixup_id), head_id);
             graph.commit_set(fixup_id, git_stack::graph::Fixup);
         }
-        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
         if !self.dry_run {
             stash_id = git_stack::git::stash_push(&mut repo, "amend");
+        }
+
+        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
+        if let Some(new_message) = new_message {
+            git_stack::graph::reword_commit(&mut graph, &repo, head_id, new_message)
+                .with_code(proc_exit::Code::FAILURE)?;
         }
 
         let mut success = true;
