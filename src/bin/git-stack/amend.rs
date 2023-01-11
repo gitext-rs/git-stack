@@ -136,6 +136,8 @@ impl AmendArgs {
             self.dry_run,
         )
         .with_code(proc_exit::Code::FAILURE)?;
+        let fixup_id =
+            commit_fixup(&repo, head_id, index_tree).with_code(proc_exit::Code::FAILURE)?;
 
         let mut backed_up = false;
         {
@@ -199,9 +201,6 @@ impl AmendArgs {
             git_stack::graph::reword_commit(&mut graph, &repo, head_id, new_message)
                 .with_code(proc_exit::Code::FAILURE)?;
         }
-
-        let fixup_id =
-            commit_fixup(&repo, head_id, index_tree).with_code(proc_exit::Code::FAILURE)?;
 
         if fixup_id.is_none() && new_message.is_none() {
             let abbrev_id = repo
