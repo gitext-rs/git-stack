@@ -92,7 +92,6 @@ impl AmendArgs {
             .with_code(proc_exit::Code::FAILURE)?;
         let head_id = head_ann_id.id;
         let head = repo.find_commit(head_id).expect("explicit bases exist");
-        let head_branch = repo.head_branch();
         let base = crate::ops::resolve_implicit_base(
             &repo,
             head_id,
@@ -179,6 +178,7 @@ impl AmendArgs {
                 "# with '#' will be ignored, and an empty message aborts the commit."
             )
             .unwrap();
+            let head_branch = repo.head_branch();
             if let Some(head_branch) = &head_branch {
                 writeln!(&mut template, "#").unwrap();
                 writeln!(&mut template, "# On branch {}", head_branch).unwrap();
@@ -231,6 +231,7 @@ impl AmendArgs {
 
         let mut success = true;
         let scripts = git_stack::graph::to_scripts(&graph, vec![]);
+        let head_branch = repo.head_branch();
         let mut executor = git_stack::rewrite::Executor::new(self.dry_run);
         for script in scripts {
             let results = executor.run(&mut repo, &script);
