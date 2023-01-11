@@ -135,8 +135,22 @@ impl AmendArgs {
             self.dry_run,
         )
         .with_code(proc_exit::Code::FAILURE)?;
-        let fixup_id =
-            commit_fixup(&repo, head_id, index_tree).with_code(proc_exit::Code::FAILURE)?;
+        let fixup_id = commit_fixup(
+            &mut repo,
+            &graph.branches,
+            head_id,
+            index_tree,
+            self.dry_run,
+        )
+        .with_code(proc_exit::Code::FAILURE)?;
+        if let Some(fixup_id) = fixup_id {
+            graph.insert(git_stack::graph::Node::new(fixup_id), head_id);
+            graph.commit_set(fixup_id, git_stack::graph::Fixup);
+        }
+        graph
+            .branches
+            .update(&repo)
+            .with_code(proc_exit::Code::FAILURE)?;
 
         let mut backed_up = false;
         {
@@ -216,10 +230,6 @@ impl AmendArgs {
         }
 
         let mut stash_id = None;
-        if let Some(fixup_id) = fixup_id {
-            graph.insert(git_stack::graph::Node::new(fixup_id), head_id);
-            graph.commit_set(fixup_id, git_stack::graph::Fixup);
-        }
         if !self.dry_run {
             stash_id = git_stack::git::stash_push(&mut repo, "amend");
         }
@@ -248,19 +258,21 @@ impl AmendArgs {
             .close(&mut repo, head_branch.as_ref().and_then(|b| b.local_name()))
             .with_code(proc_exit::Code::FAILURE)?;
 
-        let abbrev_id = repo
-            .raw()
-            .find_object(head_id, None)
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
-            .short_id()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
-        let _ = writeln!(
-            std::io::stderr(),
-            "{} to {}: {}",
-            stderr_palette.good.paint("Amended"),
-            stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
-            stderr_palette.hint.paint(&head.summary)
-        );
+        if success {
+            let abbrev_id = repo
+                .raw()
+                .find_object(head_id, None)
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+                .short_id()
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            let _ = writeln!(
+                std::io::stderr(),
+                "{} to {}: {}",
+                stderr_palette.good.paint("Amended"),
+                stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
+                stderr_palette.hint.paint(&head.summary)
+            );
+        }
 
         git_stack::git::stash_pop(&mut repo, stash_id);
         if backed_up {
@@ -320,37 +332,81 @@ fn stage_fixup(
 }
 
 fn commit_fixup(
-    repo: &git_stack::git::GitRepo,
+    repo: &mut git_stack::git::GitRepo,
+    branches: &git_stack::graph::BranchSet,
     target_id: git2::Oid,
     tree_id: git2::Oid,
+    dry_run: bool,
 ) -> Result<Option<git2::Oid>, eyre::Error> {
     let parent_id = repo.head_commit().id;
-    let parent_raw_commit = repo
-        .raw()
-        .find_commit(parent_id)
-        .expect("head_commit is always valid");
-    if parent_raw_commit.tree_id() == tree_id {
-        return Ok(None);
+
+    let id = {
+        let parent_raw_commit = repo
+            .raw()
+            .find_commit(parent_id)
+            .expect("head_commit is always valid");
+        if parent_raw_commit.tree_id() == tree_id {
+            return Ok(None);
+        }
+
+        let target_commit = repo.find_commit(target_id).unwrap();
+
+        let tree = repo.raw().find_tree(tree_id)?;
+        let message = format!(
+            "fixup! {}",
+            target_commit
+                .fixup_summary()
+                .unwrap_or_else(|| target_commit.summary.as_ref())
+        );
+        let id = git2_ext::ops::commit(
+            repo.raw(),
+            &parent_raw_commit.author(),
+            &parent_raw_commit.committer(),
+            &message,
+            &tree,
+            &[&parent_raw_commit],
+            None,
+        )?;
+        log::debug!("committed {} {}", id, message);
+        id
+    };
+    if !dry_run {
+        let mut stash_id = None;
+        if repo.is_dirty() {
+            stash_id = repo.stash_push(None).ok();
+        }
+
+        let head_branch = repo.head_branch();
+        if head_branch.is_some() {
+            repo.detach()?;
+        }
+        for branch in branches.get(parent_id).into_iter().flatten() {
+            if let Some(name) = branch.local_name() {
+                repo.branch(name, id)?;
+            }
+        }
+        if let Some(head_branch) = head_branch {
+            log::debug!("switching to {} {}", head_branch, id);
+            repo.switch_branch(
+                head_branch
+                    .local_name()
+                    .expect("HEAD branch is always local"),
+            )?;
+        } else {
+            log::debug!("switching to {}", id);
+            repo.switch_commit(id)?;
+        }
+
+        if let Some(stash_id) = stash_id {
+            match repo.stash_pop(stash_id) {
+                Ok(()) => {
+                    log::debug!("Dropped refs/stash {}", stash_id);
+                }
+                Err(err) => {
+                    log::error!("Failed to pop {} from stash: {}", stash_id, err);
+                }
+            }
+        }
     }
-
-    let target_commit = repo.find_commit(target_id).unwrap();
-
-    let tree = repo.raw().find_tree(tree_id)?;
-    let message = format!(
-        "fixup! {}",
-        target_commit
-            .fixup_summary()
-            .unwrap_or_else(|| target_commit.summary.as_ref())
-    );
-    let id = git2_ext::ops::commit(
-        repo.raw(),
-        &parent_raw_commit.author(),
-        &parent_raw_commit.committer(),
-        &message,
-        &tree,
-        &[&parent_raw_commit],
-        None,
-    )?;
-    log::debug!("committed {} {}", id, message);
     Ok(Some(id))
 }
