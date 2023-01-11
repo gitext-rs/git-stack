@@ -37,6 +37,8 @@ fn amend_noop() {
     };
     plan.run(root_path).unwrap();
 
+    std::fs::write(root_path.join("a"), "unstaged a").unwrap();
+
     let repo = git2::Repository::discover(root_path).unwrap();
     let repo = git_stack::git::GitRepo::new(repo);
 
@@ -59,6 +61,8 @@ error: nothing to amend to [..]: C
 
     let new_head_id = repo.head_commit().id;
     assert_eq!(old_head_id, new_head_id);
+
+    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
 }
@@ -90,6 +94,8 @@ fn reword_protected_fails() {
 
     let old_head_id = repo.head_commit().id;
 
+    std::fs::write(root_path.join("a"), "unstaged a").unwrap();
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
         .arg("--message=hahahaha")
@@ -108,6 +114,10 @@ cannot amend protected commits
 
     let new_head_id = repo.head_commit().id;
     assert_eq!(old_head_id, new_head_id);
+
+    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+
+    root.close().unwrap();
 }
 
 #[test]
@@ -154,6 +164,8 @@ fn reword() {
 
     let old_head_id = repo.head_commit().id;
 
+    std::fs::write(root_path.join("a"), "unstaged a").unwrap();
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
         .arg("--message=new C")
@@ -166,13 +178,17 @@ fn reword() {
         )
         .stderr_matches(
             "\
+Saved working directory and index state WIP on target (amend): [..]
 Amended to [..]: C
+Dropped refs/stash [..]
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
+
+    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
 }
@@ -222,6 +238,8 @@ fn reword_rebases() {
 
     let old_head_id = repo.head_commit().id;
 
+    std::fs::write(root_path.join("a"), "unstaged a").unwrap();
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
         .arg("--message=new B")
@@ -234,13 +252,17 @@ fn reword_rebases() {
         )
         .stderr_matches(
             "\
+Saved working directory and index state WIP on local (amend): [..]
 Amended to [..]: C
+Dropped refs/stash [..]
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
+
+    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
 }
@@ -361,6 +383,8 @@ fn amend_staged() {
 
     let old_head_id = repo.head_commit().id;
 
+    std::fs::write(root_path.join("a"), "unstaged a").unwrap();
+
     std::fs::write(root_path.join("c"), "new c").unwrap();
     snapbox::cmd::Command::new("git")
         .arg("add")
@@ -388,6 +412,8 @@ note: to undo, run `git branch-stash pop git-stack`
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
+
+    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
 }
@@ -437,10 +463,17 @@ fn amend_detached() {
 
     let old_head_id = repo.head_commit().id;
 
+    std::fs::write(root_path.join("a"), "unstaged a").unwrap();
+
     std::fs::write(root_path.join("b"), "new b").unwrap();
+    snapbox::cmd::Command::new("git")
+        .arg("add")
+        .arg("b")
+        .current_dir(root_path)
+        .assert()
+        .success();
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
-        .arg("-a")
         .current_dir(root_path)
         .assert()
         .success()
@@ -450,7 +483,6 @@ fn amend_detached() {
         )
         .stderr_matches(
             "\
-Adding b
 Saved working directory and index state WIP on HEAD (amend): [..]
 Amended to [..]: B
 Dropped refs/stash [..]
@@ -460,6 +492,8 @@ note: to undo, run `git branch-stash pop git-stack`
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
+
+    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
 }
@@ -508,11 +542,17 @@ fn amend_explicit_head() {
 
     let old_head_id = repo.head_commit().id;
 
-    std::fs::write(root_path.join("c"), "new c").unwrap();
+    std::fs::write(root_path.join("a"), "unstaged a").unwrap();
 
+    std::fs::write(root_path.join("c"), "new c").unwrap();
+    snapbox::cmd::Command::new("git")
+        .arg("add")
+        .arg("c")
+        .current_dir(root_path)
+        .assert()
+        .success();
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
-        .arg("-a")
         .arg("HEAD")
         .current_dir(root_path)
         .assert()
@@ -523,7 +563,6 @@ fn amend_explicit_head() {
         )
         .stderr_matches(
             "\
-Adding c
 Saved working directory and index state WIP on target (amend): [..]
 Amended to [..]: C
 Dropped refs/stash [..]
@@ -533,6 +572,8 @@ note: to undo, run `git branch-stash pop git-stack`
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
+
+    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
 }
@@ -582,11 +623,17 @@ fn amend_ancestor() {
 
     let old_head_id = repo.head_commit().id;
 
-    std::fs::write(root_path.join("b"), "new b").unwrap();
+    std::fs::write(root_path.join("a"), "unstaged a").unwrap();
 
+    std::fs::write(root_path.join("b"), "new b").unwrap();
+    snapbox::cmd::Command::new("git")
+        .arg("add")
+        .arg("b")
+        .current_dir(root_path)
+        .assert()
+        .success();
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
-        .arg("-a")
         .arg("target")
         .current_dir(root_path)
         .assert()
@@ -597,7 +644,6 @@ fn amend_ancestor() {
         )
         .stderr_matches(
             "\
-Adding b
 Saved working directory and index state WIP on local (amend): [..]
 Amended to [..]: B
 Dropped refs/stash [..]
@@ -607,6 +653,8 @@ note: to undo, run `git branch-stash pop git-stack`
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
+
+    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
 }
