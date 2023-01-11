@@ -46,14 +46,14 @@ fn amend_noop() {
         .arg("amend")
         .current_dir(root_path)
         .assert()
-        .success()
+        .failure()
         .stdout_eq(
             "\
 ",
         )
         .stderr_matches(
             "\
-Amended to [..]: C
+error: nothing to amend to [..]: C
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );

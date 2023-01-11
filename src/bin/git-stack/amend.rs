@@ -189,17 +189,17 @@ impl AmendArgs {
         } else {
             None
         };
-        if let Some(new_message) = new_message {
+        if let Some(new_message) = new_message.clone() {
             git_stack::graph::reword_commit(&mut graph, &repo, head_id, new_message)
                 .with_code(proc_exit::Code::FAILURE)?;
         }
 
         let mut stash_id = None;
-        let id = commit_fixup(&repo, head_id, head_id, index_tree)
+        let fixup_id = commit_fixup(&repo, head_id, head_id, index_tree)
             .with_code(proc_exit::Code::FAILURE)?;
-        if let Some(id) = id {
-            graph.insert(git_stack::graph::Node::new(id), head.id);
-            graph.commit_set(id, git_stack::graph::Fixup);
+        if let Some(fixup_id) = fixup_id {
+            graph.insert(git_stack::graph::Node::new(fixup_id), head.id);
+            graph.commit_set(fixup_id, git_stack::graph::Fixup);
         }
         git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
         if !self.dry_run {
@@ -229,13 +229,24 @@ impl AmendArgs {
             .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
             .short_id()
             .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
-        let _ = writeln!(
-            std::io::stderr(),
-            "{} to {}: {}",
-            stderr_palette.good.paint("Amended"),
-            stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
-            stderr_palette.hint.paint(&head.summary)
-        );
+        if fixup_id.is_some() || new_message.is_some() {
+            let _ = writeln!(
+                std::io::stderr(),
+                "{} to {}: {}",
+                stderr_palette.good.paint("Amended"),
+                stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
+                stderr_palette.hint.paint(&head.summary)
+            );
+        } else {
+            success = false;
+            let _ = writeln!(
+                std::io::stderr(),
+                "{} nothing to amend to {}: {}",
+                stderr_palette.error.paint("error:"),
+                stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
+                stderr_palette.hint.paint(&head.summary)
+            );
+        }
 
         git_stack::git::stash_pop(&mut repo, stash_id);
         if backed_up {
@@ -300,12 +311,15 @@ fn commit_fixup(
     parent_id: git2::Oid,
     tree_id: git2::Oid,
 ) -> Result<Option<git2::Oid>, eyre::Error> {
-    let target_commit = repo.find_commit(target_id).unwrap();
-
     let parent_raw_commit = repo
         .raw()
         .find_commit(parent_id)
         .expect("head_commit is always valid");
+    if parent_raw_commit.tree_id() == tree_id {
+        return Ok(None);
+    }
+
+    let target_commit = repo.find_commit(target_id).unwrap();
 
     let tree = repo.raw().find_tree(tree_id)?;
     let message = format!(
