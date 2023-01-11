@@ -197,12 +197,14 @@ impl AmendArgs {
         let mut stash_id = None;
         let id = commit_fixup(&repo, head_id, head_id, index_tree)
             .with_code(proc_exit::Code::FAILURE)?;
-        graph.insert(git_stack::graph::Node::new(id), head.id);
-        graph.commit_set(id, git_stack::graph::Fixup);
+        if let Some(id) = id {
+            graph.insert(git_stack::graph::Node::new(id), head.id);
+            graph.commit_set(id, git_stack::graph::Fixup);
+        }
+        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
         if !self.dry_run {
             stash_id = git_stack::git::stash_push(&mut repo, "amend");
         }
-        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
 
         let mut success = true;
         let scripts = git_stack::graph::to_scripts(&graph, vec![]);
@@ -297,7 +299,7 @@ fn commit_fixup(
     target_id: git2::Oid,
     parent_id: git2::Oid,
     tree_id: git2::Oid,
-) -> Result<git2::Oid, eyre::Error> {
+) -> Result<Option<git2::Oid>, eyre::Error> {
     let target_commit = repo.find_commit(target_id).unwrap();
 
     let parent_raw_commit = repo
@@ -322,5 +324,5 @@ fn commit_fixup(
         None,
     )?;
     log::debug!("committed {} {}", id, message);
-    Ok(id)
+    Ok(Some(id))
 }
