@@ -88,9 +88,9 @@ impl AmendArgs {
         let branches = git_stack::graph::BranchSet::from_repo(&repo, &protected)
             .with_code(proc_exit::Code::FAILURE)?;
 
-        let head_ann_id = crate::ops::resolve_explicit_base(&repo, &self.rev)
-            .with_code(proc_exit::Code::FAILURE)?;
-        let head_id = head_ann_id.id;
+        let head_id = crate::ops::resolve_explicit_base(&repo, &self.rev)
+            .with_code(proc_exit::Code::FAILURE)?
+            .id;
         let head = repo.find_commit(head_id).expect("explicit bases exist");
         let base = crate::ops::resolve_implicit_base(
             &repo,
