@@ -124,7 +124,7 @@ impl AmendArgs {
             }
         }
 
-        let mut index = stage_fixup(
+        let index = stage_fixup(
             &repo,
             self.all,
             self.interactive,
@@ -198,28 +198,8 @@ impl AmendArgs {
 
         let mut stash_id = None;
         if !self.dry_run {
-            let raw_commit = repo
-                .raw()
-                .find_commit(head.id)
-                .expect("head_commit is always valid");
-
-            let tree_id = index.write_tree().with_code(proc_exit::Code::FAILURE)?;
-            let tree = repo
-                .raw()
-                .find_tree(tree_id)
-                .with_code(proc_exit::Code::FAILURE)?;
-            let message = format!("fixup! {}", head.summary);
-            let id = git2_ext::ops::commit(
-                repo.raw(),
-                &raw_commit.author(),
-                &raw_commit.committer(),
-                &message,
-                &tree,
-                &[&raw_commit],
-                None,
-            )
-            .with_code(proc_exit::Code::FAILURE)?;
-            log::debug!("committed {} {}", id, message);
+            let id =
+                commit_fixup(&repo, head_id, head_id, index).with_code(proc_exit::Code::FAILURE)?;
             graph.insert(git_stack::graph::Node::new(id), head.id);
             graph.commit_set(id, git_stack::graph::Fixup);
         }
@@ -313,4 +293,33 @@ fn stage_fixup(
         todo!("interactive support")
     }
     Ok(index)
+}
+
+fn commit_fixup(
+    repo: &git_stack::git::GitRepo,
+    target_id: git2::Oid,
+    parent_id: git2::Oid,
+    mut index: git2::Index,
+) -> Result<git2::Oid, eyre::Error> {
+    let target_commit = repo.find_commit(target_id).unwrap();
+
+    let parent_raw_commit = repo
+        .raw()
+        .find_commit(parent_id)
+        .expect("head_commit is always valid");
+
+    let tree_id = index.write_tree()?;
+    let tree = repo.raw().find_tree(tree_id)?;
+    let message = format!("fixup! {}", target_commit.summary);
+    let id = git2_ext::ops::commit(
+        repo.raw(),
+        &parent_raw_commit.author(),
+        &parent_raw_commit.committer(),
+        &message,
+        &tree,
+        &[&parent_raw_commit],
+        None,
+    )?;
+    log::debug!("committed {} {}", id, message);
+    Ok(id)
 }
