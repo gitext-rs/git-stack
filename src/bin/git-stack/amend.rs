@@ -12,6 +12,10 @@ use proc_exit::prelude::*;
 /// amended version of the commit, unless doing so would result in merge conflicts.
 #[derive(clap::Args)]
 pub struct AmendArgs {
+    /// Commit to rewrite
+    #[arg(default_value = "HEAD")]
+    rev: String,
+
     /// Commit all changed files
     #[arg(short, long)]
     all: bool,
@@ -84,9 +88,10 @@ impl AmendArgs {
         let branches = git_stack::graph::BranchSet::from_repo(&repo, &protected)
             .with_code(proc_exit::Code::FAILURE)?;
 
-        let head = repo.head_commit();
-        let head_id = head.id;
-        let head_branch = repo.head_branch();
+        let head_id = crate::ops::resolve_explicit_base(&repo, &self.rev)
+            .with_code(proc_exit::Code::FAILURE)?
+            .id;
+        let head = repo.find_commit(head_id).expect("explicit bases exist");
         let base = crate::ops::resolve_implicit_base(
             &repo,
             head_id,
@@ -116,42 +121,36 @@ impl AmendArgs {
             .unwrap_or_default();
         match action {
             git_stack::graph::Action::Pick => {}
-            git_stack::graph::Action::Fixup => {
-                return Err(proc_exit::Code::FAILURE.with_message("cannot amend fixup commits"));
-            }
+            git_stack::graph::Action::Fixup => {}
             git_stack::graph::Action::Protected => {
                 return Err(proc_exit::Code::FAILURE.with_message("cannot amend protected commits"));
             }
         }
 
-        let mut index = repo.raw().index().with_code(proc_exit::Code::FAILURE)?;
-        if self.all {
-            index
-                .update_all(
-                    ["*"].iter(),
-                    Some(&mut |path, _| {
-                        let _ = writeln!(
-                            std::io::stderr(),
-                            "{} {}",
-                            stderr_palette.good.paint("Adding"),
-                            path.display()
-                        );
-                        if self.dry_run {
-                            // skip
-                            1
-                        } else {
-                            // confirm
-                            0
-                        }
-                    }),
-                )
-                .with_code(proc_exit::Code::FAILURE)?;
-        } else if self.interactive {
-            // See
-            // - https://github.com/arxanas/git-branchless/blob/master/git-branchless-record/src/lib.rs#L196
-            // - https://github.com/arxanas/git-branchless/tree/master/git-record
-            todo!("interactive support")
+        let index_tree = stage_fixup(
+            &repo,
+            self.all,
+            self.interactive,
+            stderr_palette,
+            self.dry_run,
+        )
+        .with_code(proc_exit::Code::FAILURE)?;
+        let fixup_id = commit_fixup(
+            &mut repo,
+            &graph.branches,
+            head_id,
+            index_tree,
+            self.dry_run,
+        )
+        .with_code(proc_exit::Code::FAILURE)?;
+        if let Some(fixup_id) = fixup_id {
+            graph.insert(git_stack::graph::Node::new(fixup_id), head_id);
+            graph.commit_set(fixup_id, git_stack::graph::Fixup);
         }
+        graph
+            .branches
+            .update(&repo)
+            .with_code(proc_exit::Code::FAILURE)?;
 
         let mut backed_up = false;
         {
@@ -177,7 +176,7 @@ impl AmendArgs {
 
             let raw_commit = repo
                 .raw()
-                .find_commit(head.id)
+                .find_commit(head_id)
                 .expect("head_commit is always valid");
             let existing = String::from_utf8_lossy(raw_commit.message_bytes());
             let mut template = String::new();
@@ -193,6 +192,7 @@ impl AmendArgs {
                 "# with '#' will be ignored, and an empty message aborts the commit."
             )
             .unwrap();
+            let head_branch = repo.head_branch();
             if let Some(head_branch) = &head_branch {
                 writeln!(&mut template, "#").unwrap();
                 writeln!(&mut template, "# On branch {}", head_branch).unwrap();
@@ -211,45 +211,38 @@ impl AmendArgs {
         } else {
             None
         };
+
+        if fixup_id.is_none() && new_message.is_none() {
+            let abbrev_id = repo
+                .raw()
+                .find_object(head_id, None)
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+                .short_id()
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            let _ = writeln!(
+                std::io::stderr(),
+                "{} nothing to amend to {}: {}",
+                stderr_palette.error.paint("error:"),
+                stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
+                stderr_palette.hint.paint(&head.summary)
+            );
+            return Err(proc_exit::Code::FAILURE.as_exit());
+        }
+
+        let mut stash_id = None;
+        if !self.dry_run {
+            stash_id = git_stack::git::stash_push(&mut repo, "amend");
+        }
+
+        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
         if let Some(new_message) = new_message {
             git_stack::graph::reword_commit(&mut graph, &repo, head_id, new_message)
                 .with_code(proc_exit::Code::FAILURE)?;
         }
 
-        let mut stash_id = None;
-        if !self.dry_run {
-            let raw_commit = repo
-                .raw()
-                .find_commit(head.id)
-                .expect("head_commit is always valid");
-
-            let tree_id = index.write_tree().with_code(proc_exit::Code::FAILURE)?;
-            let tree = repo
-                .raw()
-                .find_tree(tree_id)
-                .with_code(proc_exit::Code::FAILURE)?;
-            let message = format!("fixup! {}", head.summary);
-            let id = git2_ext::ops::commit(
-                repo.raw(),
-                &raw_commit.author(),
-                &raw_commit.committer(),
-                &message,
-                &tree,
-                &[&raw_commit],
-                None,
-            )
-            .with_code(proc_exit::Code::FAILURE)?;
-            log::debug!("committed {} {}", id, message);
-            graph.insert(git_stack::graph::Node::new(id), head.id);
-            graph.commit_set(id, git_stack::graph::Fixup);
-        }
-        if !self.dry_run {
-            stash_id = git_stack::git::stash_push(&mut repo, "amend");
-        }
-        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
-
         let mut success = true;
         let scripts = git_stack::graph::to_scripts(&graph, vec![]);
+        let head_branch = repo.head_branch();
         let mut executor = git_stack::rewrite::Executor::new(self.dry_run);
         for script in scripts {
             let results = executor.run(&mut repo, &script);
@@ -265,19 +258,21 @@ impl AmendArgs {
             .close(&mut repo, head_branch.as_ref().and_then(|b| b.local_name()))
             .with_code(proc_exit::Code::FAILURE)?;
 
-        let abbrev_id = repo
-            .raw()
-            .find_object(head_id, None)
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
-            .short_id()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
-        let _ = writeln!(
-            std::io::stderr(),
-            "{} to {}: {}",
-            stderr_palette.good.paint("Amended"),
-            stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
-            stderr_palette.hint.paint(&head.summary)
-        );
+        if success {
+            let abbrev_id = repo
+                .raw()
+                .find_object(head_id, None)
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+                .short_id()
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            let _ = writeln!(
+                std::io::stderr(),
+                "{} to {}: {}",
+                stderr_palette.good.paint("Amended"),
+                stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
+                stderr_palette.hint.paint(&head.summary)
+            );
+        }
 
         git_stack::git::stash_pop(&mut repo, stash_id);
         if backed_up {
@@ -297,4 +292,121 @@ impl AmendArgs {
             Err(proc_exit::Code::FAILURE.as_exit())
         }
     }
+}
+
+fn stage_fixup(
+    repo: &git_stack::git::GitRepo,
+    all: bool,
+    interactive: bool,
+    stderr_palette: crate::ops::Palette,
+    dry_run: bool,
+) -> Result<git2::Oid, eyre::Error> {
+    let mut index = repo.raw().index()?;
+    if all {
+        index.update_all(
+            ["*"].iter(),
+            Some(&mut |path, _| {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "{} {}",
+                    stderr_palette.good.paint("Adding"),
+                    path.display()
+                );
+                if dry_run {
+                    // skip
+                    1
+                } else {
+                    // confirm
+                    0
+                }
+            }),
+        )?;
+    } else if interactive {
+        // See
+        // - https://github.com/arxanas/git-branchless/blob/master/git-branchless-record/src/lib.rs#L196
+        // - https://github.com/arxanas/git-branchless/tree/master/git-record
+        todo!("interactive support")
+    }
+    let tree_id = index.write_tree()?;
+    Ok(tree_id)
+}
+
+fn commit_fixup(
+    repo: &mut git_stack::git::GitRepo,
+    branches: &git_stack::graph::BranchSet,
+    target_id: git2::Oid,
+    tree_id: git2::Oid,
+    dry_run: bool,
+) -> Result<Option<git2::Oid>, eyre::Error> {
+    let parent_id = repo.head_commit().id;
+
+    let id = {
+        let parent_raw_commit = repo
+            .raw()
+            .find_commit(parent_id)
+            .expect("head_commit is always valid");
+        if parent_raw_commit.tree_id() == tree_id {
+            return Ok(None);
+        }
+
+        let target_commit = repo.find_commit(target_id).unwrap();
+
+        let tree = repo.raw().find_tree(tree_id)?;
+        let message = format!(
+            "fixup! {}",
+            target_commit
+                .fixup_summary()
+                .unwrap_or_else(|| target_commit.summary.as_ref())
+        );
+        let id = git2_ext::ops::commit(
+            repo.raw(),
+            &parent_raw_commit.author(),
+            &parent_raw_commit.committer(),
+            &message,
+            &tree,
+            &[&parent_raw_commit],
+            None,
+        )?;
+        log::debug!("committed {} {}", id, message);
+        id
+    };
+    if !dry_run {
+        let mut stash_id = None;
+        if repo.is_dirty() {
+            stash_id = repo.stash_push(None).ok();
+        }
+
+        let head_branch = repo.head_branch();
+        if head_branch.is_some() {
+            repo.detach()?;
+        }
+        for branch in branches.get(parent_id).into_iter().flatten() {
+            if let Some(name) = branch.local_name() {
+                repo.branch(name, id)?;
+            }
+        }
+        if let Some(head_branch) = head_branch {
+            log::debug!("switching to {} {}", head_branch, id);
+            repo.switch_branch(
+                head_branch
+                    .local_name()
+                    .expect("HEAD branch is always local"),
+            )?;
+        } else {
+            log::debug!("switching to {}", id);
+            repo.switch_commit(id)?;
+        }
+
+        if let Some(stash_id) = stash_id {
+            match repo.stash_pop(stash_id) {
+                Ok(()) => {
+                    log::debug!("Dropped refs/stash {}", stash_id);
+                }
+                Err(err) => {
+                    log::error!("Failed to pop {} from stash: {}", stash_id, err);
+                }
+            }
+        }
+    }
+    Ok(Some(id))
 }
