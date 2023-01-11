@@ -5,9 +5,6 @@ fn amend_noop() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
-        init: true,
-        sleep: None,
-        author: None,
         commands: vec![
             git_fixture::Command::Tree(git_fixture::Tree {
                 files: [("a", "a")]
@@ -36,6 +33,7 @@ fn amend_noop() {
             }),
             git_fixture::Command::Branch("target".into()),
         ],
+        ..Default::default()
     };
     plan.run(root_path).unwrap();
 
@@ -74,9 +72,6 @@ fn reword_protected_fails() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
-        init: true,
-        sleep: None,
-        author: None,
         commands: vec![
             git_fixture::Command::Tree(git_fixture::Tree {
                 files: [("a", "a")]
@@ -88,6 +83,7 @@ fn reword_protected_fails() {
             }),
             git_fixture::Command::Branch("main".into()),
         ],
+        ..Default::default()
     };
     plan.run(root_path).unwrap();
 
@@ -127,9 +123,6 @@ fn reword() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
-        init: true,
-        sleep: None,
-        author: None,
         commands: vec![
             git_fixture::Command::Tree(git_fixture::Tree {
                 files: [("a", "a")]
@@ -158,6 +151,7 @@ fn reword() {
             }),
             git_fixture::Command::Branch("target".into()),
         ],
+        ..Default::default()
     };
     plan.run(root_path).unwrap();
 
@@ -200,9 +194,6 @@ fn reword_rebases() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
-        init: true,
-        sleep: None,
-        author: None,
         commands: vec![
             git_fixture::Command::Tree(git_fixture::Tree {
                 files: [("a", "a")]
@@ -232,6 +223,7 @@ fn reword_rebases() {
             }),
             git_fixture::Command::Branch("local".into()),
         ],
+        ..Default::default()
     };
     plan.run(root_path).unwrap();
 
@@ -274,9 +266,6 @@ fn amend_add() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
-        init: true,
-        sleep: None,
-        author: None,
         commands: vec![
             git_fixture::Command::Tree(git_fixture::Tree {
                 files: [("a", "a")]
@@ -305,6 +294,7 @@ fn amend_add() {
             }),
             git_fixture::Command::Branch("target".into()),
         ],
+        ..Default::default()
     };
     plan.run(root_path).unwrap();
 
@@ -344,9 +334,6 @@ fn amend_staged() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
-        init: true,
-        sleep: None,
-        author: None,
         commands: vec![
             git_fixture::Command::Tree(git_fixture::Tree {
                 files: [("a", "a")]
@@ -375,6 +362,7 @@ fn amend_staged() {
             }),
             git_fixture::Command::Branch("target".into()),
         ],
+        ..Default::default()
     };
     plan.run(root_path).unwrap();
 
@@ -423,9 +411,6 @@ fn amend_detached() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
-        init: true,
-        sleep: None,
-        author: None,
         commands: vec![
             git_fixture::Command::Tree(git_fixture::Tree {
                 files: [("a", "a")]
@@ -455,6 +440,7 @@ fn amend_detached() {
             }),
             git_fixture::Command::Branch("local".into()),
         ],
+        ..Default::default()
     };
     plan.run(root_path).unwrap();
 
@@ -503,9 +489,6 @@ fn amend_explicit_head() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
-        init: true,
-        sleep: None,
-        author: None,
         commands: vec![
             git_fixture::Command::Tree(git_fixture::Tree {
                 files: [("a", "a")]
@@ -534,6 +517,7 @@ fn amend_explicit_head() {
             }),
             git_fixture::Command::Branch("target".into()),
         ],
+        ..Default::default()
     };
     plan.run(root_path).unwrap();
 
@@ -583,9 +567,6 @@ fn amend_ancestor() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
-        init: true,
-        sleep: None,
-        author: None,
         commands: vec![
             git_fixture::Command::Tree(git_fixture::Tree {
                 files: [("a", "a")]
@@ -615,6 +596,7 @@ fn amend_ancestor() {
             }),
             git_fixture::Command::Branch("local".into()),
         ],
+        ..Default::default()
     };
     plan.run(root_path).unwrap();
 
@@ -664,9 +646,6 @@ fn amend_conflict() {
     let root = snapbox::path::PathFixture::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
-        init: true,
-        sleep: None,
-        author: None,
         commands: vec![
             git_fixture::Command::Tree(git_fixture::Tree {
                 files: [("a", "a")]
@@ -696,6 +675,7 @@ fn amend_conflict() {
             }),
             git_fixture::Command::Branch("local".into()),
         ],
+        ..Default::default()
     };
     plan.run(root_path).unwrap();
 
