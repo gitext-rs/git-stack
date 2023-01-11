@@ -239,7 +239,9 @@ fn amend_add() {
         .stderr_matches(
             "\
 Adding c
+Saved working directory and index state WIP on target (amend): [..]
 Amended to [..]: C
+Dropped refs/stash [..]
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );
@@ -312,7 +314,9 @@ fn amend_staged() {
         )
         .stderr_matches(
             "\
+Saved working directory and index state WIP on target (amend): [..]
 Amended to [..]: C
+Dropped refs/stash [..]
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );
@@ -382,7 +386,9 @@ fn amend_detached() {
         .stderr_matches(
             "\
 Adding b
+Saved working directory and index state WIP on HEAD (amend): [..]
 Amended to [..]: B
+Dropped refs/stash [..]
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );

@@ -216,6 +216,7 @@ impl AmendArgs {
                 .with_code(proc_exit::Code::FAILURE)?;
         }
 
+        let mut stash_id = None;
         if !self.dry_run {
             let raw_commit = repo
                 .raw()
@@ -241,6 +242,9 @@ impl AmendArgs {
             log::debug!("committed {} {}", id, message);
             graph.insert(git_stack::graph::Node::new(id), head.id);
             graph.commit_set(id, git_stack::graph::Fixup);
+        }
+        if !self.dry_run {
+            stash_id = git_stack::git::stash_push(&mut repo, "amend");
         }
         git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
 
@@ -275,6 +279,7 @@ impl AmendArgs {
             stderr_palette.hint.paint(&head.summary)
         );
 
+        git_stack::git::stash_pop(&mut repo, stash_id);
         if backed_up {
             log::info!(
                 "{}: to undo, run {}",
