@@ -1168,6 +1168,11 @@ impl Repo for InMemoryRepo {
 
 pub fn stash_push(repo: &mut dyn Repo, context: &str) -> Option<git2::Oid> {
     let branch = repo.head_branch();
+    if !repo.is_dirty() {
+        log::debug!("Nothing to stash");
+        return None;
+    }
+
     let stash_msg = format!(
         "WIP on {} ({})",
         branch.as_ref().map(|b| b.name.as_str()).unwrap_or("HEAD"),
