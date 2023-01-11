@@ -122,7 +122,7 @@ impl AmendArgs {
             }
         }
 
-        let index = stage_fixup(
+        let index_tree = stage_fixup(
             &repo,
             self.all,
             self.interactive,
@@ -195,8 +195,8 @@ impl AmendArgs {
         }
 
         let mut stash_id = None;
-        let id =
-            commit_fixup(&repo, head_id, head_id, index).with_code(proc_exit::Code::FAILURE)?;
+        let id = commit_fixup(&repo, head_id, head_id, index_tree)
+            .with_code(proc_exit::Code::FAILURE)?;
         graph.insert(git_stack::graph::Node::new(id), head.id);
         graph.commit_set(id, git_stack::graph::Fixup);
         if !self.dry_run {
@@ -261,7 +261,7 @@ fn stage_fixup(
     interactive: bool,
     stderr_palette: crate::ops::Palette,
     dry_run: bool,
-) -> Result<git2::Index, eyre::Error> {
+) -> Result<git2::Oid, eyre::Error> {
     let mut index = repo.raw().index()?;
     if all {
         index.update_all(
@@ -288,14 +288,15 @@ fn stage_fixup(
         // - https://github.com/arxanas/git-branchless/tree/master/git-record
         todo!("interactive support")
     }
-    Ok(index)
+    let tree_id = index.write_tree()?;
+    Ok(tree_id)
 }
 
 fn commit_fixup(
     repo: &git_stack::git::GitRepo,
     target_id: git2::Oid,
     parent_id: git2::Oid,
-    mut index: git2::Index,
+    tree_id: git2::Oid,
 ) -> Result<git2::Oid, eyre::Error> {
     let target_commit = repo.find_commit(target_id).unwrap();
 
@@ -304,7 +305,6 @@ fn commit_fixup(
         .find_commit(parent_id)
         .expect("head_commit is always valid");
 
-    let tree_id = index.write_tree()?;
     let tree = repo.raw().find_tree(tree_id)?;
     let message = format!(
         "fixup! {}",
