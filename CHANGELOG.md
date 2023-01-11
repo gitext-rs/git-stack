@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Compatibility
+
+- `git amend` no-ops now fail
+
+### Features
+
+- `git amend <rev>` is now supported
+
+### Fixes
+
+- `git amend` only reports an amend happening on success
+- `git amend` no-ops are now quieter
+- `git amend` no-ops now fail
+- `git amend` can now amend fixups
+- `git amend` won't lose unstaged changes anymore
+- `git amend` moves to fixup commit on failure
+- `git run` is more explicit about what it is testing and what the status was for
+
 ## [0.10.5] - 2023-01-10
 
 ### Fixes
