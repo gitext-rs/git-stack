@@ -67,6 +67,9 @@ pub fn resolve_explicit_base(
             let shorthand = r
                 .shorthand()
                 .ok_or_else(|| eyre::eyre!("Expected branch, got `{}`", base))?;
+            if shorthand == "HEAD" {
+                return Ok(AnnotatedOid::new(obj.id()));
+            }
             repo.find_local_branch(shorthand)
                 .ok_or_else(|| eyre::eyre!("Could not find branch {:?}", shorthand))
         }?;

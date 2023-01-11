@@ -12,6 +12,10 @@ use proc_exit::prelude::*;
 /// amended version of the commit, unless doing so would result in merge conflicts.
 #[derive(clap::Args)]
 pub struct AmendArgs {
+    /// Commit to rewrite
+    #[arg(default_value = "HEAD")]
+    rev: String,
+
     /// Commit all changed files
     #[arg(short, long)]
     all: bool,
@@ -84,8 +88,10 @@ impl AmendArgs {
         let branches = git_stack::graph::BranchSet::from_repo(&repo, &protected)
             .with_code(proc_exit::Code::FAILURE)?;
 
-        let head = repo.head_commit();
-        let head_id = head.id;
+        let head_ann_id = crate::ops::resolve_explicit_base(&repo, &self.rev)
+            .with_code(proc_exit::Code::FAILURE)?;
+        let head_id = head_ann_id.id;
+        let head = repo.find_commit(head_id).expect("explicit bases exist");
         let head_branch = repo.head_branch();
         let base = crate::ops::resolve_implicit_base(
             &repo,
@@ -155,7 +161,7 @@ impl AmendArgs {
 
             let raw_commit = repo
                 .raw()
-                .find_commit(head.id)
+                .find_commit(head_id)
                 .expect("head_commit is always valid");
             let existing = String::from_utf8_lossy(raw_commit.message_bytes());
             let mut template = String::new();
@@ -194,8 +200,8 @@ impl AmendArgs {
                 .with_code(proc_exit::Code::FAILURE)?;
         }
 
-        let fixup_id = commit_fixup(&repo, head_id, head_id, index_tree)
-            .with_code(proc_exit::Code::FAILURE)?;
+        let fixup_id =
+            commit_fixup(&repo, head_id, index_tree).with_code(proc_exit::Code::FAILURE)?;
 
         if fixup_id.is_none() && new_message.is_none() {
             let abbrev_id = repo
@@ -216,7 +222,7 @@ impl AmendArgs {
 
         let mut stash_id = None;
         if let Some(fixup_id) = fixup_id {
-            graph.insert(git_stack::graph::Node::new(fixup_id), head.id);
+            graph.insert(git_stack::graph::Node::new(fixup_id), head_id);
             graph.commit_set(fixup_id, git_stack::graph::Fixup);
         }
         git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Squash);
@@ -315,9 +321,9 @@ fn stage_fixup(
 fn commit_fixup(
     repo: &git_stack::git::GitRepo,
     target_id: git2::Oid,
-    parent_id: git2::Oid,
     tree_id: git2::Oid,
 ) -> Result<Option<git2::Oid>, eyre::Error> {
+    let parent_id = repo.head_commit().id;
     let parent_raw_commit = repo
         .raw()
         .find_commit(parent_id)
