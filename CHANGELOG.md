@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.10.7] - 2023-01-12
+
 ### Fixes
 
 - Sign rebased commits
@@ -471,7 +473,8 @@ With `git stack alias` for creating alias for these
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.6...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.7...HEAD
+[0.10.7]: https://github.com/gitext-rs/git-stack/compare/v0.10.6...v0.10.7
 [0.10.6]: https://github.com/gitext-rs/git-stack/compare/v0.10.5...v0.10.6
 [0.10.5]: https://github.com/gitext-rs/git-stack/compare/v0.10.4...v0.10.5
 [0.10.4]: https://github.com/gitext-rs/git-stack/compare/v0.10.3...v0.10.4
