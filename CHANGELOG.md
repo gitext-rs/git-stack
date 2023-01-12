@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Improve error reporting when operations like rebase are in progress
+
 ## [0.10.8] - 2023-01-12
 
 ### Fixes
