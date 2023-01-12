@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.10.8] - 2023-01-12
+
 ### Fixes
 
 - `git amend <rev>` no longer drops commits after `<rev>`
@@ -477,7 +479,8 @@ With `git stack alias` for creating alias for these
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.7...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.8...HEAD
+[0.10.8]: https://github.com/gitext-rs/git-stack/compare/v0.10.7...v0.10.8
 [0.10.7]: https://github.com/gitext-rs/git-stack/compare/v0.10.6...v0.10.7
 [0.10.6]: https://github.com/gitext-rs/git-stack/compare/v0.10.5...v0.10.6
 [0.10.5]: https://github.com/gitext-rs/git-stack/compare/v0.10.4...v0.10.5
