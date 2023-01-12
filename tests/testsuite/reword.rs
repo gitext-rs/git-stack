@@ -237,6 +237,8 @@ fn reword_branch() {
 
     let old_head_id = repo.head_commit().id;
 
+    std::fs::write(root_path.join("a"), "unstaged a").unwrap();
+
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("reword")
         .arg("--message=new B")
@@ -248,8 +250,10 @@ fn reword_branch() {
             "\
 ",
         )
-        .stderr_eq(
+        .stderr_matches(
             "\
+Saved working directory and index state WIP on local (reword): [..]
+Dropped refs/stash [..]
 note: to undo, run `git branch-stash pop git-stack`
 ",
         );
@@ -264,6 +268,8 @@ note: to undo, run `git branch-stash pop git-stack`
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
+
+    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
 }

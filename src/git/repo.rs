@@ -178,11 +178,6 @@ impl GitRepo {
     }
 
     pub fn is_dirty(&self) -> bool {
-        if self.repo.state() != git2::RepositoryState::Clean {
-            log::trace!("Repository status is unclean: {:?}", self.repo.state());
-            return true;
-        }
-
         let status = self
             .repo
             .statuses(Some(git2::StatusOptions::new().include_ignored(false)))

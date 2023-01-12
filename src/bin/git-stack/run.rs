@@ -57,6 +57,20 @@ impl RunArgs {
         let branches = git_stack::graph::BranchSet::from_repo(&repo, &protected)
             .with_code(proc_exit::Code::FAILURE)?;
 
+        if repo.raw().state() != git2::RepositoryState::Clean {
+            let message = format!("cannot walk commits, {:?} in progress", repo.raw().state());
+            if self.dry_run {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "{}: {}",
+                    stderr_palette.error.paint("error"),
+                    message
+                );
+            } else {
+                return Err(proc_exit::sysexits::USAGE_ERR.with_message(message));
+            }
+        }
+
         let mut stash_id = None;
         if !self.dry_run && !self.switch {
             stash_id = git_stack::git::stash_push(&mut repo, "run");

@@ -1,3 +1,5 @@
+use std::io::Write;
+
 use itertools::Itertools;
 use proc_exit::prelude::*;
 
@@ -93,6 +95,19 @@ impl RewordArgs {
         git_stack::graph::mark_fixup(&mut graph, &repo);
         git_stack::graph::mark_wip(&mut graph, &repo);
 
+        if repo.raw().state() != git2::RepositoryState::Clean {
+            let message = format!("cannot walk commits, {:?} in progress", repo.raw().state());
+            if self.dry_run {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "{}: {}",
+                    stderr_palette.error.paint("error"),
+                    message
+                );
+            } else {
+                return Err(proc_exit::sysexits::USAGE_ERR.with_message(message));
+            }
+        }
         let action = graph
             .commit_get::<git_stack::graph::Action>(head_id)
             .copied()
