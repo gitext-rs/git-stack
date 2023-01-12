@@ -144,7 +144,9 @@ impl AmendArgs {
         )
         .with_code(proc_exit::Code::FAILURE)?;
         if let Some(fixup_id) = fixup_id {
-            graph.insert(git_stack::graph::Node::new(fixup_id), head_id);
+            if let Some(parent_id) = repo.parent_ids(fixup_id).expect("commit exists").first() {
+                graph.insert(git_stack::graph::Node::new(fixup_id), *parent_id);
+            }
             graph.commit_set(fixup_id, git_stack::graph::Fixup);
         }
         graph

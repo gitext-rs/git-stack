@@ -258,6 +258,10 @@ note: to undo, run `git branch-stash pop git-stack`
     let commit = repo.find_commit(branch.id).unwrap();
     snapbox::assert_eq(commit.summary.to_str().unwrap(), "new B");
 
+    let local_branch = repo.find_local_branch("local").unwrap();
+    let local_commit = repo.find_commit(local_branch.id).unwrap();
+    snapbox::assert_eq(local_commit.summary.to_str_lossy().into_owned(), "C");
+
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
