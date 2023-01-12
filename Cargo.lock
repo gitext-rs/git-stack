@@ -387,7 +387,7 @@ dependencies = [
  "eyre",
  "git-config-env",
  "git2",
- "git2-ext",
+ "git2-ext 0.3.0",
  "itertools",
  "log",
  "maplit",
@@ -440,7 +440,7 @@ dependencies = [
  "git-config-env",
  "git-fixture",
  "git2",
- "git2-ext",
+ "git2-ext 0.4.0",
  "human-panic",
  "humantime",
  "ignore",
@@ -475,6 +475,21 @@ name = "git2-ext"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81082494e3c4a21c5f54412effd90eb72da0e6a83feaa4bb68ea67f529b62821"
+dependencies = [
+ "bstr 1.1.0",
+ "git2",
+ "itertools",
+ "log",
+ "shlex",
+ "tempfile",
+ "which",
+]
+
+[[package]]
+name = "git2-ext"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b70889e02e552a3462708a6097d577357cd6d11f20ebed5f5e7a75d0271c29e3"
 dependencies = [
  "bstr 1.1.0",
  "git2",

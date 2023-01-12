@@ -440,7 +440,12 @@ impl GitRepo {
         head_id: git2::Oid,
         cherry_id: git2::Oid,
     ) -> Result<git2::Oid, git2::Error> {
-        git2_ext::ops::cherry_pick(&self.repo, head_id, cherry_id)
+        git2_ext::ops::cherry_pick(
+            &self.repo,
+            head_id,
+            cherry_id,
+            self.sign.as_ref().map(|s| s as &dyn git2_ext::ops::Sign),
+        )
     }
 
     pub fn squash(
