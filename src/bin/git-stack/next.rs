@@ -60,6 +60,20 @@ impl NextArgs {
         let branches = git_stack::graph::BranchSet::from_repo(&repo, &protected)
             .with_code(proc_exit::Code::FAILURE)?;
 
+        if repo.raw().state() != git2::RepositoryState::Clean {
+            let message = format!("cannot move to next, {:?} in progress", repo.raw().state());
+            if self.dry_run {
+                let _ = writeln!(
+                    std::io::stderr(),
+                    "{}: {}",
+                    stderr_palette.error.paint("error"),
+                    message
+                );
+            } else {
+                return Err(proc_exit::sysexits::USAGE_ERR.with_message(message));
+            }
+        }
+
         if self.stash && !self.dry_run {
             git_stack::git::stash_push(&mut repo, "branch-stash");
         }
