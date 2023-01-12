@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- `git amend <rev>` no longer drops commits after `<rev>`
+
 ## [0.10.7] - 2023-01-12
 
 ### Fixes
