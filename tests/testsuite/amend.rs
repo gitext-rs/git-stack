@@ -237,6 +237,7 @@ fn reword_rebases() {
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("amend")
         .arg("--message=new B")
+        .arg("target")
         .current_dir(root_path)
         .assert()
         .success()
@@ -247,7 +248,7 @@ fn reword_rebases() {
         .stderr_matches(
             "\
 Saved working directory and index state WIP on local (amend): [..]
-Amended to [..]: C
+Amended to [..]: B
 Dropped refs/stash [..]
 note: to undo, run `git branch-stash pop git-stack`
 ",
@@ -255,6 +256,10 @@ note: to undo, run `git branch-stash pop git-stack`
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
+
+    let local_branch = repo.find_local_branch("local").unwrap();
+    let local_commit = repo.find_commit(local_branch.id).unwrap();
+    snapbox::assert_eq(local_commit.summary.to_str_lossy().into_owned(), "C");
 
     snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
@@ -479,6 +484,10 @@ note: to undo, run `git branch-stash pop git-stack`
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
+    let local_branch = repo.find_local_branch("local").unwrap();
+    let local_commit = repo.find_commit(local_branch.id).unwrap();
+    snapbox::assert_eq(local_commit.summary.to_str_lossy().into_owned(), "C");
+
     snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
@@ -636,6 +645,10 @@ note: to undo, run `git branch-stash pop git-stack`
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
+    let local_branch = repo.find_local_branch("local").unwrap();
+    let local_commit = repo.find_commit(local_branch.id).unwrap();
+    snapbox::assert_eq(local_commit.summary.to_str_lossy().into_owned(), "C");
+
     snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
@@ -717,9 +730,13 @@ note: to undo, run `git branch-stash pop git-stack`
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
-
     snapbox::assert_eq(repo.head_commit().summary.to_str().unwrap(), "fixup! B");
+
+    let local_branch = repo.find_local_branch("local").unwrap();
+    let local_commit = repo.find_commit(local_branch.id).unwrap();
+    snapbox::assert_eq(local_commit.summary.to_str_lossy().into_owned(), "fixup! B");
+
+    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
 
     root.close().unwrap();
 }
