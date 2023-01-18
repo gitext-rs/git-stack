@@ -216,7 +216,7 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
                         .paint(format_args!("    {} = {}", name, value)),
                     stdout_palette
                         .hint
-                        .paint(format_args!("  # instead of \"{}\"", alias.action))
+                        .paint(format_args!("  # instead of `{}`", alias.action))
                 );
             }
             covered.insert(name.to_owned());
