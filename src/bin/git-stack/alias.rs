@@ -36,7 +36,7 @@ fn register(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResul
 
     let mut user_config = git2::Config::open_default()
         .with_code(proc_exit::Code::FAILURE)?
-        .open_level(git2::ConfigLevel::XDG)
+        .open_global()
         .with_code(proc_exit::Code::FAILURE)?;
 
     let stderr_palette = if colored_stderr {
@@ -105,7 +105,7 @@ fn unregister(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitRes
 
     let mut user_config = git2::Config::open_default()
         .with_code(proc_exit::Code::FAILURE)?
-        .open_level(git2::ConfigLevel::XDG)
+        .open_global()
         .with_code(proc_exit::Code::FAILURE)?;
 
     let stderr_palette = if colored_stderr {
