@@ -36,7 +36,7 @@ fn register(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResul
 
     let mut user_config = git2::Config::open_default()
         .with_code(proc_exit::Code::FAILURE)?
-        .open_level(git2::ConfigLevel::XDG)
+        .open_global()
         .with_code(proc_exit::Code::FAILURE)?;
 
     let stderr_palette = if colored_stderr {
@@ -105,7 +105,7 @@ fn unregister(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitRes
 
     let mut user_config = git2::Config::open_default()
         .with_code(proc_exit::Code::FAILURE)?
-        .open_level(git2::ConfigLevel::XDG)
+        .open_global()
         .with_code(proc_exit::Code::FAILURE)?;
 
     let stderr_palette = if colored_stderr {
@@ -216,7 +216,7 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
                         .paint(format_args!("    {} = {}", name, value)),
                     stdout_palette
                         .hint
-                        .paint(format_args!("  # instead of \"{}\"", alias.action))
+                        .paint(format_args!("  # instead of `{}`", alias.action))
                 );
             }
             covered.insert(name.to_owned());

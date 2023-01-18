@@ -1,3 +1,4 @@
+mod alias;
 mod amend;
 mod branches;
 mod fixture;
