@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.10.10] - 2023-01-18
+
 ### Fixes
 
 - Write to the users config, whichever location it is in
@@ -489,7 +491,8 @@ With `git stack alias` for creating alias for these
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.9...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.10...HEAD
+[0.10.10]: https://github.com/gitext-rs/git-stack/compare/v0.10.9...v0.10.10
 [0.10.9]: https://github.com/gitext-rs/git-stack/compare/v0.10.8...v0.10.9
 [0.10.8]: https://github.com/gitext-rs/git-stack/compare/v0.10.7...v0.10.8
 [0.10.7]: https://github.com/gitext-rs/git-stack/compare/v0.10.6...v0.10.7
