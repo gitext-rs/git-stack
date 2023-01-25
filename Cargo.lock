@@ -440,7 +440,7 @@ dependencies = [
  "git-config-env",
  "git-fixture",
  "git2",
- "git2-ext 0.4.0",
+ "git2-ext 0.4.3",
  "human-panic",
  "humantime",
  "ignore",
@@ -487,9 +487,9 @@ dependencies = [
 
 [[package]]
 name = "git2-ext"
-version = "0.4.0"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b70889e02e552a3462708a6097d577357cd6d11f20ebed5f5e7a75d0271c29e3"
+checksum = "c6becda7be47505a6dac79b2db4c8f1d2b154f1facb11c338bbc1fa00abce060"
 dependencies = [
  "bstr 1.1.0",
  "git2",
