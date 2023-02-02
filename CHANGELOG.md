@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Imitate git in editing commit messages, allowing at least `vim` to recognize the filetype
+
 ## [0.10.11] - 2023-01-25
 
 ### Fixes
