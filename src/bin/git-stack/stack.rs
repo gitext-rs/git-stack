@@ -16,7 +16,7 @@ struct State {
     rebase: bool,
     pull: bool,
     push: bool,
-    fixup: git_stack::legacy::config::Fixup,
+    fixup: git_stack::config::Fixup,
     repair: bool,
     dry_run: bool,
     snapshot_capacity: Option<usize>,
@@ -24,8 +24,8 @@ struct State {
     protect_commit_age: std::time::Duration,
     protect_commit_time: std::time::SystemTime,
 
-    show_format: git_stack::legacy::config::Format,
-    show_commits: git_stack::legacy::config::ShowCommits,
+    show_format: git_stack::config::Format,
+    show_commits: git_stack::config::ShowCommits,
     show_stacked: bool,
 }
 
@@ -34,7 +34,7 @@ impl State {
         mut repo: git_stack::legacy::git::GitRepo,
         args: &crate::args::Args,
     ) -> Result<Self, proc_exit::Exit> {
-        let repo_config = git_stack::legacy::config::RepoConfig::from_all(repo.raw())
+        let repo_config = git_stack::config::RepoConfig::from_all(repo.raw())
             .with_code(proc_exit::sysexits::CONFIG_ERR)?
             .update(args.to_config());
 
@@ -51,7 +51,7 @@ impl State {
             (_, true) => repo_config.auto_fixup(),
             _ => {
                 // Assume the user is only wanting to show the tree and not modify it.
-                let no_op = git_stack::legacy::config::Fixup::Ignore;
+                let no_op = git_stack::config::Fixup::Ignore;
                 if no_op != repo_config.auto_fixup() {
                     log::trace!(
                         "Ignoring `auto-fixup={}` without an explicit `--rebase`",
@@ -132,18 +132,18 @@ impl State {
             .with_code(proc_exit::sysexits::USAGE_ERR)?;
 
         let stacks = match (base, onto, repo_config.stack()) {
-            (Some(base), Some(onto), git_stack::legacy::config::Stack::All) => {
+            (Some(base), Some(onto), git_stack::config::Stack::All) => {
                 vec![StackState::new(base, onto, branches.all())]
             }
-            (Some(base), None, git_stack::legacy::config::Stack::All) => {
+            (Some(base), None, git_stack::config::Stack::All) => {
                 let onto = resolve_onto_from_base(&repo, &base);
                 vec![StackState::new(base, onto, branches.all())]
             }
-            (None, Some(onto), git_stack::legacy::config::Stack::All) => {
+            (None, Some(onto), git_stack::config::Stack::All) => {
                 let base = resolve_base_from_onto(&repo, &onto);
                 vec![StackState::new(base, onto, branches.all())]
             }
-            (None, None, git_stack::legacy::config::Stack::All) => {
+            (None, None, git_stack::config::Stack::All) => {
                 let mut stack_branches = std::collections::BTreeMap::new();
                 for (branch_id, branch) in branches.iter() {
                     let base_branch = resolve_implicit_base(
@@ -209,16 +209,16 @@ impl State {
                     })
                     .with_code(proc_exit::sysexits::USAGE_ERR)?;
                 let stack_branches = match stack {
-                    git_stack::legacy::config::Stack::Current => {
+                    git_stack::config::Stack::Current => {
                         branches.branch(&repo, merge_base_oid, head_commit.id)
                     }
-                    git_stack::legacy::config::Stack::Dependents => {
+                    git_stack::config::Stack::Dependents => {
                         branches.dependents(&repo, merge_base_oid, head_commit.id)
                     }
-                    git_stack::legacy::config::Stack::Descendants => {
+                    git_stack::config::Stack::Descendants => {
                         branches.descendants(&repo, merge_base_oid)
                     }
-                    git_stack::legacy::config::Stack::All => {
+                    git_stack::config::Stack::All => {
                         unreachable!("Covered in another branch")
                     }
                 };
@@ -357,7 +357,7 @@ pub fn stack(
     let mut success = true;
     let mut backed_up = false;
     let mut stash_id = None;
-    if state.rebase || state.fixup != git_stack::legacy::config::Fixup::Ignore || state.repair {
+    if state.rebase || state.fixup != git_stack::config::Fixup::Ignore || state.repair {
         if stash_id.is_none() && !state.dry_run {
             stash_id = git_stack::legacy::git::stash_push(&mut state.repo, "branch-stash");
         }
@@ -577,10 +577,10 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
     let mut foreign_stacks = Vec::new();
 
     let abbrev_graph = match state.show_format {
-        git_stack::legacy::config::Format::Silent => false,
-        git_stack::legacy::config::Format::List => false,
-        git_stack::legacy::config::Format::Graph => true,
-        git_stack::legacy::config::Format::Debug => true,
+        git_stack::config::Format::Silent => false,
+        git_stack::config::Format::List => false,
+        git_stack::config::Format::Graph => true,
+        git_stack::config::Format::Debug => true,
     };
 
     let mut graphs = Vec::with_capacity(state.stacks.len());
@@ -715,8 +715,8 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
 
     for graph in graphs {
         match state.show_format {
-            git_stack::legacy::config::Format::Silent => {}
-            git_stack::legacy::config::Format::List => {
+            git_stack::config::Format::Silent => {}
+            git_stack::config::Format::List => {
                 let palette = if colored_stdout {
                     crate::ops::Palette::colored()
                 } else {
@@ -730,7 +730,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                     &palette,
                 )?;
             }
-            git_stack::legacy::config::Format::Graph => {
+            git_stack::config::Format::Graph => {
                 write!(
                     std::io::stdout(),
                     "{}",
@@ -741,7 +741,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                         .protected_branches(&state.protected_branches)
                 )?;
             }
-            git_stack::legacy::config::Format::Debug => {
+            git_stack::config::Format::Debug => {
                 writeln!(std::io::stdout(), "{:#?}", graph)?;
             }
         }
@@ -1110,7 +1110,7 @@ struct DisplayTree<'r> {
     graph: &'r git_stack::legacy::graph::Graph,
     protected_branches: git_stack::legacy::git::Branches,
     palette: crate::ops::Palette,
-    show: git_stack::legacy::config::ShowCommits,
+    show: git_stack::config::ShowCommits,
     stacked: bool,
 }
 
@@ -1138,7 +1138,7 @@ impl<'r> DisplayTree<'r> {
         self
     }
 
-    pub fn show(mut self, show: git_stack::legacy::config::ShowCommits) -> Self {
+    pub fn show(mut self, show: git_stack::config::ShowCommits) -> Self {
         self.show = show;
         self
     }
@@ -1162,8 +1162,8 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
         let head_branch = self.repo.head_branch().unwrap();
 
         let is_visible: Box<dyn Fn(&git_stack::legacy::graph::Node) -> bool> = match self.show {
-            git_stack::legacy::config::ShowCommits::All => Box::new(|_| true),
-            git_stack::legacy::config::ShowCommits::Unprotected => Box::new(|node| {
+            git_stack::config::ShowCommits::All => Box::new(|_| true),
+            git_stack::config::ShowCommits::Unprotected => Box::new(|node| {
                 let interesting_commit = node.commit.id == head_branch.id
                     || node.commit.id == self.graph.root_id()
                     || node.children.is_empty();
@@ -1171,7 +1171,7 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
                 let protected = node.action.is_protected();
                 interesting_commit || !boring_commit || !protected
             }),
-            git_stack::legacy::config::ShowCommits::None => Box::new(|node| {
+            git_stack::config::ShowCommits::None => Box::new(|node| {
                 let interesting_commit = node.commit.id == head_branch.id
                     || node.commit.id == self.graph.root_id()
                     || node.children.is_empty();

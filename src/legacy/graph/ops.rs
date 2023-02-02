@@ -568,8 +568,8 @@ pub fn drop_merged_branches(
     removed
 }
 
-pub fn fixup(graph: &mut Graph, effect: crate::legacy::config::Fixup) {
-    if effect == crate::legacy::config::Fixup::Ignore {
+pub fn fixup(graph: &mut Graph, effect: crate::config::Fixup) {
+    if effect == crate::config::Fixup::Ignore {
         return;
     }
 
@@ -600,9 +600,9 @@ fn fixup_branch(
     graph: &mut Graph,
     base_id: git2::Oid,
     mut node_id: git2::Oid,
-    effect: crate::legacy::config::Fixup,
+    effect: crate::config::Fixup,
 ) {
-    debug_assert_ne!(effect, crate::legacy::config::Fixup::Ignore);
+    debug_assert_ne!(effect, crate::config::Fixup::Ignore);
 
     let mut outstanding = std::collections::BTreeMap::new();
     let node_children = graph
@@ -616,7 +616,7 @@ fn fixup_branch(
     if !outstanding.is_empty() {
         let node = graph.get_mut(node_id).expect("all children exist");
         if let Some(fixup_ids) = outstanding.remove(&node.commit.summary) {
-            if effect == crate::legacy::config::Fixup::Squash {
+            if effect == crate::config::Fixup::Squash {
                 for fixup_id in fixup_ids.iter().copied() {
                     let fixup = graph.get_mut(fixup_id).expect("all children exist");
                     assert!(fixup.action == crate::legacy::graph::Action::Pick);
@@ -641,10 +641,10 @@ fn fixup_node(
     graph: &mut Graph,
     base_id: git2::Oid,
     node_id: git2::Oid,
-    effect: crate::legacy::config::Fixup,
+    effect: crate::config::Fixup,
     outstanding: &mut std::collections::BTreeMap<bstr::BString, Vec<git2::Oid>>,
 ) {
-    debug_assert_ne!(effect, crate::legacy::config::Fixup::Ignore);
+    debug_assert_ne!(effect, crate::config::Fixup::Ignore);
 
     let node_children = graph
         .get(node_id)
@@ -687,7 +687,7 @@ fn fixup_node(
         base.children.extend(children);
         base.branches.extend(branches);
     } else if !fixup_ids.is_empty() {
-        if effect == crate::legacy::config::Fixup::Squash {
+        if effect == crate::config::Fixup::Squash {
             for fixup_id in fixup_ids.iter().copied() {
                 let fixup = graph.get_mut(fixup_id).expect("all children exist");
                 assert!(fixup.action == crate::legacy::graph::Action::Pick);
