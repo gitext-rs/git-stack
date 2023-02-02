@@ -2,6 +2,8 @@ use std::str::FromStr;
 
 #[derive(Default, Clone, Debug)]
 pub struct RepoConfig {
+    pub editor: Option<String>,
+
     pub protected_branches: Option<Vec<String>>,
     pub protect_commit_count: Option<usize>,
     pub protect_commit_age: Option<std::time::Duration>,
@@ -18,6 +20,7 @@ pub struct RepoConfig {
     pub capacity: Option<usize>,
 }
 
+static CORE_EDITOR: &str = "core.editor";
 static PROTECTED_STACK_FIELD: &str = "stack.protected-branch";
 static PROTECT_COMMIT_COUNT: &str = "stack.protect-commit-count";
 static PROTECT_COMMIT_AGE: &str = "stack.protect-commit-age";
@@ -32,6 +35,10 @@ static AUTO_FIXUP_FIELD: &str = "stack.auto-fixup";
 static AUTO_REPAIR_FIELD: &str = "stack.auto-repair";
 static BACKUP_CAPACITY_FIELD: &str = "branch-stash.capacity";
 
+#[cfg(windows)]
+static DEFAULT_CORE_EDITOR: &str = "notepad.exe";
+#[cfg(not(windows))]
+static DEFAULT_CORE_EDITOR: &str = "vi";
 static DEFAULT_PROTECTED_BRANCHES: [&str; 4] = ["main", "master", "dev", "stable"];
 static DEFAULT_PROTECT_COMMIT_COUNT: usize = 50;
 static DEFAULT_PROTECT_COMMIT_AGE: std::time::Duration =
@@ -107,6 +114,8 @@ impl RepoConfig {
             params.iter().map(|(k, v)| (k, Some(v))),
         ));
 
+        config.editor = std::env::var("GIT_EDITOR").ok();
+
         config
     }
 
@@ -117,7 +126,11 @@ impl RepoConfig {
 
         for (key, value) in iter {
             log::trace!("Env config: {}={:?}", key, value);
-            if key == PROTECTED_STACK_FIELD {
+            if key == CORE_EDITOR {
+                if let Some(value) = value {
+                    config.editor = Some(value.into_owned());
+                }
+            } else if key == PROTECTED_STACK_FIELD {
                 if let Some(value) = value {
                     config
                         .protected_branches
@@ -195,6 +208,9 @@ impl RepoConfig {
 
     fn from_defaults_internal(config: Option<&git2::Config>) -> Self {
         let mut conf = Self::default();
+        conf.editor = std::env::var("VISUAL")
+            .or_else(|_err| std::env::var("EDITOR"))
+            .ok();
         conf.protect_commit_count = Some(conf.protect_commit_count().unwrap_or(0));
         conf.protect_commit_age = Some(conf.protect_commit_age());
         conf.auto_base_commit_count = Some(conf.auto_base_commit_count().unwrap_or(0));
@@ -223,6 +239,8 @@ impl RepoConfig {
     }
 
     pub fn from_gitconfig(config: &git2::Config) -> Self {
+        let editor = config.get_string(CORE_EDITOR).ok();
+
         let protected_branches = config
             .multivar(PROTECTED_STACK_FIELD, None)
             .map(|entries| {
@@ -292,6 +310,7 @@ impl RepoConfig {
             .ok();
 
         Self {
+            editor,
             protected_branches,
             protect_commit_count,
             protect_commit_age,
@@ -330,6 +349,7 @@ impl RepoConfig {
     }
 
     pub fn update(mut self, other: Self) -> Self {
+        self.editor = other.editor.or(self.editor);
         match (&mut self.protected_branches, other.protected_branches) {
             (Some(lhs), Some(rhs)) => lhs.extend(rhs),
             (None, Some(rhs)) => self.protected_branches = Some(rhs),
@@ -349,6 +369,10 @@ impl RepoConfig {
         self.capacity = other.capacity.or(self.capacity);
 
         self
+    }
+
+    pub fn editor(&self) -> &str {
+        self.editor.as_deref().unwrap_or(DEFAULT_CORE_EDITOR)
     }
 
     pub fn protected_branches(&self) -> &[String] {
@@ -416,6 +440,13 @@ impl RepoConfig {
 
 impl std::fmt::Display for RepoConfig {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "[{}]", CORE_EDITOR.split_once('.').unwrap().0)?;
+        writeln!(
+            f,
+            "\t{}={}",
+            CORE_EDITOR.split_once('.').unwrap().1,
+            self.editor()
+        )?;
         writeln!(f, "[{}]", STACK_FIELD.split_once('.').unwrap().0)?;
         for branch in self.protected_branches() {
             writeln!(

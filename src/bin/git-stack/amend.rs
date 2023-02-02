@@ -3,6 +3,8 @@ use std::io::Write;
 use itertools::Itertools;
 use proc_exit::prelude::*;
 
+use git_stack::git::Repo;
+
 /// Meld changes into the current commit
 ///
 /// By default, your existing commit message will be reused.  To change the commit message, use
@@ -212,17 +214,15 @@ impl AmendArgs {
                 writeln!(&mut template, "#").unwrap();
                 writeln!(&mut template, "# On branch {}", head_branch).unwrap();
             }
-            let message = scrawl::editor::new()
-                .extension(".COMMIT_EDITMSG")
-                .contents(&template)
-                .open()
-                .with_code(proc_exit::Code::FAILURE)?;
-            let message = crate::ops::sanitize_message(&message);
-            if message.trim().is_empty() {
-                return Err(proc_exit::Code::FAILURE
-                    .with_message("Aborting commit due to empty commit message."));
-            }
-            Some(message)
+            let message = crate::ops::edit_commit(
+                repo.path()
+                    .ok_or_else(|| eyre::format_err!("no `.git` path found"))
+                    .with_code(proc_exit::Code::FAILURE)?,
+                repo_config.editor(),
+                &template,
+            )
+            .with_code(proc_exit::Code::FAILURE)?;
+            message
         } else {
             None
         };

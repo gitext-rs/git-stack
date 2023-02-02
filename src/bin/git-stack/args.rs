@@ -123,6 +123,7 @@ impl Args {
 
     pub fn to_config(&self) -> git_stack::config::RepoConfig {
         git_stack::config::RepoConfig {
+            editor: None,
             protected_branches: None,
             protect_commit_count: None,
             protect_commit_age: None,
