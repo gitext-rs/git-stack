@@ -3,6 +3,8 @@ use std::io::Write;
 use itertools::Itertools;
 use proc_exit::prelude::*;
 
+use git_stack::git::Repo;
+
 /// Rewrite the commit message
 ///
 /// When you reword a commit that has descendants, those descendants are rebased on top of the
@@ -151,16 +153,20 @@ impl RewordArgs {
                 writeln!(&mut template, "#").unwrap();
                 writeln!(&mut template, "# On branch {}", head_branch).unwrap();
             }
-            let message = scrawl::editor::new()
-                .extension(".COMMIT_EDITMSG")
-                .contents(&template)
-                .open()
-                .with_code(proc_exit::Code::FAILURE)?;
-            let message = crate::ops::sanitize_message(&message);
-            if message.trim().is_empty() {
-                return Err(proc_exit::Code::FAILURE
-                    .with_message("Aborting commit due to empty commit message."));
-            }
+            let message = crate::ops::edit_commit(
+                repo.path()
+                    .ok_or_else(|| eyre::format_err!("no `.git` path found"))
+                    .with_code(proc_exit::Code::FAILURE)?,
+                repo_config.editor(),
+                &template,
+            )
+            .with_code(proc_exit::Code::FAILURE)?;
+            let message = match message {
+                Some(message) => message,
+                None => {
+                    return Err(proc_exit::Code::SUCCESS.with_message("Nothing to do."));
+                }
+            };
             message
         };
 

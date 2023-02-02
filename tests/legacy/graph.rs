@@ -117,7 +117,7 @@ mod test_fixup {
 
         let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
         git_stack::legacy::graph::protect_branches(&mut graph, &repo, &protected_branches);
-        git_stack::legacy::graph::fixup(&mut graph, git_stack::legacy::config::Fixup::Move);
+        git_stack::legacy::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
         let script = git_stack::legacy::graph::to_script(&graph);
         dbg!(&script);
 
@@ -159,7 +159,7 @@ mod test_fixup {
 
         let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
         git_stack::legacy::graph::protect_branches(&mut graph, &repo, &protected_branches);
-        git_stack::legacy::graph::fixup(&mut graph, git_stack::legacy::config::Fixup::Move);
+        git_stack::legacy::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
         let script = git_stack::legacy::graph::to_script(&graph);
         dbg!(&script);
 
@@ -232,7 +232,7 @@ mod test_fixup {
 
         let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
         git_stack::legacy::graph::protect_branches(&mut graph, &repo, &protected_branches);
-        git_stack::legacy::graph::fixup(&mut graph, git_stack::legacy::config::Fixup::Move);
+        git_stack::legacy::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
         let script = git_stack::legacy::graph::to_script(&graph);
         dbg!(&script);
 
@@ -352,7 +352,7 @@ fn overflow() {
     git_stack::legacy::graph::protect_large_branches(&mut graph, 50);
     git_stack::legacy::graph::protect_foreign_branches(&mut graph, "Myself", &[]);
 
-    git_stack::legacy::graph::fixup(&mut graph, git_stack::legacy::config::Fixup::Move);
+    git_stack::legacy::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
 
     let script = git_stack::legacy::graph::to_script(&graph);
     let mut executor = git_stack::legacy::git::Executor::new(&repo, false);

@@ -10,7 +10,7 @@ pub fn dump_config(
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
-    let repo_config = git_stack::legacy::config::RepoConfig::from_all(&repo)
+    let repo_config = git_stack::config::RepoConfig::from_all(&repo)
         .with_code(proc_exit::sysexits::CONFIG_ERR)?
         .update(args.to_config());
 
@@ -32,7 +32,7 @@ pub fn protect(args: &crate::args::Args, ignore: &str) -> proc_exit::ExitResult 
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
-    let mut repo_config = git_stack::legacy::config::RepoConfig::from_repo(&repo)
+    let mut repo_config = git_stack::config::RepoConfig::from_repo(&repo)
         .with_code(proc_exit::sysexits::CONFIG_ERR)?
         .update(args.to_config());
     repo_config
@@ -52,7 +52,7 @@ pub fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
 
-    let repo_config = git_stack::legacy::config::RepoConfig::from_all(&repo)
+    let repo_config = git_stack::config::RepoConfig::from_all(&repo)
         .with_code(proc_exit::sysexits::CONFIG_ERR)?
         .update(args.to_config());
     let protected = git_stack::legacy::git::ProtectedBranches::new(

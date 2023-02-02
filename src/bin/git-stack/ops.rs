@@ -312,7 +312,54 @@ pub fn render_id(
     }
 }
 
-pub fn sanitize_message(message: &str) -> String {
+pub fn edit_commit(
+    git_path: &std::path::Path,
+    editor: &str,
+    initial: &str,
+) -> eyre::Result<Option<String>> {
+    let edit_path = git_path.join("COMMIT_EDITMSG");
+    std::fs::write(&edit_path, initial)?;
+    let start = std::fs::metadata(&edit_path)?.modified()?;
+
+    let mut args = shlex::Shlex::new(editor);
+    let cmd = args.next().unwrap_or_else(|| "vi".to_owned());
+
+    let status = std::process::Command::new(cmd)
+        .args(args)
+        .arg(&edit_path)
+        .spawn()?
+        .wait()?;
+    if !status.success() {
+        eyre::bail!(
+            "failed to edit `{}` with `{}`: code {}",
+            edit_path.display(),
+            editor,
+            status
+                .code()
+                .map(|c| c.to_string())
+                .unwrap_or_else(|| "interrupted".to_owned())
+        );
+    }
+
+    let end = std::fs::metadata(&edit_path)?.modified()?;
+    if start == end {
+        return Ok(None);
+    }
+
+    let edited = std::fs::read_to_string(&edit_path)?;
+    if edited == initial {
+        return Ok(None);
+    }
+
+    let sanitized = sanitize_message(&edited);
+    if sanitized.is_empty() {
+        eyre::bail!("Aborting commit due to empty commit message.")
+    }
+
+    Ok(Some(sanitized))
+}
+
+pub(crate) fn sanitize_message(message: &str) -> String {
     let mut lines = LinesWithTerminator::new(message).collect::<Vec<_>>();
     lines.retain(|l| !l.starts_with('#'));
     while !lines.is_empty() {
