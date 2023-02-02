@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.10.12] - 2023-02-02
+
 ### Fixes
 
 - Imitate git in editing commit messages, allowing at least `vim` to recognize the filetype
@@ -501,7 +503,8 @@ With `git stack alias` for creating alias for these
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.11...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.12...HEAD
+[0.10.12]: https://github.com/gitext-rs/git-stack/compare/v0.10.11...v0.10.12
 [0.10.11]: https://github.com/gitext-rs/git-stack/compare/v0.10.10...v0.10.11
 [0.10.10]: https://github.com/gitext-rs/git-stack/compare/v0.10.9...v0.10.10
 [0.10.9]: https://github.com/gitext-rs/git-stack/compare/v0.10.8...v0.10.9

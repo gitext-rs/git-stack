@@ -400,7 +400,7 @@ dependencies = [
 
 [[package]]
 name = "git-stack"
-version = "0.10.11"
+version = "0.10.12"
 dependencies = [
  "assert_fs",
  "bstr 1.1.0",
