@@ -628,8 +628,7 @@ fn fixup_branch(
         debug_assert_ne!(
             graph.get(node_id).expect("all children exist").action,
             crate::legacy::graph::Action::Protected,
-            "Unexpected result for {}",
-            base_id
+            "Unexpected result for {base_id}"
         );
         for fixup_ids in outstanding.into_values() {
             node_id = splice_between(graph, base_id, node_id, fixup_ids);

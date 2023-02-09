@@ -215,28 +215,28 @@ impl<'a> std::fmt::Display for BatchDisplay<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let label = self.labels.get(self.batch.onto_mark());
         writeln!(f, "# Formerly {}", self.batch.onto_mark())?;
-        writeln!(f, "reset {}", label)?;
+        writeln!(f, "reset {label}")?;
         for (_, commands) in &self.batch.commands {
             for command in commands {
                 match command {
                     Command::RegisterMark(mark_oid) => {
                         let label = self.labels.get(*mark_oid);
-                        writeln!(f, "label {}", label)?;
+                        writeln!(f, "label {label}")?;
                     }
                     Command::CherryPick(cherry_oid) => {
-                        writeln!(f, "pick {}", cherry_oid)?;
+                        writeln!(f, "pick {cherry_oid}")?;
                     }
                     Command::Reword(_msg) => {
                         writeln!(f, "reword")?;
                     }
                     Command::Fixup(squash_oid) => {
-                        writeln!(f, "fixup {}", squash_oid)?;
+                        writeln!(f, "fixup {squash_oid}")?;
                     }
                     Command::CreateBranch(name) => {
-                        writeln!(f, "exec git switch --force-create {}", name)?;
+                        writeln!(f, "exec git switch --force-create {name}")?;
                     }
                     Command::DeleteBranch(name) => {
-                        writeln!(f, "exec git branch -D {}", name)?;
+                        writeln!(f, "exec git branch -D {name}")?;
                     }
                 }
             }
@@ -408,7 +408,7 @@ impl Executor {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
-                format!("could not find commit {:?}", onto_id),
+                format!("could not find commit {onto_id:?}"),
             )
         })?;
         log::trace!("git checkout {}  # {}", onto_id, commit.summary);
@@ -425,7 +425,7 @@ impl Executor {
                             git2::Error::new(
                                 git2::ErrorCode::NotFound,
                                 git2::ErrorClass::Reference,
-                                format!("could not find commit {:?}", cherry_oid),
+                                format!("could not find commit {cherry_oid:?}"),
                             )
                         })?;
                         log::trace!(
@@ -462,7 +462,7 @@ impl Executor {
                             git2::Error::new(
                                 git2::ErrorCode::NotFound,
                                 git2::ErrorClass::Reference,
-                                format!("could not find commit {:?}", squash_oid),
+                                format!("could not find commit {squash_oid:?}"),
                             )
                         })?;
                         log::trace!(

@@ -300,9 +300,9 @@ fn overflow() {
         plan.commands
             .push(git_fixture::Command::Tree(git_fixture::Tree {
                 files: maplit::hashmap! {
-                    std::path::PathBuf::from("file.txt") => format!("content {}", i).into(),
+                    std::path::PathBuf::from("file.txt") => format!("content {i}").into(),
                 },
-                message: Some(format!("Shared Commit {}", i)),
+                message: Some(format!("Shared Commit {i}")),
                 author: Some("Someone <email>".to_owned()),
             }));
     }
@@ -320,9 +320,9 @@ fn overflow() {
         plan.commands
             .push(git_fixture::Command::Tree(git_fixture::Tree {
                 files: maplit::hashmap! {
-                    std::path::PathBuf::from("file.txt") => format!("content {}", i).into(),
+                    std::path::PathBuf::from("file.txt") => format!("content {i}").into(),
                 },
-                message: Some(format!("Private Commit {}", i)),
+                message: Some(format!("Private Commit {i}")),
                 author: Some("Myself <email>".to_owned()),
             }));
     }

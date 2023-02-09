@@ -78,7 +78,7 @@ pub fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
     for (branch_id, branches) in branches.iter() {
         if protected_branches.contains_oid(branch_id) {
             for branch in branches {
-                writeln!(std::io::stdout(), "{}", branch).to_sysexits()?;
+                writeln!(std::io::stdout(), "{branch}").to_sysexits()?;
             }
         } else {
             for branch in branches {

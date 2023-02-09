@@ -204,7 +204,7 @@ impl State {
                         git2::Error::new(
                             git2::ErrorCode::NotFound,
                             git2::ErrorClass::Reference,
-                            format!("could not find base between {} and HEAD", base),
+                            format!("could not find base between {base} and HEAD"),
                         )
                     })
                     .with_code(proc_exit::sysexits::USAGE_ERR)?;
@@ -702,14 +702,14 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             .repo
             .raw()
             .revwalk()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         // Reduce the number of commits to walk
         revwalk
             .simplify_first_parent()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         revwalk
             .push(g.root_id())
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         revwalk.count()
     });
 
@@ -742,7 +742,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                 )?;
             }
             git_stack::config::Format::Debug => {
-                writeln!(std::io::stdout(), "{:#?}", graph)?;
+                writeln!(std::io::stdout(), "{graph:#?}")?;
             }
         }
     }
@@ -967,7 +967,7 @@ fn git_prune_development(
 
     for branch in branches {
         if !remote_branches.contains(branch) {
-            let remote_branch = format!("{}/{}", remote, branch);
+            let remote_branch = format!("{remote}/{branch}");
             log::info!("Pruning {}", remote_branch);
             if !dry_run {
                 let mut branch = repo
@@ -1502,9 +1502,9 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                     .repo
                     .raw()
                     .find_object(node.commit.id, None)
-                    .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+                    .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
                     .short_id()
-                    .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+                    .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
                 let style = if self.head_branch.id == node.commit.id {
                     self.palette.highlight
                 } else if node.action.is_protected() {
@@ -1573,7 +1573,7 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                 // Not for pushing implicitly
                 write!(f, "{}", self.palette.error.paint(summary))?;
             } else {
-                write!(f, "{}", summary)?;
+                write!(f, "{summary}")?;
             }
         }
         Ok(())
@@ -1625,7 +1625,7 @@ fn format_branch_status<'d>(
     } else if 1 < repo
         .raw()
         .find_commit(node.commit.id)
-        .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+        .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
         .parent_count()
     {
         String::new()
@@ -1639,17 +1639,17 @@ fn format_branch_status<'d>(
                     format!(" {}", palette.good.paint("(pushed)"))
                 }
                 Some((local, 0)) => {
-                    format!(" {}", palette.info.paint(format!("({} ahead)", local)))
+                    format!(" {}", palette.info.paint(format!("({local} ahead)")))
                 }
                 Some((0, remote)) => {
-                    format!(" {}", palette.warn.paint(format!("({} behind)", remote)))
+                    format!(" {}", palette.warn.paint(format!("({remote} behind)")))
                 }
                 Some((local, remote)) => {
                     format!(
                         " {}",
                         palette
                             .warn
-                            .paint(format!("({} ahead, {} behind)", local, remote)),
+                            .paint(format!("({local} ahead, {remote} behind)")),
                     )
                 }
                 None => {
@@ -1677,7 +1677,7 @@ fn format_commit_status<'d>(
     } else if 1 < repo
         .raw()
         .find_commit(node.commit.id)
-        .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+        .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
         .parent_count()
     {
         format!(" {}", palette.error.paint("(merge commit)"))

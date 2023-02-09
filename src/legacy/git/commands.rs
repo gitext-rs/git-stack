@@ -138,7 +138,7 @@ impl Executor {
                     git2::Error::new(
                         git2::ErrorCode::NotFound,
                         git2::ErrorClass::Reference,
-                        format!("could not find commit {:?}", oid),
+                        format!("could not find commit {oid:?}"),
                     )
                 })?;
                 log::trace!("git checkout {}  # {}", oid, commit.summary);
@@ -163,7 +163,7 @@ impl Executor {
                     git2::Error::new(
                         git2::ErrorCode::NotFound,
                         git2::ErrorClass::Reference,
-                        format!("could not find commit {:?}", cherry_oid),
+                        format!("could not find commit {cherry_oid:?}"),
                     )
                 })?;
                 log::trace!(
@@ -184,7 +184,7 @@ impl Executor {
                     git2::Error::new(
                         git2::ErrorCode::NotFound,
                         git2::ErrorClass::Reference,
-                        format!("could not find commit {:?}", squash_oid),
+                        format!("could not find commit {squash_oid:?}"),
                     )
                 })?;
                 log::trace!(
