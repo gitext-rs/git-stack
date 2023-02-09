@@ -191,7 +191,7 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
                     "{}{}",
                     stdout_palette
                         .good
-                        .paint(format_args!("    {} = {}", name, value)),
+                        .paint(format_args!("    {name} = {value}")),
                     stdout_palette.hint.paint("  # registered")
                 );
                 registered = true;
@@ -201,7 +201,7 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
                     "{}{}",
                     stdout_palette
                         .warn
-                        .paint(format_args!("    {} = {}", name, value)),
+                        .paint(format_args!("    {name} = {value}")),
                     stdout_palette
                         .hint
                         .paint(format_args!("  # diverged from \"{}\"", alias.action))
@@ -213,7 +213,7 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
                     "{}{}",
                     stdout_palette
                         .error
-                        .paint(format_args!("    {} = {}", name, value)),
+                        .paint(format_args!("    {name} = {value}")),
                     stdout_palette
                         .hint
                         .paint(format_args!("  # instead of `{}`", alias.action))
@@ -221,7 +221,7 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
             }
             covered.insert(name.to_owned());
         } else if let Some(_alias) = ALIASES.iter().find(|a| value.starts_with(a.action_base)) {
-            let _ = writeln!(stdout, "    {} = {}", name, value);
+            let _ = writeln!(stdout, "    {name} = {value}");
             registered = true;
         }
     }

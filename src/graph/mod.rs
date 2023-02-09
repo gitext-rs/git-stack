@@ -35,7 +35,7 @@ impl Graph {
                     return Err(git2::Error::new(
                         git2::ErrorCode::NotFound,
                         git2::ErrorClass::Reference,
-                        format!("no merge base between {} and {}", old_root_id, branch_id),
+                        format!("no merge base between {old_root_id} and {branch_id}"),
                     ));
                 }
             } else {

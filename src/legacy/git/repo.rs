@@ -189,7 +189,7 @@ impl GitRepo {
         let status = self
             .repo
             .statuses(Some(git2::StatusOptions::new().include_ignored(false)))
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         if status.is_empty() {
             false
         } else {
@@ -250,9 +250,9 @@ impl GitRepo {
         let head_id = self
             .repo
             .head()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
             .resolve()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
             .target()
             .unwrap();
         self.find_commit(head_id).unwrap()
@@ -262,9 +262,9 @@ impl GitRepo {
         let resolved = self
             .repo
             .head()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
             .resolve()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         let name = resolved.shorthand()?;
         let id = resolved.target()?;
 
@@ -324,13 +324,13 @@ impl GitRepo {
         let mut revwalk = self
             .repo
             .revwalk()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         revwalk
             .push(head_id)
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         revwalk
             .hide(base_id)
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         Some(revwalk.count())
     }
 
@@ -404,7 +404,7 @@ impl GitRepo {
             })?;
             let inmemory_index = rebase
                 .inmemory_index()
-                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
             if inmemory_index.has_conflicts() {
                 return Ok(false);
             }
@@ -412,7 +412,7 @@ impl GitRepo {
             let sig = self
                 .repo
                 .signature()
-                .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+                .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
             match rebase.commit(None, &sig, None).map_err(|e| {
                 let _ = rebase.abort();
                 e
@@ -504,7 +504,7 @@ impl GitRepo {
     }
 
     pub fn find_remote_branch(&self, remote: &str, name: &str) -> Option<Branch> {
-        let qualified = format!("{}/{}", remote, name);
+        let qualified = format!("{remote}/{name}");
         let branch = self
             .repo
             .find_branch(&qualified, git2::BranchType::Remote)
@@ -608,9 +608,9 @@ impl GitRepo {
         let head_id = self
             .repo
             .head()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
             .resolve()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
             .target()
             .unwrap();
         self.repo.set_head_detached(head_id)?;
@@ -785,7 +785,7 @@ impl InMemoryRepo {
         let last_id = self
             .last_id
             .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        let sha = format!("{:040x}", last_id);
+        let sha = format!("{last_id:040x}");
         git2::Oid::from_str(&sha).unwrap()
     }
 
@@ -933,7 +933,7 @@ impl InMemoryRepo {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
-                format!("could not find commit {:?}", cherry_id),
+                format!("could not find commit {cherry_id:?}"),
             )
         })?;
         let mut cherry_commit = Commit::clone(&cherry_commit);
@@ -953,14 +953,14 @@ impl InMemoryRepo {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
-                format!("could not find commit {:?}", head_id),
+                format!("could not find commit {head_id:?}"),
             )
         })?;
         let (intos_parent, into_commit) = self.commits.get(&into_id).cloned().ok_or_else(|| {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
-                format!("could not find commit {:?}", into_id),
+                format!("could not find commit {into_id:?}"),
             )
         })?;
         let intos_parent = intos_parent.unwrap();
@@ -1010,7 +1010,7 @@ impl InMemoryRepo {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
-                format!("could not remove branch {:?}", name),
+                format!("could not remove branch {name:?}"),
             )
         })
     }
@@ -1040,7 +1040,7 @@ impl InMemoryRepo {
             git2::Error::new(
                 git2::ErrorCode::NotFound,
                 git2::ErrorClass::Reference,
-                format!("could not find branch {:?}", name),
+                format!("could not find branch {name:?}"),
             )
         })?;
         self.head_id = Some(branch.id);

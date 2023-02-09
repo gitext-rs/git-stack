@@ -302,7 +302,7 @@ fn cherry_pick_conflict() {
         let base = repo.find_local_branch("feature1").unwrap();
         let source = repo.find_local_branch("master").unwrap();
         let dest_id = repo.cherry_pick(base.id, source.id);
-        println!("{:#?}", dest_id);
+        println!("{dest_id:#?}");
         assert!(dest_id.is_err());
         assert!(!repo.is_dirty());
     }

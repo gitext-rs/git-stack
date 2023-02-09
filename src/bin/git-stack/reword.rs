@@ -86,7 +86,7 @@ impl RewordArgs {
                 git2::Error::new(
                     git2::ErrorCode::NotFound,
                     git2::ErrorClass::Reference,
-                    format!("could not find base between {} and HEAD", base),
+                    format!("could not find base between {base} and HEAD"),
                 )
             })
             .with_code(proc_exit::sysexits::USAGE_ERR)?;
@@ -137,7 +137,7 @@ impl RewordArgs {
                 .expect("head_commit is always valid");
             let existing = String::from_utf8_lossy(raw_commit.message_bytes());
             let mut template = String::new();
-            writeln!(&mut template, "{}", existing).unwrap();
+            writeln!(&mut template, "{existing}").unwrap();
             writeln!(&mut template).unwrap();
             writeln!(
                 &mut template,
@@ -151,7 +151,7 @@ impl RewordArgs {
             .unwrap();
             if let Some(head_branch) = &head_branch {
                 writeln!(&mut template, "#").unwrap();
-                writeln!(&mut template, "# On branch {}", head_branch).unwrap();
+                writeln!(&mut template, "# On branch {head_branch}").unwrap();
             }
             let message = crate::ops::edit_commit(
                 repo.path()

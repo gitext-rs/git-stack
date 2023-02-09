@@ -573,7 +573,7 @@ impl std::str::FromStr for Format {
                 return Ok(*variant);
             }
         }
-        Err(format!("Invalid variant: {}", s))
+        Err(format!("Invalid variant: {s}"))
     }
 }
 
@@ -610,7 +610,7 @@ impl std::str::FromStr for ShowCommits {
                 return Ok(*variant);
             }
         }
-        Err(format!("Invalid variant: {}", s))
+        Err(format!("Invalid variant: {s}"))
     }
 }
 
@@ -652,7 +652,7 @@ impl std::str::FromStr for Stack {
                 return Ok(*variant);
             }
         }
-        Err(format!("Invalid variant: {}", s))
+        Err(format!("Invalid variant: {s}"))
     }
 }
 
@@ -698,7 +698,7 @@ impl std::str::FromStr for Fixup {
                 return Ok(*variant);
             }
         }
-        Err(format!("Invalid variant: {}", s))
+        Err(format!("Invalid variant: {s}"))
     }
 }
 

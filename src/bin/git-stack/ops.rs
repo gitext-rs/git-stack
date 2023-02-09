@@ -199,7 +199,7 @@ pub fn git_prune_development(
     }
     for branch in branches {
         if !remote_branches.contains(branch) {
-            let remote_branch = format!("{}/{}", remote, branch);
+            let remote_branch = format!("{remote}/{branch}");
             log::info!("Pruning {}", remote_branch);
             if !dry_run {
                 let mut branch = repo
@@ -271,9 +271,9 @@ pub fn switch(
         let abbrev_id = repo
             .raw()
             .find_object(current_id, None)
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
             .short_id()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e));
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         let _ = writeln!(
             std::io::stderr(),
             "{} to {}: {}",
@@ -303,9 +303,9 @@ pub fn render_id(
     } else {
         repo.raw()
             .find_object(id, None)
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
             .short_id()
-            .unwrap_or_else(|e| panic!("Unexpected git2 error: {}", e))
+            .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
             .as_str()
             .unwrap()
             .to_owned()

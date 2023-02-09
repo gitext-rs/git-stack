@@ -7,7 +7,7 @@ fn protect() -> git_stack::git::ProtectedBranches {
 }
 
 fn to_oid(number: usize) -> git2::Oid {
-    let sha = format!("{:040x}", number);
+    let sha = format!("{number:040x}");
     git2::Oid::from_str(&sha).unwrap()
 }
 

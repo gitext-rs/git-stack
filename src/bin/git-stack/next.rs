@@ -104,7 +104,7 @@ impl NextArgs {
                 git2::Error::new(
                     git2::ErrorCode::NotFound,
                     git2::ErrorClass::Reference,
-                    format!("could not find base between {} and HEAD", base),
+                    format!("could not find base between {base} and HEAD"),
                 )
             })
             .with_code(proc_exit::sysexits::USAGE_ERR)?;
