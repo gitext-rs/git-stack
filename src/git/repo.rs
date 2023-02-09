@@ -568,20 +568,39 @@ impl GitRepo {
     }
 
     pub fn switch_branch(&mut self, name: &str) -> Result<()> {
-        // HACK: We shouldn't limit ourselves to `Local`
+        let head_tree_id = self.head_commit().tree_id;
         let branch = self.repo.find_branch(name, git2::BranchType::Local)?;
+        let target_id = branch.get().target().unwrap();
+        let target_tree_id = self
+            .find_commit(target_id)
+            .map(|c| c.tree_id)
+            .unwrap_or_else(git2::Oid::zero);
+
         self.repo.set_head(branch.get().name().unwrap())?;
-        let mut builder = git2::build::CheckoutBuilder::new();
-        builder.force();
-        self.repo.checkout_head(Some(&mut builder))?;
+
+        if head_tree_id != target_tree_id {
+            let mut builder = git2::build::CheckoutBuilder::new();
+            builder.force();
+            self.repo.checkout_head(Some(&mut builder))?;
+        }
+
         Ok(())
     }
 
     pub fn switch_commit(&mut self, id: git2::Oid) -> Result<()> {
+        let head_tree_id = self.head_commit().tree_id;
+        let target_tree_id = self
+            .find_commit(id)
+            .map(|c| c.tree_id)
+            .unwrap_or_else(git2::Oid::zero);
+
         self.repo.set_head_detached(id)?;
-        let mut builder = git2::build::CheckoutBuilder::new();
-        builder.force();
-        self.repo.checkout_head(Some(&mut builder))?;
+
+        if head_tree_id != target_tree_id {
+            let mut builder = git2::build::CheckoutBuilder::new();
+            builder.force();
+            self.repo.checkout_head(Some(&mut builder))?;
+        }
         Ok(())
     }
 
