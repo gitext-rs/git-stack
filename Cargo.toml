@@ -35,7 +35,7 @@ clap-verbosity-flag = "2.0.0"
 log = "0.4"
 env_logger = { version = "0.10", default-features = false, features = ["color"] }
 yansi = "0.5.1"
-concolor = "0.0.11"
+concolor = "0.0.12"
 concolor-clap = { version = "0.0.13", features = ["api_unstable"] }
 proc-exit = "2"
 eyre = "0.6"
