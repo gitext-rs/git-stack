@@ -36,7 +36,7 @@ log = "0.4"
 env_logger = { version = "0.10", default-features = false, features = ["color"] }
 yansi = "0.5.1"
 concolor = "0.0.12"
-concolor-clap = { version = "0.0.13", features = ["api_unstable"] }
+concolor-clap = { version = "0.0.14", features = ["api_unstable"] }
 proc-exit = "2"
 eyre = "0.6"
 human-panic = "1"
