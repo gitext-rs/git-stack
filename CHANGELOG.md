@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Correctly handle `CLICOLOR=1`
+- Correctly handle `NO_COLOR=`
+
+### Performance
+
+- Do not checkout files if the tree is unchanged
+
 ## [0.10.12] - 2023-02-02
 
 ### Fixes
