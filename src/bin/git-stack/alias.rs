@@ -12,20 +12,20 @@ pub struct AliasArgs {
 }
 
 impl AliasArgs {
-    pub fn exec(&self, colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
+    pub fn exec(&self) -> proc_exit::ExitResult {
         if self.register {
-            register(colored_stdout, colored_stderr)?;
+            register()?;
         } else if self.unregister {
-            unregister(colored_stdout, colored_stderr)?;
+            unregister()?;
         } else {
-            status(colored_stdout, colored_stderr)?;
+            status()?;
         }
 
         Ok(())
     }
 }
 
-fn register(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
+fn register() -> proc_exit::ExitResult {
     let config = if let Ok(config) = open_repo_config() {
         config
     } else {
@@ -39,12 +39,8 @@ fn register(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResul
         .open_global()
         .with_code(proc_exit::Code::FAILURE)?;
 
-    let stderr_palette = if colored_stderr {
-        crate::ops::Palette::colored()
-    } else {
-        crate::ops::Palette::plain()
-    };
-    let mut stderr = std::io::stderr().lock();
+    let stderr_palette = crate::ops::Palette::colored();
+    let mut stderr = anstyle_stream::stderr().lock();
 
     let mut success = true;
     for alias in ALIASES {
@@ -64,7 +60,7 @@ fn register(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResul
                     let _ = writeln!(
                         stderr,
                         "{}: {}=\"{}\" is registered, not overwriting with \"{}\"",
-                        stderr_palette.error.paint("error"),
+                        stderr_palette.error("error"),
                         alias.alias,
                         value,
                         alias.action_base
@@ -76,7 +72,7 @@ fn register(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResul
                 let _ = writeln!(
                     stderr,
                     "{}: {}=\"{}\"",
-                    stderr_palette.good.paint("Registering"),
+                    stderr_palette.good("Registering"),
                     alias.alias,
                     alias.action
                 );
@@ -94,7 +90,7 @@ fn register(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResul
     }
 }
 
-fn unregister(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
+fn unregister() -> proc_exit::ExitResult {
     let config = if let Ok(config) = open_repo_config() {
         config
     } else {
@@ -108,12 +104,8 @@ fn unregister(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitRes
         .open_global()
         .with_code(proc_exit::Code::FAILURE)?;
 
-    let stderr_palette = if colored_stderr {
-        crate::ops::Palette::colored()
-    } else {
-        crate::ops::Palette::plain()
-    };
-    let mut stderr = std::io::stderr().lock();
+    let stderr_palette = crate::ops::Palette::colored();
+    let mut stderr = anstyle_stream::stderr().lock();
 
     let mut entries = config
         .entries(Some("alias.*"))
@@ -139,7 +131,7 @@ fn unregister(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitRes
             let _ = writeln!(
                 stderr,
                 "{}: {}=\"{}\"",
-                stderr_palette.good.paint("Unregistering"),
+                stderr_palette.good("Unregistering"),
                 name,
                 value
             );
@@ -152,25 +144,17 @@ fn unregister(_colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitRes
     Ok(())
 }
 
-fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
+fn status() -> proc_exit::ExitResult {
     let config = if let Ok(config) = open_repo_config() {
         config
     } else {
         git2::Config::open_default().with_code(proc_exit::sysexits::USAGE_ERR)?
     };
 
-    let stdout_palette = if colored_stdout {
-        crate::ops::Palette::colored()
-    } else {
-        crate::ops::Palette::plain()
-    };
-    let stderr_palette = if colored_stderr {
-        crate::ops::Palette::colored()
-    } else {
-        crate::ops::Palette::plain()
-    };
-    let mut stdout = std::io::stdout().lock();
-    let mut stderr = std::io::stderr().lock();
+    let stdout_palette = crate::ops::Palette::colored();
+    let stderr_palette = crate::ops::Palette::colored();
+    let mut stdout = anstyle_stream::stdout().lock();
+    let mut stderr = anstyle_stream::stderr().lock();
     let _ = writeln!(stdout, "[alias]");
 
     let mut registered = false;
@@ -189,34 +173,24 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
                 let _ = writeln!(
                     stdout,
                     "{}{}",
-                    stdout_palette
-                        .good
-                        .paint(format_args!("    {name} = {value}")),
-                    stdout_palette.hint.paint("  # registered")
+                    stdout_palette.good(format_args!("    {name} = {value}")),
+                    stdout_palette.hint("  # registered")
                 );
                 registered = true;
             } else if value.starts_with(alias.action_base) {
                 let _ = writeln!(
                     stdout,
                     "{}{}",
-                    stdout_palette
-                        .warn
-                        .paint(format_args!("    {name} = {value}")),
-                    stdout_palette
-                        .hint
-                        .paint(format_args!("  # diverged from \"{}\"", alias.action))
+                    stdout_palette.warn(format_args!("    {name} = {value}")),
+                    stdout_palette.hint(format_args!("  # diverged from \"{}\"", alias.action))
                 );
                 registered = true;
             } else {
                 let _ = writeln!(
                     stdout,
                     "{}{}",
-                    stdout_palette
-                        .error
-                        .paint(format_args!("    {name} = {value}")),
-                    stdout_palette
-                        .hint
-                        .paint(format_args!("  # instead of `{}`", alias.action))
+                    stdout_palette.error(format_args!("    {name} = {value}")),
+                    stdout_palette.hint(format_args!("  # instead of `{}`", alias.action))
                 );
             }
             covered.insert(name.to_owned());
@@ -234,10 +208,8 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
         let _ = writeln!(
             stdout,
             "{}{}",
-            stdout_palette
-                .error
-                .paint(format_args!("#   {} = {}", alias.alias, alias.action)),
-            stdout_palette.hint.paint("  # unregistered")
+            stdout_palette.error(format_args!("#   {} = {}", alias.alias, alias.action)),
+            stdout_palette.hint("  # unregistered")
         );
         unregistered = true;
     }
@@ -246,16 +218,16 @@ fn status(colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
         let _ = writeln!(
             stderr,
             "{}: To unregister, pass {}",
-            stderr_palette.info.paint("note"),
-            stderr_palette.error.paint("`--unregister`")
+            stderr_palette.info("note"),
+            stderr_palette.error("`--unregister`")
         );
     }
     if unregistered {
         let _ = writeln!(
             stderr,
             "{}: To register, pass {}",
-            stderr_palette.info.paint("note"),
-            stderr_palette.good.paint("`--register`")
+            stderr_palette.info("note"),
+            stderr_palette.good("`--register`")
         );
     }
 

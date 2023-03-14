@@ -40,7 +40,6 @@ fn run() -> proc_exit::ExitResult {
     };
 
     args.color.apply();
-    let colored_stdout = concolor::get(concolor::Stream::Stdout).ansi_color();
     let colored_stderr = concolor::get(concolor::Stream::Stderr).ansi_color();
 
     logger::init_logging(args.verbose.clone(), colored_stderr);
@@ -55,5 +54,5 @@ fn run() -> proc_exit::ExitResult {
         std::env::set_current_dir(current_dir).with_code(proc_exit::sysexits::USAGE_ERR)?;
     }
 
-    args.exec(colored_stdout, colored_stderr)
+    args.exec()
 }

@@ -35,12 +35,8 @@ impl RewordArgs {
         }
     }
 
-    pub fn exec(&self, _colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
-        let stderr_palette = if colored_stderr {
-            crate::ops::Palette::colored()
-        } else {
-            crate::ops::Palette::plain()
-        };
+    pub fn exec(&self) -> proc_exit::ExitResult {
+        let stderr_palette = crate::ops::Palette::colored();
 
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
         let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
@@ -101,9 +97,9 @@ impl RewordArgs {
             let message = format!("cannot walk commits, {:?} in progress", repo.raw().state());
             if self.dry_run {
                 let _ = writeln!(
-                    std::io::stderr(),
+                    anstyle_stream::stderr(),
                     "{}: {}",
-                    stderr_palette.error.paint("error"),
+                    stderr_palette.error("error"),
                     message
                 );
             } else {
@@ -214,10 +210,10 @@ impl RewordArgs {
 
         git_stack::git::stash_pop(&mut repo, stash_id);
         if backed_up {
-            log::info!(
+            anstyle_stream::eprintln!(
                 "{}: to undo, run {}",
-                stderr_palette.info.paint("note"),
-                stderr_palette.highlight.paint(format_args!(
+                stderr_palette.info("note"),
+                stderr_palette.highlight(format_args!(
                     "`git branch-stash pop {}`",
                     crate::ops::STASH_STACK_NAME
                 ))
