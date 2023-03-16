@@ -60,7 +60,7 @@ impl NextArgs {
             let message = format!("cannot move to next, {:?} in progress", repo.raw().state());
             if self.dry_run {
                 let _ = writeln!(
-                    anstyle_stream::stderr(),
+                    anstream::stderr(),
                     "{}: {}",
                     stderr_palette.error("error"),
                     message
@@ -77,7 +77,7 @@ impl NextArgs {
             let message = "Working tree is dirty, aborting";
             if self.dry_run {
                 let _ = writeln!(
-                    anstyle_stream::stderr(),
+                    anstream::stderr(),
                     "{}: {}",
                     stderr_palette.error("error"),
                     message
@@ -115,13 +115,13 @@ impl NextArgs {
             if next_ids.is_empty() {
                 if progress == 0 {
                     let _ = writeln!(
-                        anstyle_stream::stderr(),
+                        anstream::stderr(),
                         "{}: no child commit",
                         stderr_palette.info("note"),
                     );
                 } else {
                     let _ = writeln!(
-                        anstyle_stream::stderr(),
+                        anstream::stderr(),
                         "{}: not enough child {}, only able to go forward {}",
                         stderr_palette.info("note"),
                         if self.branch { "branches" } else { "commits" },

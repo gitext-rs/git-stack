@@ -57,7 +57,7 @@ impl RunArgs {
             let message = format!("cannot walk commits, {:?} in progress", repo.raw().state());
             if self.dry_run {
                 let _ = writeln!(
-                    anstyle_stream::stderr(),
+                    anstream::stderr(),
                     "{}: {}",
                     stderr_palette.error("error"),
                     message
@@ -75,7 +75,7 @@ impl RunArgs {
             let message = "Working tree is dirty, aborting";
             if self.dry_run {
                 let _ = writeln!(
-                    anstyle_stream::stderr(),
+                    anstream::stderr(),
                     "{}: {}",
                     stderr_palette.error("error"),
                     message
@@ -116,7 +116,7 @@ impl RunArgs {
                 .find_commit(current_id)
                 .expect("children/head are always present");
             let _ = writeln!(
-                anstyle_stream::stderr(),
+                anstream::stderr(),
                 "{} to {}: {}",
                 stderr_palette.good("Switching"),
                 stderr_palette.highlight(crate::ops::render_id(&repo, &branches, current_id)),
@@ -133,7 +133,7 @@ impl RunArgs {
             match status {
                 Ok(status) if status.success() => {
                     let _ = writeln!(
-                        anstyle_stream::stderr(),
+                        anstream::stderr(),
                         "{} with {}",
                         stderr_palette.good("Success"),
                         stderr_palette
@@ -143,7 +143,7 @@ impl RunArgs {
                 Ok(status) => match status.code() {
                     Some(code) => {
                         let _ = writeln!(
-                            anstyle_stream::stderr(),
+                            anstream::stderr(),
                             "{} with {}: exit code {}",
                             stderr_palette.error("Failed"),
                             stderr_palette
@@ -154,7 +154,7 @@ impl RunArgs {
                     }
                     None => {
                         let _ = writeln!(
-                            anstyle_stream::stderr(),
+                            anstream::stderr(),
                             "{} with {}: signal caught",
                             stderr_palette.error("Failed"),
                             stderr_palette
@@ -165,7 +165,7 @@ impl RunArgs {
                 },
                 Err(err) => {
                     let _ = writeln!(
-                        anstyle_stream::stderr(),
+                        anstream::stderr(),
                         "{} with {}: {}",
                         stderr_palette.error("Failed"),
                         stderr_palette
@@ -191,7 +191,7 @@ impl RunArgs {
             );
             let first_failure = first_failure.unwrap();
             let _ = writeln!(
-                anstyle_stream::stderr(),
+                anstream::stderr(),
                 "{} to failed commit {}",
                 stderr_palette.error("Switching"),
                 stderr_palette.highlight(crate::ops::render_id(&repo, &branches, first_failure)),
@@ -207,7 +207,7 @@ impl RunArgs {
         } else {
             if let Some(first_failure) = first_failure {
                 let _ = writeln!(
-                    anstyle_stream::stderr(),
+                    anstream::stderr(),
                     "{} starting at {}",
                     stderr_palette.error("Failed"),
                     stderr_palette.highlight(crate::ops::render_id(

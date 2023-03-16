@@ -40,7 +40,7 @@ fn register() -> proc_exit::ExitResult {
         .with_code(proc_exit::Code::FAILURE)?;
 
     let stderr_palette = crate::ops::Palette::colored();
-    let mut stderr = anstyle_stream::stderr().lock();
+    let mut stderr = anstream::stderr().lock();
 
     let mut success = true;
     for alias in ALIASES {
@@ -105,7 +105,7 @@ fn unregister() -> proc_exit::ExitResult {
         .with_code(proc_exit::Code::FAILURE)?;
 
     let stderr_palette = crate::ops::Palette::colored();
-    let mut stderr = anstyle_stream::stderr().lock();
+    let mut stderr = anstream::stderr().lock();
 
     let mut entries = config
         .entries(Some("alias.*"))
@@ -153,8 +153,8 @@ fn status() -> proc_exit::ExitResult {
 
     let stdout_palette = crate::ops::Palette::colored();
     let stderr_palette = crate::ops::Palette::colored();
-    let mut stdout = anstyle_stream::stdout().lock();
-    let mut stderr = anstyle_stream::stderr().lock();
+    let mut stdout = anstream::stdout().lock();
+    let mut stderr = anstream::stderr().lock();
     let _ = writeln!(stdout, "[alias]");
 
     let mut registered = false;

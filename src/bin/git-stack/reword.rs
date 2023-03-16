@@ -97,7 +97,7 @@ impl RewordArgs {
             let message = format!("cannot walk commits, {:?} in progress", repo.raw().state());
             if self.dry_run {
                 let _ = writeln!(
-                    anstyle_stream::stderr(),
+                    anstream::stderr(),
                     "{}: {}",
                     stderr_palette.error("error"),
                     message
@@ -210,7 +210,7 @@ impl RewordArgs {
 
         git_stack::git::stash_pop(&mut repo, stash_id);
         if backed_up {
-            anstyle_stream::eprintln!(
+            anstream::eprintln!(
                 "{}: to undo, run {}",
                 stderr_palette.info("note"),
                 stderr_palette.highlight(format_args!(

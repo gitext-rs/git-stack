@@ -709,7 +709,7 @@ fn show(state: &State) -> eyre::Result<()> {
             git_stack::config::Format::List => {
                 let palette = crate::ops::Palette::colored();
                 list(
-                    &mut anstyle_stream::stdout(),
+                    &mut anstream::stdout(),
                     &state.repo,
                     &graph,
                     &state.protected_branches,
@@ -718,7 +718,7 @@ fn show(state: &State) -> eyre::Result<()> {
             }
             git_stack::config::Format::Graph => {
                 write!(
-                    anstyle_stream::stdout(),
+                    anstream::stdout(),
                     "{}",
                     DisplayTree::new(&state.repo, &graph)
                         .show(state.show_commits)
@@ -727,7 +727,7 @@ fn show(state: &State) -> eyre::Result<()> {
                 )?;
             }
             git_stack::config::Format::Debug => {
-                writeln!(anstyle_stream::stdout(), "{graph:#?}")?;
+                writeln!(anstream::stdout(), "{graph:#?}")?;
             }
         }
     }

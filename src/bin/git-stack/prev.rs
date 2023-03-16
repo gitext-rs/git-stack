@@ -67,7 +67,7 @@ impl PrevArgs {
             );
             if self.dry_run {
                 let _ = writeln!(
-                    anstyle_stream::stderr(),
+                    anstream::stderr(),
                     "{}: {}",
                     stderr_palette.error("error"),
                     message
@@ -84,7 +84,7 @@ impl PrevArgs {
             let message = "Working tree is dirty, aborting";
             if self.dry_run {
                 let _ = writeln!(
-                    anstyle_stream::stderr(),
+                    anstream::stderr(),
                     "{}: {}",
                     stderr_palette.error("error"),
                     message
@@ -110,13 +110,13 @@ impl PrevArgs {
             if is_current_protected && !self.protected {
                 if progress == 0 {
                     let _ = writeln!(
-                        anstyle_stream::stderr(),
+                        anstream::stderr(),
                         "{}: no unprotected parent commit; to traverse protected commits, pass `--protected`",
                         stderr_palette.info("note"),
                     );
                 } else {
                     let _ = writeln!(
-                        anstyle_stream::stderr(),
+                        anstream::stderr(),
                         "{}: not enough unprotected parent {}, only able to go back {}; to traverse protected commits, pass `--protected`",
                         stderr_palette.info("note"),
                         if self.branch { "branches" } else { "commits" },
@@ -132,13 +132,13 @@ impl PrevArgs {
             if next_ids.is_empty() {
                 if progress == 0 {
                     let _ = writeln!(
-                        anstyle_stream::stderr(),
+                        anstream::stderr(),
                         "{}: no parent commit",
                         stderr_palette.info("note"),
                     );
                 } else {
                     let _ = writeln!(
-                        anstyle_stream::stderr(),
+                        anstream::stderr(),
                         "{}: not enough parent {}, only able to go forward {}",
                         stderr_palette.info("note"),
                         if self.branch { "branches" } else { "commits" },
