@@ -451,7 +451,7 @@ dependencies = [
 
 [[package]]
 name = "git-stack"
-version = "0.10.13"
+version = "0.10.14"
 dependencies = [
  "anstream",
  "anstyle",
