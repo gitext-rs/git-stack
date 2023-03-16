@@ -252,13 +252,11 @@ pub fn switch(
         current.sort_by_key(|b| b.kind());
         let current_branch = current.first().expect("always at least one");
         let _ = writeln!(
-            std::io::stderr(),
+            anstyle_stream::stderr(),
             "{} to {}: {}",
-            stderr_palette.good.paint("Switching"),
-            stderr_palette
-                .highlight
-                .paint(current_branch.display_name()),
-            stderr_palette.hint.paint(&current_commit.summary)
+            stderr_palette.good("Switching"),
+            stderr_palette.highlight(current_branch.display_name()),
+            stderr_palette.hint(&current_commit.summary)
         );
         if !dry_run {
             repo.switch_branch(
@@ -275,11 +273,11 @@ pub fn switch(
             .short_id()
             .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         let _ = writeln!(
-            std::io::stderr(),
+            anstyle_stream::stderr(),
             "{} to {}: {}",
-            stderr_palette.good.paint("Switching"),
-            stderr_palette.highlight.paint(abbrev_id.as_str().unwrap()),
-            stderr_palette.hint.paint(&current_commit.summary)
+            stderr_palette.good("Switching"),
+            stderr_palette.highlight(abbrev_id.as_str().unwrap()),
+            stderr_palette.hint(&current_commit.summary)
         );
         if !dry_run {
             repo.switch_commit(current_id)?;
@@ -412,38 +410,73 @@ impl<'a> Iterator for LinesWithTerminator<'a> {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Default)]
 #[non_exhaustive]
 pub struct Palette {
-    pub error: yansi::Style,
-    pub warn: yansi::Style,
-    pub info: yansi::Style,
-    pub good: yansi::Style,
-    pub highlight: yansi::Style,
-    pub hint: yansi::Style,
+    pub error: anstyle::Style,
+    pub warn: anstyle::Style,
+    pub info: anstyle::Style,
+    pub good: anstyle::Style,
+    pub highlight: anstyle::Style,
+    pub hint: anstyle::Style,
 }
 
 impl Palette {
     pub fn colored() -> Self {
         Self {
-            error: yansi::Style::new(yansi::Color::Red).bold(),
-            warn: yansi::Style::new(yansi::Color::Yellow).bold(),
-            info: yansi::Style::new(yansi::Color::Blue).bold(),
-            good: yansi::Style::new(yansi::Color::Cyan).bold(),
-            highlight: yansi::Style::new(yansi::Color::Green).bold(),
-            hint: yansi::Style::new(yansi::Color::Unset).dimmed(),
+            error: anstyle::AnsiColor::Red | anstyle::Effects::BOLD,
+            warn: anstyle::AnsiColor::Yellow | anstyle::Effects::BOLD,
+            info: anstyle::AnsiColor::Blue | anstyle::Effects::BOLD,
+            good: anstyle::AnsiColor::Cyan | anstyle::Effects::BOLD,
+            highlight: anstyle::AnsiColor::Green | anstyle::Effects::BOLD,
+            hint: anstyle::Effects::DIMMED.into(),
         }
     }
 
-    pub fn plain() -> Self {
-        Self {
-            error: yansi::Style::default(),
-            warn: yansi::Style::default(),
-            info: yansi::Style::default(),
-            good: yansi::Style::default(),
-            highlight: yansi::Style::default(),
-            hint: yansi::Style::default(),
-        }
+    pub(crate) fn error<D: std::fmt::Display>(self, display: D) -> Styled<D> {
+        Styled::new(display, self.error)
+    }
+
+    pub(crate) fn warn<D: std::fmt::Display>(self, display: D) -> Styled<D> {
+        Styled::new(display, self.warn)
+    }
+
+    pub(crate) fn info<D: std::fmt::Display>(self, display: D) -> Styled<D> {
+        Styled::new(display, self.info)
+    }
+
+    pub(crate) fn good<D: std::fmt::Display>(self, display: D) -> Styled<D> {
+        Styled::new(display, self.good)
+    }
+
+    pub(crate) fn highlight<D: std::fmt::Display>(self, display: D) -> Styled<D> {
+        Styled::new(display, self.highlight)
+    }
+
+    pub(crate) fn hint<D: std::fmt::Display>(self, display: D) -> Styled<D> {
+        Styled::new(display, self.hint)
+    }
+}
+
+#[derive(Debug)]
+pub(crate) struct Styled<D> {
+    display: D,
+    style: anstyle::Style,
+}
+
+impl<D: std::fmt::Display> Styled<D> {
+    pub(crate) fn new(display: D, style: anstyle::Style) -> Self {
+        Self { display, style }
+    }
+}
+
+impl<D: std::fmt::Display> std::fmt::Display for Styled<D> {
+    #[inline]
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.style.render())?;
+        self.display.fmt(f)?;
+        write!(f, "{}", self.style.render_reset())?;
+        Ok(())
     }
 }
 

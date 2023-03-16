@@ -41,12 +41,8 @@ impl PrevArgs {
         }
     }
 
-    pub fn exec(&self, _colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
-        let stderr_palette = if colored_stderr {
-            crate::ops::Palette::colored()
-        } else {
-            crate::ops::Palette::plain()
-        };
+    pub fn exec(&self) -> proc_exit::ExitResult {
+        let stderr_palette = crate::ops::Palette::colored();
 
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
         let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
@@ -71,9 +67,9 @@ impl PrevArgs {
             );
             if self.dry_run {
                 let _ = writeln!(
-                    std::io::stderr(),
+                    anstyle_stream::stderr(),
                     "{}: {}",
-                    stderr_palette.error.paint("error"),
+                    stderr_palette.error("error"),
                     message
                 );
             } else {
@@ -88,9 +84,9 @@ impl PrevArgs {
             let message = "Working tree is dirty, aborting";
             if self.dry_run {
                 let _ = writeln!(
-                    std::io::stderr(),
+                    anstyle_stream::stderr(),
                     "{}: {}",
-                    stderr_palette.error.paint("error"),
+                    stderr_palette.error("error"),
                     message
                 );
             } else {
@@ -114,15 +110,15 @@ impl PrevArgs {
             if is_current_protected && !self.protected {
                 if progress == 0 {
                     let _ = writeln!(
-                        std::io::stderr(),
+                        anstyle_stream::stderr(),
                         "{}: no unprotected parent commit; to traverse protected commits, pass `--protected`",
-                        stderr_palette.info.paint("note"),
+                        stderr_palette.info("note"),
                     );
                 } else {
                     let _ = writeln!(
-                        std::io::stderr(),
+                        anstyle_stream::stderr(),
                         "{}: not enough unprotected parent {}, only able to go back {}; to traverse protected commits, pass `--protected`",
-                        stderr_palette.info.paint("note"),
+                        stderr_palette.info("note"),
                         if self.branch { "branches" } else { "commits" },
                         self.num_commits
                     );
@@ -136,15 +132,15 @@ impl PrevArgs {
             if next_ids.is_empty() {
                 if progress == 0 {
                     let _ = writeln!(
-                        std::io::stderr(),
+                        anstyle_stream::stderr(),
                         "{}: no parent commit",
-                        stderr_palette.info.paint("note"),
+                        stderr_palette.info("note"),
                     );
                 } else {
                     let _ = writeln!(
-                        std::io::stderr(),
+                        anstyle_stream::stderr(),
                         "{}: not enough parent {}, only able to go forward {}",
-                        stderr_palette.info.paint("note"),
+                        stderr_palette.info("note"),
                         if self.branch { "branches" } else { "commits" },
                         self.num_commits
                     );

@@ -6,6 +6,8 @@ use eyre::WrapErr;
 use itertools::Itertools;
 use proc_exit::prelude::*;
 
+use crate::ops::Styled;
+
 struct State {
     repo: git_stack::legacy::git::GitRepo,
     branches: git_stack::legacy::git::Branches,
@@ -306,11 +308,7 @@ impl StackState {
     }
 }
 
-pub fn stack(
-    args: &crate::args::Args,
-    colored_stdout: bool,
-    colored_stderr: bool,
-) -> proc_exit::ExitResult {
+pub fn stack(args: &crate::args::Args) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
@@ -438,19 +436,15 @@ pub fn stack(
         state.update().with_code(proc_exit::Code::FAILURE)?;
     }
 
-    show(&state, colored_stdout, colored_stderr).with_code(proc_exit::Code::FAILURE)?;
+    show(&state).with_code(proc_exit::Code::FAILURE)?;
 
     git_stack::legacy::git::stash_pop(&mut state.repo, stash_id);
 
     if backed_up {
-        let palette_stderr = if colored_stderr {
-            crate::ops::Palette::colored()
-        } else {
-            crate::ops::Palette::plain()
-        };
+        let palette_stderr = crate::ops::Palette::colored();
         log::info!(
             "{}",
-            palette_stderr.hint.paint(format_args!(
+            palette_stderr.hint(format_args!(
                 "To undo, run `git branch-stash pop {}`",
                 crate::ops::STASH_STACK_NAME
             ))
@@ -566,12 +560,8 @@ fn push(state: &mut State) -> eyre::Result<()> {
     Ok(())
 }
 
-fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Result<()> {
-    let palette_stderr = if colored_stderr {
-        crate::ops::Palette::colored()
-    } else {
-        crate::ops::Palette::plain()
-    };
+fn show(state: &State) -> eyre::Result<()> {
+    let palette_stderr = crate::ops::Palette::colored();
     let mut empty_stacks = Vec::new();
     let mut old_stacks = Vec::new();
     let mut foreign_stacks = Vec::new();
@@ -589,7 +579,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         if graphed_branches.len() == 1 && abbrev_graph {
             let branches = graphed_branches.iter().next().unwrap().1;
             if branches.len() == 1 && branches[0].id != state.head_commit.id {
-                empty_stacks.push(format!("{}", palette_stderr.info.paint(&branches[0])));
+                empty_stacks.push(format!("{}", palette_stderr.info(&branches[0])));
                 continue;
             }
         }
@@ -629,7 +619,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                     &[state.head_commit.id],
                 )
                 .into_iter()
-                .map(|b| format!("{}", palette_stderr.warn.paint(b))),
+                .map(|b| format!("{}", palette_stderr.warn(b))),
             );
             if let Some(user) = state.repo.user() {
                 foreign_stacks.extend(
@@ -639,7 +629,7 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
                         &[state.head_commit.id],
                     )
                     .into_iter()
-                    .map(|b| format!("{}", palette_stderr.warn.paint(b))),
+                    .map(|b| format!("{}", palette_stderr.warn(b))),
                 );
                 git_stack::legacy::graph::protect_foreign_branches(&mut graph, &user, &[]);
             }
@@ -717,13 +707,9 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
         match state.show_format {
             git_stack::config::Format::Silent => {}
             git_stack::config::Format::List => {
-                let palette = if colored_stdout {
-                    crate::ops::Palette::colored()
-                } else {
-                    crate::ops::Palette::plain()
-                };
+                let palette = crate::ops::Palette::colored();
                 list(
-                    &mut std::io::stdout(),
+                    &mut anstyle_stream::stdout(),
                     &state.repo,
                     &graph,
                     &state.protected_branches,
@@ -732,17 +718,16 @@ fn show(state: &State, colored_stdout: bool, colored_stderr: bool) -> eyre::Resu
             }
             git_stack::config::Format::Graph => {
                 write!(
-                    std::io::stdout(),
+                    anstyle_stream::stdout(),
                     "{}",
                     DisplayTree::new(&state.repo, &graph)
-                        .colored(colored_stdout)
                         .show(state.show_commits)
                         .stacked(state.show_stacked)
                         .protected_branches(&state.protected_branches)
                 )?;
             }
             git_stack::config::Format::Debug => {
-                writeln!(std::io::stdout(), "{graph:#?}")?;
+                writeln!(anstyle_stream::stdout(), "{graph:#?}")?;
             }
         }
     }
@@ -1109,7 +1094,6 @@ struct DisplayTree<'r> {
     repo: &'r git_stack::legacy::git::GitRepo,
     graph: &'r git_stack::legacy::graph::Graph,
     protected_branches: git_stack::legacy::git::Branches,
-    palette: crate::ops::Palette,
     show: git_stack::config::ShowCommits,
     stacked: bool,
 }
@@ -1123,19 +1107,9 @@ impl<'r> DisplayTree<'r> {
             repo,
             graph,
             protected_branches: Default::default(),
-            palette: crate::ops::Palette::plain(),
             show: Default::default(),
             stacked: Default::default(),
         }
-    }
-
-    pub fn colored(mut self, yes: bool) -> Self {
-        if yes {
-            self.palette = crate::ops::Palette::colored()
-        } else {
-            self.palette = crate::ops::Palette::plain()
-        }
-        self
     }
 
     pub fn show(mut self, show: git_stack::config::ShowCommits) -> Self {
@@ -1192,12 +1166,7 @@ impl<'r> std::fmt::Display for DisplayTree<'r> {
         } else {
             tree.sort();
         }
-        let tree = tree.into_display(
-            self.repo,
-            &head_branch,
-            &self.protected_branches,
-            &self.palette,
-        );
+        let tree = tree.into_display(self.repo, &head_branch, &self.protected_branches);
         tree.fmt(f)
     }
 }
@@ -1353,14 +1322,12 @@ impl<'r> Tree<'r> {
         repo: &'r git_stack::legacy::git::GitRepo,
         head_branch: &'r git_stack::legacy::git::Branch,
         protected_branches: &'r git_stack::legacy::git::Branches,
-        palette: &'r crate::ops::Palette,
     ) -> termtree::Tree<RenderNode<'r>> {
         let root = RenderNode {
             repo,
             head_branch,
             protected_branches,
             node: Some(self.root),
-            palette,
         };
         let mut tree = termtree::Tree::new(root).with_glyphs(GLYPHS);
         let joint = RenderNode {
@@ -1368,19 +1335,13 @@ impl<'r> Tree<'r> {
             head_branch,
             protected_branches,
             node: None,
-            palette,
         };
         let stacks_len = self.stacks.len();
         for (i, stack) in self.stacks.into_iter().enumerate() {
             if i < stacks_len - 1 {
                 let mut stack_tree = termtree::Tree::new(joint).with_glyphs(JOINT_GLYPHS);
                 for child_tree in stack.into_iter() {
-                    stack_tree.push(child_tree.into_display(
-                        repo,
-                        head_branch,
-                        protected_branches,
-                        palette,
-                    ));
+                    stack_tree.push(child_tree.into_display(repo, head_branch, protected_branches));
                 }
                 tree.push(stack_tree);
             } else {
@@ -1394,7 +1355,6 @@ impl<'r> Tree<'r> {
                         head_branch,
                         protected_branches,
                         node: Some(child_tree.root),
-                        palette,
                     };
                     tree.push(termtree::Tree::new(child).with_glyphs(GLYPHS));
                     if !child_tree.stacks.is_empty() {
@@ -1406,7 +1366,6 @@ impl<'r> Tree<'r> {
                                     repo,
                                     head_branch,
                                     protected_branches,
-                                    palette,
                                 ));
                             }
                             tree.push(stack_tree);
@@ -1467,7 +1426,6 @@ struct RenderNode<'r> {
     head_branch: &'r git_stack::legacy::git::Branch,
     protected_branches: &'r git_stack::legacy::git::Branches,
     node: Option<&'r git_stack::legacy::graph::Node>,
-    palette: &'r crate::ops::Palette,
 }
 
 const GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
@@ -1496,6 +1454,7 @@ const JOINT_GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
 #[allow(clippy::if_same_then_else)]
 impl<'r> std::fmt::Display for RenderNode<'r> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        let palette = crate::ops::Palette::colored();
         if let Some(node) = self.node.as_ref() {
             if node.branches.is_empty() {
                 let abbrev_id = self
@@ -1506,16 +1465,16 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                     .short_id()
                     .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
                 let style = if self.head_branch.id == node.commit.id {
-                    self.palette.highlight
+                    palette.highlight
                 } else if node.action.is_protected() {
-                    self.palette.info
+                    palette.info
                 } else if 1 < node.children.len() {
                     // Branches should be off of other branches
-                    self.palette.warn
+                    palette.warn
                 } else {
-                    self.palette.hint
+                    palette.hint
                 };
-                write!(f, "{}", style.paint(abbrev_id.as_str().unwrap()))?;
+                write!(f, "{}", Styled::new(abbrev_id.as_str().unwrap(), style))?;
             } else {
                 let mut branches: Vec<_> = node.branches.iter().collect();
                 branches.sort_by_key(|b| {
@@ -1548,30 +1507,26 @@ impl<'r> std::fmt::Display for RenderNode<'r> {
                                     node,
                                     self.head_branch,
                                     self.protected_branches,
-                                    self.palette
+                                    &palette
                                 ),
-                                format_branch_status(b, self.repo, node, self.palette),
+                                format_branch_status(b, self.repo, node, &palette),
                             )
                         })
                         .join(", ")
                 )?;
             }
 
-            write!(
-                f,
-                "{} ",
-                format_commit_status(self.repo, node, self.palette)
-            )?;
+            write!(f, "{} ", format_commit_status(self.repo, node, &palette))?;
 
             let summary = String::from_utf8_lossy(&node.commit.summary);
             if node.action.is_protected() {
-                write!(f, "{}", self.palette.hint.paint(summary))?;
+                write!(f, "{}", palette.hint(summary))?;
             } else if node.commit.fixup_summary().is_some() {
                 // Needs to be squashed
-                write!(f, "{}", self.palette.warn.paint(summary))?;
+                write!(f, "{}", palette.warn(summary))?;
             } else if node.commit.wip_summary().is_some() {
                 // Not for pushing implicitly
-                write!(f, "{}", self.palette.error.paint(summary))?;
+                write!(f, "{}", palette.error(summary))?;
             } else {
                 write!(f, "{summary}")?;
             }
@@ -1591,18 +1546,18 @@ fn format_branch_name<'d>(
         && head_branch.remote == branch.remote
         && head_branch.name == branch.name
     {
-        palette.highlight.paint(branch.to_string())
+        palette.highlight(branch.to_string())
     } else {
         let protected = protected_branches.get(branch.id);
         if protected.into_iter().flatten().contains(&branch) {
-            palette.info.paint(branch.to_string())
+            palette.info(branch.to_string())
         } else if branch.remote.is_some() {
-            palette.info.paint(branch.to_string())
+            palette.info(branch.to_string())
         } else if node.action.is_protected() {
             // Either haven't started dev or it got merged
-            palette.warn.paint(branch.to_string())
+            palette.warn(branch.to_string())
         } else {
-            palette.good.paint(branch.to_string())
+            palette.good(branch.to_string())
         }
     }
 }
@@ -1616,7 +1571,7 @@ fn format_branch_status<'d>(
     // See format_commit_status
     if node.action.is_protected() {
         if branch.pull_id.is_none() {
-            format!(" {}", palette.warn.paint("(no remote)"))
+            format!(" {}", palette.warn("(no remote)"))
         } else {
             String::new()
         }
@@ -1636,25 +1591,23 @@ fn format_branch_status<'d>(
             let branch = &node.branches[0];
             match commit_relation(repo, branch.id, branch.push_id) {
                 Some((0, 0)) => {
-                    format!(" {}", palette.good.paint("(pushed)"))
+                    format!(" {}", palette.good("(pushed)"))
                 }
                 Some((local, 0)) => {
-                    format!(" {}", palette.info.paint(format!("({local} ahead)")))
+                    format!(" {}", palette.info(format!("({local} ahead)")))
                 }
                 Some((0, remote)) => {
-                    format!(" {}", palette.warn.paint(format!("({remote} behind)")))
+                    format!(" {}", palette.warn(format!("({remote} behind)")))
                 }
                 Some((local, remote)) => {
                     format!(
                         " {}",
-                        palette
-                            .warn
-                            .paint(format!("({local} ahead, {remote} behind)")),
+                        palette.warn(format!("({local} ahead, {remote} behind)")),
                     )
                 }
                 None => {
                     if node.pushable {
-                        format!(" {}", palette.info.paint("(ready)"))
+                        format!(" {}", palette.info("(ready)"))
                     } else {
                         String::new()
                     }
@@ -1673,14 +1626,14 @@ fn format_commit_status<'d>(
     if node.action.is_protected() {
         String::new()
     } else if node.action.is_delete() {
-        format!(" {}", palette.error.paint("(drop)"))
+        format!(" {}", palette.error("(drop)"))
     } else if 1 < repo
         .raw()
         .find_commit(node.commit.id)
         .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
         .parent_count()
     {
-        format!(" {}", palette.error.paint("(merge commit)"))
+        format!(" {}", palette.error("(merge commit)"))
     } else {
         String::new()
     }

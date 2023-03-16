@@ -34,12 +34,8 @@ impl RunArgs {
         }
     }
 
-    pub fn exec(&self, _colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
-        let stderr_palette = if colored_stderr {
-            crate::ops::Palette::colored()
-        } else {
-            crate::ops::Palette::plain()
-        };
+    pub fn exec(&self) -> proc_exit::ExitResult {
+        let stderr_palette = crate::ops::Palette::colored();
 
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
         let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
@@ -61,9 +57,9 @@ impl RunArgs {
             let message = format!("cannot walk commits, {:?} in progress", repo.raw().state());
             if self.dry_run {
                 let _ = writeln!(
-                    std::io::stderr(),
+                    anstyle_stream::stderr(),
                     "{}: {}",
-                    stderr_palette.error.paint("error"),
+                    stderr_palette.error("error"),
                     message
                 );
             } else {
@@ -79,9 +75,9 @@ impl RunArgs {
             let message = "Working tree is dirty, aborting";
             if self.dry_run {
                 let _ = writeln!(
-                    std::io::stderr(),
+                    anstyle_stream::stderr(),
                     "{}: {}",
-                    stderr_palette.error.paint("error"),
+                    stderr_palette.error("error"),
                     message
                 );
             } else {
@@ -120,13 +116,11 @@ impl RunArgs {
                 .find_commit(current_id)
                 .expect("children/head are always present");
             let _ = writeln!(
-                std::io::stderr(),
+                anstyle_stream::stderr(),
                 "{} to {}: {}",
-                stderr_palette.good.paint("Switching"),
-                stderr_palette
-                    .highlight
-                    .paint(crate::ops::render_id(&repo, &branches, current_id)),
-                stderr_palette.hint.paint(&current_commit.summary)
+                stderr_palette.good("Switching"),
+                stderr_palette.highlight(crate::ops::render_id(&repo, &branches, current_id)),
+                stderr_palette.hint(&current_commit.summary)
             );
             if !self.dry_run {
                 repo.switch_commit(current_id)
@@ -139,47 +133,43 @@ impl RunArgs {
             match status {
                 Ok(status) if status.success() => {
                     let _ = writeln!(
-                        std::io::stderr(),
+                        anstyle_stream::stderr(),
                         "{} with {}",
-                        stderr_palette.good.paint("Success"),
+                        stderr_palette.good("Success"),
                         stderr_palette
-                            .highlight
-                            .paint(crate::ops::render_id(&repo, &branches, current_id)),
+                            .highlight(crate::ops::render_id(&repo, &branches, current_id)),
                     );
                 }
                 Ok(status) => match status.code() {
                     Some(code) => {
                         let _ = writeln!(
-                            std::io::stderr(),
+                            anstyle_stream::stderr(),
                             "{} with {}: exit code {}",
-                            stderr_palette.error.paint("Failed"),
+                            stderr_palette.error("Failed"),
                             stderr_palette
-                                .highlight
-                                .paint(crate::ops::render_id(&repo, &branches, current_id)),
+                                .highlight(crate::ops::render_id(&repo, &branches, current_id)),
                             code,
                         );
                         current_success = false;
                     }
                     None => {
                         let _ = writeln!(
-                            std::io::stderr(),
+                            anstyle_stream::stderr(),
                             "{} with {}: signal caught",
-                            stderr_palette.error.paint("Failed"),
+                            stderr_palette.error("Failed"),
                             stderr_palette
-                                .highlight
-                                .paint(crate::ops::render_id(&repo, &branches, current_id)),
+                                .highlight(crate::ops::render_id(&repo, &branches, current_id)),
                         );
                         current_success = false;
                     }
                 },
                 Err(err) => {
                     let _ = writeln!(
-                        std::io::stderr(),
+                        anstyle_stream::stderr(),
                         "{} with {}: {}",
-                        stderr_palette.error.paint("Failed"),
+                        stderr_palette.error("Failed"),
                         stderr_palette
-                            .highlight
-                            .paint(crate::ops::render_id(&repo, &branches, current_id)),
+                            .highlight(crate::ops::render_id(&repo, &branches, current_id)),
                         err
                     );
                     current_success = false;
@@ -201,14 +191,10 @@ impl RunArgs {
             );
             let first_failure = first_failure.unwrap();
             let _ = writeln!(
-                std::io::stderr(),
+                anstyle_stream::stderr(),
                 "{} to failed commit {}",
-                stderr_palette.error.paint("Switching"),
-                stderr_palette.highlight.paint(crate::ops::render_id(
-                    &repo,
-                    &branches,
-                    first_failure
-                )),
+                stderr_palette.error("Switching"),
+                stderr_palette.highlight(crate::ops::render_id(&repo, &branches, first_failure)),
             );
             crate::ops::switch(
                 &mut repo,
@@ -221,10 +207,10 @@ impl RunArgs {
         } else {
             if let Some(first_failure) = first_failure {
                 let _ = writeln!(
-                    std::io::stderr(),
+                    anstyle_stream::stderr(),
                     "{} starting at {}",
-                    stderr_palette.error.paint("Failed"),
-                    stderr_palette.highlight.paint(crate::ops::render_id(
+                    stderr_palette.error("Failed"),
+                    stderr_palette.highlight(crate::ops::render_id(
                         &repo,
                         &branches,
                         first_failure

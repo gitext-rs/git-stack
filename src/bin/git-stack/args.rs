@@ -98,15 +98,15 @@ pub enum Command {
 }
 
 impl Args {
-    pub fn exec(&self, colored_stdout: bool, colored_stderr: bool) -> proc_exit::ExitResult {
+    pub fn exec(&self) -> proc_exit::ExitResult {
         match &self.command {
-            Some(Command::Previous(c)) => c.exec(colored_stdout, colored_stderr),
-            Some(Command::Next(c)) => c.exec(colored_stdout, colored_stderr),
-            Some(Command::Reword(c)) => c.exec(colored_stdout, colored_stderr),
-            Some(Command::Amend(c)) => c.exec(colored_stdout, colored_stderr),
-            Some(Command::Sync(c)) => c.exec(colored_stdout, colored_stderr),
-            Some(Command::Run(c)) => c.exec(colored_stdout, colored_stderr),
-            Some(Command::Alias(c)) => c.exec(colored_stdout, colored_stderr),
+            Some(Command::Previous(c)) => c.exec(),
+            Some(Command::Next(c)) => c.exec(),
+            Some(Command::Reword(c)) => c.exec(),
+            Some(Command::Amend(c)) => c.exec(),
+            Some(Command::Sync(c)) => c.exec(),
+            Some(Command::Run(c)) => c.exec(),
+            Some(Command::Alias(c)) => c.exec(),
             None => {
                 if let Some(output_path) = self.dump_config.as_deref() {
                     crate::config::dump_config(self, output_path)
@@ -115,7 +115,7 @@ impl Args {
                 } else if self.protected {
                     crate::config::protected(self)
                 } else {
-                    crate::stack::stack(self, colored_stdout, colored_stderr)
+                    crate::stack::stack(self)
                 }
             }
         }
