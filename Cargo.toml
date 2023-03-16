@@ -37,7 +37,7 @@ env_logger = { version = "0.10", default-features = false, features = ["color"] 
 concolor = "0.1.1"
 concolor-clap = { version = "0.1.0", features = ["api"] }
 anstyle = "0.3.1"
-anstyle-stream = "0.2.1"
+anstream = "0.2.1"
 proc-exit = "2"
 eyre = "0.6"
 human-panic = "1"
@@ -60,4 +60,4 @@ shlex = "1.1.0"
 [dev-dependencies]
 git-fixture = { version = "0.3", features = ["yaml"] }
 assert_fs = "1.0.11"
-snapbox = { version = "0.4.9", features = ["cmd", "path"] }
+snapbox = { version = "0.4.10", features = ["cmd", "path"] }

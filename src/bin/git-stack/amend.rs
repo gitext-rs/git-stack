@@ -117,7 +117,7 @@ impl AmendArgs {
             let message = format!("cannot walk commits, {:?} in progress", repo.raw().state());
             if self.dry_run {
                 let _ = writeln!(
-                    anstyle_stream::stderr(),
+                    anstream::stderr(),
                     "{}: {}",
                     stderr_palette.error("error"),
                     message
@@ -231,7 +231,7 @@ impl AmendArgs {
                 .short_id()
                 .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
             let _ = writeln!(
-                anstyle_stream::stderr(),
+                anstream::stderr(),
                 "{} nothing to amend to {}: {}",
                 stderr_palette.error("error:"),
                 stderr_palette.highlight(abbrev_id.as_str().unwrap()),
@@ -277,7 +277,7 @@ impl AmendArgs {
                 .short_id()
                 .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
             let _ = writeln!(
-                anstyle_stream::stderr(),
+                anstream::stderr(),
                 "{} to {}: {}",
                 stderr_palette.good("Amended"),
                 stderr_palette.highlight(abbrev_id.as_str().unwrap()),
@@ -287,7 +287,7 @@ impl AmendArgs {
 
         git_stack::git::stash_pop(&mut repo, stash_id);
         if backed_up {
-            anstyle_stream::eprintln!(
+            anstream::eprintln!(
                 "{}: to undo, run {}",
                 stderr_palette.info("note"),
                 stderr_palette.highlight(format_args!(
@@ -318,7 +318,7 @@ fn stage_fixup(
             ["*"].iter(),
             Some(&mut |path, _| {
                 let _ = writeln!(
-                    anstyle_stream::stderr(),
+                    anstream::stderr(),
                     "{} {}",
                     stderr_palette.good("Adding"),
                     path.display()

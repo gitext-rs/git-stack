@@ -252,7 +252,7 @@ pub fn switch(
         current.sort_by_key(|b| b.kind());
         let current_branch = current.first().expect("always at least one");
         let _ = writeln!(
-            anstyle_stream::stderr(),
+            anstream::stderr(),
             "{} to {}: {}",
             stderr_palette.good("Switching"),
             stderr_palette.highlight(current_branch.display_name()),
@@ -273,7 +273,7 @@ pub fn switch(
             .short_id()
             .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
         let _ = writeln!(
-            anstyle_stream::stderr(),
+            anstream::stderr(),
             "{} to {}: {}",
             stderr_palette.good("Switching"),
             stderr_palette.highlight(abbrev_id.as_str().unwrap()),
