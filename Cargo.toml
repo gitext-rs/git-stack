@@ -28,7 +28,7 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-git2 = { version = "0.16", default-features = false, features = ["vendored-libgit2"] }
+git2 = { version = "0.17", default-features = false, features = ["vendored-libgit2"] }
 git-config-env = "0.1"
 clap = { version = "4.2.1", features = ["derive"] }
 clap-verbosity-flag = "2.0.1"
@@ -44,8 +44,8 @@ human-panic = "1"
 termtree = "0.4"
 indexmap = "1"
 
-git2-ext = "0.5.0"
-git-branch-stash = "0.9.3"
+git2-ext = "0.6.0"
+git-branch-stash = "0.10.0"
 humantime = "2"
 itertools = "0.10"
 ignore = "0.4"
