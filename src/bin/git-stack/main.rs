@@ -39,8 +39,11 @@ fn run() -> proc_exit::ExitResult {
         }
     };
 
-    args.color.apply();
-    let colored_stderr = concolor::get(concolor::Stream::Stderr).ansi_color();
+    args.color.write_global();
+    let colored_stderr = !matches!(
+        anstream::AutoStream::choice(&std::io::stderr()),
+        anstream::ColorChoice::Never
+    );
 
     logger::init_logging(args.verbose.clone(), colored_stderr);
 

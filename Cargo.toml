@@ -34,8 +34,7 @@ clap = { version = "4.2.1", features = ["derive"] }
 clap-verbosity-flag = "2.0.1"
 log = "0.4"
 env_logger = { version = "0.10", default-features = false, features = ["color"] }
-concolor = "0.1.1"
-concolor-clap = { version = "0.1.0", features = ["api"] }
+colorchoice-clap = "1.0.0"
 anstyle = "1.0.0"
 anstream = "0.3.0"
 proc-exit = "2"
