@@ -1,8 +1,5 @@
 #[derive(clap::Parser)]
 #[command(about, author, version)]
-#[command(
-        color = concolor_clap::color_choice(),
-    )]
 #[command(group = clap::ArgGroup::new("mode").multiple(false))]
 #[command(args_conflicts_with_subcommands = true)]
 pub struct Args {
@@ -76,7 +73,7 @@ pub struct Args {
     pub dump_config: Option<std::path::PathBuf>,
 
     #[command(flatten)]
-    pub(crate) color: concolor_clap::Color,
+    pub(crate) color: colorchoice_clap::Color,
 
     #[command(flatten)]
     pub verbose: clap_verbosity_flag::Verbosity<clap_verbosity_flag::InfoLevel>,

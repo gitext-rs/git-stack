@@ -212,40 +212,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 
 [[package]]
-name = "concolor"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b946244a988c390a94667ae0e3958411fa40cc46ea496a929b263d883f5f9c3"
-dependencies = [
- "bitflags",
- "concolor-override",
- "concolor-query",
- "is-terminal",
-]
-
-[[package]]
-name = "concolor-clap"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "435ff0007a3bb04099fe1beedc6b76e7dd5340c90b168008ac0d7e87441de1bf"
-dependencies = [
- "clap",
- "concolor",
-]
-
-[[package]]
-name = "concolor-override"
+name = "colorchoice-clap"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a855d4a1978dc52fb0536a04d384c2c0c1aa273597f08b77c8c4d3b2eec6037f"
-
-[[package]]
-name = "concolor-query"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "88d11d52c3d7ca2e6d0040212be9e4dbbcd78b6447f535b6b561f449427944cf"
+checksum = "412e88a3a3a3f52e436909b49beb467a05649e8b0dda0e6202bd05c1b63dbc49"
 dependencies = [
- "windows-sys 0.45.0",
+ "clap",
+ "colorchoice",
 ]
 
 [[package]]
@@ -490,8 +463,7 @@ dependencies = [
  "bstr 1.4.0",
  "clap",
  "clap-verbosity-flag",
- "concolor",
- "concolor-clap",
+ "colorchoice-clap",
  "downcast-rs",
  "elsa",
  "env_logger",
