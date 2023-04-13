@@ -424,11 +424,11 @@ pub struct Palette {
 impl Palette {
     pub fn colored() -> Self {
         Self {
-            error: anstyle::AnsiColor::Red | anstyle::Effects::BOLD,
-            warn: anstyle::AnsiColor::Yellow | anstyle::Effects::BOLD,
-            info: anstyle::AnsiColor::Blue | anstyle::Effects::BOLD,
-            good: anstyle::AnsiColor::Cyan | anstyle::Effects::BOLD,
-            highlight: anstyle::AnsiColor::Green | anstyle::Effects::BOLD,
+            error: anstyle::AnsiColor::Red.on_default() | anstyle::Effects::BOLD,
+            warn: anstyle::AnsiColor::Yellow.on_default() | anstyle::Effects::BOLD,
+            info: anstyle::AnsiColor::Blue.on_default() | anstyle::Effects::BOLD,
+            good: anstyle::AnsiColor::Cyan.on_default() | anstyle::Effects::BOLD,
+            highlight: anstyle::AnsiColor::Green.on_default() | anstyle::Effects::BOLD,
             hint: anstyle::Effects::DIMMED.into(),
         }
     }

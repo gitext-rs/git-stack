@@ -55,10 +55,10 @@ struct Palette {
 impl Palette {
     pub fn colored() -> Self {
         Self {
-            error: anstyle::AnsiColor::Red | anstyle::Effects::BOLD,
-            warn: anstyle::AnsiColor::Yellow.into(),
-            debug: anstyle::AnsiColor::Blue.into(),
-            trace: anstyle::AnsiColor::Cyan.into(),
+            error: anstyle::AnsiColor::Red.on_default() | anstyle::Effects::BOLD,
+            warn: anstyle::AnsiColor::Yellow.on_default(),
+            debug: anstyle::AnsiColor::Blue.on_default(),
+            trace: anstyle::AnsiColor::Cyan.on_default(),
         }
     }
 
