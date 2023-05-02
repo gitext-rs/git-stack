@@ -461,14 +461,22 @@ pub fn stack(args: &crate::args::Args) -> proc_exit::ExitResult {
 fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::legacy::git::Script> {
     log::trace!("Planning stack changes with base={}", stack.base,);
     let graphed_branches = stack.branches.clone();
+    let mut graph = git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     let base_commit = state
         .repo
         .find_commit(stack.base.id)
         .expect("base branch is valid");
-    let mut graph = git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     graph.insert(
         &state.repo,
         git_stack::legacy::graph::Node::new(base_commit),
+    )?;
+    let onto_commit = state
+        .repo
+        .find_commit(stack.onto.id)
+        .expect("onto branch is valid");
+    graph.insert(
+        &state.repo,
+        git_stack::legacy::graph::Node::new(onto_commit),
     )?;
     git_stack::legacy::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
     if let Some(protect_commit_count) = state.protect_commit_count {
@@ -585,15 +593,23 @@ fn show(state: &State) -> eyre::Result<()> {
         }
 
         log::trace!("Rendering stack base={}", stack.base,);
+        let mut graph =
+            git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
         let base_commit = state
             .repo
             .find_commit(stack.base.id)
             .expect("base branch is valid");
-        let mut graph =
-            git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
         graph.insert(
             &state.repo,
             git_stack::legacy::graph::Node::new(base_commit),
+        )?;
+        let onto_commit = state
+            .repo
+            .find_commit(stack.onto.id)
+            .expect("onto branch is valid");
+        graph.insert(
+            &state.repo,
+            git_stack::legacy::graph::Node::new(onto_commit),
         )?;
         git_stack::legacy::graph::protect_branches(
             &mut graph,
