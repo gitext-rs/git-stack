@@ -10,12 +10,20 @@ pub fn protect_branches(
     repo: &dyn crate::legacy::git::Repo,
     protected_branches: &crate::legacy::git::Branches,
 ) {
-    let root_id = graph.root_id();
-
     let protected_oids: HashSet<_> = protected_branches
         .iter()
         .flat_map(|(_, branches)| branches.iter().map(|b| b.id))
         .collect();
+
+    protect_commits(graph, repo, protected_oids);
+}
+
+pub fn protect_commits(
+    graph: &mut Graph,
+    repo: &dyn crate::legacy::git::Repo,
+    protected_oids: HashSet<git2::Oid>,
+) {
+    let root_id = graph.root_id();
 
     for protected_oid in protected_oids.into_iter().filter(|protected_oid| {
         repo.merge_base(root_id, *protected_oid)

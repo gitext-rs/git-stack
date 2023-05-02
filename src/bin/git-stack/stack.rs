@@ -478,7 +478,13 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::le
         &state.repo,
         git_stack::legacy::graph::Node::new(onto_commit),
     )?;
-    git_stack::legacy::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+    let mut protected_oids: std::collections::HashSet<_> = state
+        .protected_branches
+        .iter()
+        .flat_map(|(_, branches)| branches.iter().map(|b| b.id))
+        .collect();
+    protected_oids.insert(stack.onto.id);
+    git_stack::legacy::graph::protect_commits(&mut graph, &state.repo, protected_oids);
     if let Some(protect_commit_count) = state.protect_commit_count {
         git_stack::legacy::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
@@ -611,11 +617,13 @@ fn show(state: &State) -> eyre::Result<()> {
             &state.repo,
             git_stack::legacy::graph::Node::new(onto_commit),
         )?;
-        git_stack::legacy::graph::protect_branches(
-            &mut graph,
-            &state.repo,
-            &state.protected_branches,
-        );
+        let mut protected_oids: std::collections::HashSet<_> = state
+            .protected_branches
+            .iter()
+            .flat_map(|(_, branches)| branches.iter().map(|b| b.id))
+            .collect();
+        protected_oids.insert(stack.onto.id);
+        git_stack::legacy::graph::protect_commits(&mut graph, &state.repo, protected_oids);
         if let Some(protect_commit_count) = state.protect_commit_count {
             let protected =
                 git_stack::legacy::graph::protect_large_branches(&mut graph, protect_commit_count);
