@@ -461,16 +461,30 @@ pub fn stack(args: &crate::args::Args) -> proc_exit::ExitResult {
 fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::legacy::git::Script> {
     log::trace!("Planning stack changes with base={}", stack.base,);
     let graphed_branches = stack.branches.clone();
+    let mut graph = git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     let base_commit = state
         .repo
         .find_commit(stack.base.id)
         .expect("base branch is valid");
-    let mut graph = git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
     graph.insert(
         &state.repo,
         git_stack::legacy::graph::Node::new(base_commit),
     )?;
-    git_stack::legacy::graph::protect_branches(&mut graph, &state.repo, &state.protected_branches);
+    let onto_commit = state
+        .repo
+        .find_commit(stack.onto.id)
+        .expect("onto branch is valid");
+    graph.insert(
+        &state.repo,
+        git_stack::legacy::graph::Node::new(onto_commit),
+    )?;
+    let mut protected_oids: std::collections::HashSet<_> = state
+        .protected_branches
+        .iter()
+        .flat_map(|(_, branches)| branches.iter().map(|b| b.id))
+        .collect();
+    protected_oids.insert(stack.onto.id);
+    git_stack::legacy::graph::protect_commits(&mut graph, &state.repo, protected_oids);
     if let Some(protect_commit_count) = state.protect_commit_count {
         git_stack::legacy::graph::protect_large_branches(&mut graph, protect_commit_count);
     }
@@ -585,21 +599,31 @@ fn show(state: &State) -> eyre::Result<()> {
         }
 
         log::trace!("Rendering stack base={}", stack.base,);
+        let mut graph =
+            git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
         let base_commit = state
             .repo
             .find_commit(stack.base.id)
             .expect("base branch is valid");
-        let mut graph =
-            git_stack::legacy::graph::Graph::from_branches(&state.repo, graphed_branches)?;
         graph.insert(
             &state.repo,
             git_stack::legacy::graph::Node::new(base_commit),
         )?;
-        git_stack::legacy::graph::protect_branches(
-            &mut graph,
+        let onto_commit = state
+            .repo
+            .find_commit(stack.onto.id)
+            .expect("onto branch is valid");
+        graph.insert(
             &state.repo,
-            &state.protected_branches,
-        );
+            git_stack::legacy::graph::Node::new(onto_commit),
+        )?;
+        let mut protected_oids: std::collections::HashSet<_> = state
+            .protected_branches
+            .iter()
+            .flat_map(|(_, branches)| branches.iter().map(|b| b.id))
+            .collect();
+        protected_oids.insert(stack.onto.id);
+        git_stack::legacy::graph::protect_commits(&mut graph, &state.repo, protected_oids);
         if let Some(protect_commit_count) = state.protect_commit_count {
             let protected =
                 git_stack::legacy::graph::protect_large_branches(&mut graph, protect_commit_count);
