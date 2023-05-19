@@ -103,6 +103,7 @@ impl Executor {
 
         log::trace!("Applying `{}`", branch_name);
         log::trace!("Script: {:#?}", script.commands);
+        #[allow(clippy::disallowed_methods)]
         let res = script
             .commands
             .iter()
