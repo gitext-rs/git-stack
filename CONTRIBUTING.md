@@ -54,22 +54,19 @@ As a heads up, we'll be running your PR through the following gauntlet:
 - `clippy`
 - `rustdoc`
 
-Check out our [CI][travis] for more information.
-
 ## Releasing
 
+Pre-requisites
+- Running `cargo login`
+- A member of `ORG:Maintainers`
+- Push permission to the repo
+- [`cargo-release`](https://github.com/crate-ci/cargo-release/)
+
 When we're ready to release, a project owner should do the following
-- Determine what the next version is, according to semver
-- Bump version in a commit
-  - Update CHANGELOG.md
-  - Update the version in `Cargo.toml`
-  - Update the dependency version in `src/lib.rs`
-  - Update the dependency version in `README.md`
-- Tag the commit via `git tag -am "v<X>.<Y>.<Z>" v<X>.<Y>.<Z>`
-- `git push upstream master --tag v<X>.<Y>.<Z>`
-- Run `cargo publish` (run `cargo login` first if needed)
+1. Update the changelog (see `cargo release changes` for ideas)
+2. Determine what the next version is, according to semver
+3. Run [`cargo release -x <level>`](https://github.com/crate-ci/cargo-release)
 
 [issues]: https://github.com/gitext-rs/git-stack/issues
 [new issue]: https://github.com/gitext-rs/git-stack/issues/new
 [all issues]: https://github.com/gitext-rs/git-stack/issues?utf8=%E2%9C%93&q=is%3Aissue
-[travis]: https://github.com/gitext-rs/git-stack/blob/master/.travis.yml

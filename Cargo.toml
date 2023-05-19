@@ -1,22 +1,38 @@
+[workspace]
+resolver = "2"
+
+[workspace.package]
+license = "MIT OR Apache-2.0"
+edition = "2021"
+rust-version = "1.65.0"  # MSRV
+include = [
+  "build.rs",
+  "src/**/*",
+  "Cargo.toml",
+  "Cargo.lock",
+  "LICENSE*",
+  "README.md",
+  "benches/**/*",
+  "examples/**/*"
+]
+
 [package]
 name = "git-stack"
 description = "Stacked branch management for Git"
 version = "0.10.16"
-license = "MIT OR Apache-2.0"
 repository = "https://github.com/gitext-rs/git-stack.git"
 documentation = "https://github.com/gitext-rs/git-stack.git"
 readme = "README.md"
 categories = ["command-line-interface", "development-tools"]
 keywords = ["git", "cli"]
-edition = "2021"
-rust-version = "1.65.0"  # MSRV
-include = [
-  "src/**/*",
-  "Cargo.toml",
-  "LICENSE*",
-  "README.md",
-  "examples/**/*"
-]
+license.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+include.workspace = true
+
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
 
 [package.metadata.release]
 pre-release-replacements = [
