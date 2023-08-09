@@ -1612,7 +1612,6 @@ fn format_branch_status<'d>(
         if node.branches.is_empty() {
             String::new()
         } else {
-            let branch = &node.branches[0];
             match commit_relation(repo, branch.id, branch.push_id) {
                 Some((0, 0)) => {
                     format!(" {}", palette.good("(pushed)"))
