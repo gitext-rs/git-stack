@@ -525,7 +525,7 @@ With `git stack alias` for creating alias for these
 - Load config when in a worktree
 - Restore correct HEAD when multiple branches on the same commit
 
-### Breaking Chanages
+### Breaking Changes
 
 - Renamed `--format` options:
   - `brief` -> `branches`
