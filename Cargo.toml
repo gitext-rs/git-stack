@@ -19,7 +19,7 @@ include = [
 [package]
 name = "git-stack"
 description = "Stacked branch management for Git"
-version = "0.10.16"
+version = "0.10.17"
 repository = "https://github.com/gitext-rs/git-stack.git"
 documentation = "https://github.com/gitext-rs/git-stack.git"
 readme = "README.md"

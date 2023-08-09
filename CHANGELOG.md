@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.10.17] - 2023-08-09
+
 ### Fixes
 
 - Show the status for the correct branch when multiple point to the same commit
@@ -536,7 +538,8 @@ With `git stack alias` for creating alias for these
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.16...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.17...HEAD
+[0.10.17]: https://github.com/gitext-rs/git-stack/compare/v0.10.16...v0.10.17
 [0.10.16]: https://github.com/gitext-rs/git-stack/compare/v0.10.15...v0.10.16
 [0.10.15]: https://github.com/gitext-rs/git-stack/compare/v0.10.14...v0.10.15
 [0.10.14]: https://github.com/gitext-rs/git-stack/compare/v0.10.13...v0.10.14
