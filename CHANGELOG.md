@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Show the status for the correct branch when multiple point to the same commit
+
 ## [0.10.16] - 2023-05-02
 
 ### Fixes
