@@ -1453,8 +1453,8 @@ struct RenderNode<'r> {
 }
 
 const GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
-    middle_item: "⌽",
-    last_item: "⌽",
+    middle_item: "○",
+    last_item: "●",
     item_indent: " ",
     skip_indent: " ",
     ..termtree::GlyphPalette::new()
@@ -1469,7 +1469,7 @@ const SPACE_GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
 };
 
 const JOINT_GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
-    item_indent: "─┐",
+    item_indent: "─╮",
     ..termtree::GlyphPalette::new()
 };
 
