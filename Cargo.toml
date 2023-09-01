@@ -46,12 +46,12 @@ pre-release-replacements = [
 [dependencies]
 git2 = { version = "0.17", default-features = false, features = ["vendored-libgit2"] }
 git-config-env = "0.1"
-clap = { version = "4.3.0", features = ["derive"] }
+clap = { version = "4.4.2", features = ["derive"] }
 clap-verbosity-flag = "2.0.1"
 log = "0.4"
 env_logger = { version = "0.10", default-features = false, features = ["humantime", "color"] }
-colorchoice-clap = "1.0.0"
-anstyle = "1.0.0"
+colorchoice-clap = "1.0.2"
+anstyle = "1.0.2"
 anstream = "0.3.2"
 proc-exit = "2"
 eyre = "0.6"
@@ -64,15 +64,15 @@ git-branch-stash = "0.10.0"
 humantime = "2"
 itertools = "0.10"
 ignore = "0.4"
-bstr = "1.5.0"
+bstr = "1.6.2"
 maplit = "1"
-petgraph = "0.6.3"
+petgraph = "0.6.4"
 downcast-rs = "1.2.0"
 names = { version = "0.14.0", default-features = false }
-elsa = "1.8.1"
+elsa = "1.9.0"
 shlex = "1.1.0"
 
 [dev-dependencies]
 git-fixture = { version = "0.3", features = ["yaml"] }
 assert_fs = "1.0.13"
-snapbox = { version = "0.4.11", features = ["cmd", "path"] }
+snapbox = { version = "0.4.12", features = ["cmd", "path"] }
