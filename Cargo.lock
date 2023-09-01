@@ -408,10 +408,10 @@ checksum = "216f3449b2e75ff032aa9bd34575b495457a0ee6755ccc52e556362a9619a97b"
 dependencies = [
  "bstr 1.6.2",
  "eyre",
- "git-config-env",
+ "git-config-env 0.1.5",
  "git2",
  "git2-ext",
- "itertools",
+ "itertools 0.10.5",
  "log",
  "maplit",
  "serde",
@@ -424,8 +424,18 @@ version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b3639d314abdaf0aee12030ea53e0eb15af6f17ee978a1f3a74738345b93dc16"
 dependencies = [
- "itertools",
- "winnow",
+ "itertools 0.10.5",
+ "winnow 0.4.1",
+]
+
+[[package]]
+name = "git-config-env"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f71f213a516cb2ec333118dbc2240743d608fe6d4de7d8e66ac4d675b6fb7324"
+dependencies = [
+ "itertools 0.11.0",
+ "winnow 0.5.15",
 ]
 
 [[package]]
@@ -461,7 +471,7 @@ dependencies = [
  "env_logger",
  "eyre",
  "git-branch-stash",
- "git-config-env",
+ "git-config-env 0.2.0",
  "git-fixture",
  "git2",
  "git2-ext",
@@ -469,7 +479,7 @@ dependencies = [
  "humantime",
  "ignore",
  "indexmap 1.9.1",
- "itertools",
+ "itertools 0.10.5",
  "log",
  "maplit",
  "names",
@@ -501,7 +511,7 @@ checksum = "a02e722c7e38969577e2f7a59b13fde0ee93e32b21d64bcbc3befedb9dd57a8b"
 dependencies = [
  "bstr 1.6.2",
  "git2",
- "itertools",
+ "itertools 0.10.5",
  "log",
  "shlex",
  "tempfile",
@@ -666,6 +676,15 @@ name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1c173a5686ce8bfa551b3563d0c2170bf24ca44da99c7ca4bfdab5418c3fe57"
 dependencies = [
  "either",
 ]
@@ -848,7 +867,7 @@ checksum = "09963355b9f467184c04017ced4a2ba2d75cbcb4e7462690d388233253d4b1a9"
 dependencies = [
  "anstyle",
  "difflib",
- "itertools",
+ "itertools 0.10.5",
  "predicates-core",
 ]
 
@@ -1473,6 +1492,15 @@ name = "winnow"
 version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ae8970b36c66498d8ff1d66685dc86b91b29db0c7739899012f63a63814b4b28"
+dependencies = [
+ "memchr",
+]
+
+[[package]]
+name = "winnow"
+version = "0.5.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7c2e3184b9c4e92ad5167ca73039d0c42476302ab603e2fec4487511f38ccefc"
 dependencies = [
  "memchr",
 ]
