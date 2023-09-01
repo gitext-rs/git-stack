@@ -44,28 +44,28 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-git2 = { version = "0.17", default-features = false, features = ["vendored-libgit2"] }
-git-config-env = "0.2"
+git2 = { version = ">=0.16, <=0.18", default-features = false, features = ["vendored-libgit2"] }
+git-config-env = "0.2.0"
 clap = { version = "4.4.2", features = ["derive"] }
 clap-verbosity-flag = "2.0.1"
-log = "0.4"
+log = "0.4.20"
 env_logger = { version = "0.10", default-features = false, features = ["humantime", "color"] }
 colorchoice-clap = "1.0.2"
 anstyle = "1.0.2"
 anstream = "0.5.0"
-proc-exit = "2"
-eyre = "0.6"
-human-panic = "1"
-termtree = "0.4"
-indexmap = "1"
+proc-exit = "2.0.0"
+eyre = "0.6.8"
+human-panic = "1.0.0"
+termtree = "0.4.0"
+indexmap = "1.0.0"
 
-git2-ext = "0.6.0"
-git-branch-stash = "0.10.0"
-humantime = "2"
-itertools = "0.10"
-ignore = "0.4"
+git2-ext = "0.6.1"
+git-branch-stash = "0.10.1"
+humantime = "2.0.0"
+itertools = "0.11.0"
+ignore = "0.4.6"
 bstr = "1.6.2"
-maplit = "1"
+maplit = "1.0.2"
 petgraph = "0.6.4"
 downcast-rs = "1.2.0"
 names = { version = "0.14.0", default-features = false }
@@ -73,6 +73,6 @@ elsa = "1.9.0"
 shlex = "1.1.0"
 
 [dev-dependencies]
-git-fixture = { version = "0.3", features = ["yaml"] }
+git-fixture = { version = "0.3.0", features = ["yaml"] }
 assert_fs = "1.0.13"
 snapbox = { version = "0.4.12", features = ["cmd", "path"] }
