@@ -112,9 +112,9 @@ fn unregister() -> proc_exit::ExitResult {
         .with_code(proc_exit::Code::FAILURE)?;
     while let Some(entry) = entries.next() {
         let entry = entry.with_code(proc_exit::Code::FAILURE)?;
-        let Some(key) = entry.name() else {continue};
+        let Some(key) = entry.name() else { continue };
         let name = key.split_once('.').map(|n| n.1).unwrap_or(key);
-        let Some(value) = entry.value() else {continue};
+        let Some(value) = entry.value() else { continue };
 
         let mut unregister = false;
         if let Some(alias) = ALIASES.iter().find(|a| a.alias == name) {
@@ -164,9 +164,9 @@ fn status() -> proc_exit::ExitResult {
         .with_code(proc_exit::Code::FAILURE)?;
     while let Some(entry) = entries.next() {
         let entry = entry.with_code(proc_exit::Code::FAILURE)?;
-        let Some(name) = entry.name() else {continue};
+        let Some(name) = entry.name() else { continue };
         let name = name.split_once('.').map(|n| n.1).unwrap_or(name);
-        let Some(value) = entry.value() else {continue};
+        let Some(value) = entry.value() else { continue };
 
         if let Some(alias) = ALIASES.iter().find(|a| a.alias == name) {
             if value == alias.action {
