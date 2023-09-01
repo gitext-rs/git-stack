@@ -57,7 +57,7 @@ proc-exit = "2.0.0"
 eyre = "0.6.8"
 human-panic = "1.0.0"
 termtree = "0.4.0"
-indexmap = "1.0.0"
+indexmap = "2.0.0"
 
 git2-ext = "0.6.1"
 git-branch-stash = "0.10.1"
