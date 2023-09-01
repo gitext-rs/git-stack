@@ -52,7 +52,7 @@ log = "0.4"
 env_logger = { version = "0.10", default-features = false, features = ["humantime", "color"] }
 colorchoice-clap = "1.0.2"
 anstyle = "1.0.2"
-anstream = "0.3.2"
+anstream = "0.5.0"
 proc-exit = "2"
 eyre = "0.6"
 human-panic = "1"
