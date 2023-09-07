@@ -53,6 +53,10 @@ jobs:
       with:
         toolchain: stable
     - uses: Swatinem/rust-cache@v2
+    - name: Configure git
+      run: |
+        git config --global user.name "Test User"
+        git config --global user.email "test_user@example.com"
     - name: Update dependencues
       run: cargo update
     - name: Default features
