@@ -76,3 +76,10 @@ shlex = "1.1.0"
 git-fixture = { version = "0.3.0", features = ["yaml"] }
 assert_fs = "1.0.13"
 snapbox = { version = "0.4.12", features = ["cmd", "path"] }
+
+[profile.dev]
+panic = "abort"
+
+[profile.release]
+panic = "abort"
+codegen-units = 1
