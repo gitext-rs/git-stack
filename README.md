@@ -7,7 +7,7 @@
 [![codecov](https://codecov.io/gh/gitext-rs/git-stack/branch/master/graph/badge.svg)](https://codecov.io/gh/gitext-rs/git-stack)
 [![Documentation](https://img.shields.io/badge/docs-master-blue.svg)][Documentation]
 ![License](https://img.shields.io/crates/l/git-stack.svg)
-[![Crates Status](https://img.shields.io/crates/v/git-stack.svg)](https://crates.io/crates/git-stack)
+[![Crates Status](https://img.shields.io/crates/v/git-stack.svg)][Crates.io]
 
 Dual-licensed under [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE)
 
