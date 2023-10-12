@@ -543,7 +543,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::le
 }
 
 fn push(state: &mut State) -> eyre::Result<()> {
-    let mut graphed_branches = git_stack::legacy::git::Branches::new(None.into_iter());
+    let mut graphed_branches = git_stack::legacy::git::Branches::new(None);
     for stack in state.stacks.iter() {
         let stack_graphed_branches = stack.branches.clone();
         graphed_branches.extend(stack_graphed_branches.into_iter().flat_map(|(_, b)| b));
