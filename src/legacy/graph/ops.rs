@@ -671,7 +671,7 @@ fn fixup_node(
         if let Some(summary) = node.commit.fixup_summary() {
             outstanding
                 .entry(summary.to_owned())
-                .or_insert_with(Default::default)
+                .or_default()
                 .push(node_id);
 
             let mut children = Default::default();
@@ -848,7 +848,7 @@ pub fn merge_stacks(graph: &mut Graph) {
 
                 unprotected_children
                     .entry(child.commit.tree_id)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push((child.commit.time, child_id));
             }
         }
@@ -914,7 +914,7 @@ fn enqueue_merge_stack(
 
         unprotected_children
             .entry(child.commit.tree_id)
-            .or_insert_with(Vec::new)
+            .or_default()
             .push((child.commit.time, child_id));
     }
     if !unprotected_children.is_empty() {

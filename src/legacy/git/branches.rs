@@ -29,7 +29,7 @@ impl Branches {
     }
 
     pub fn insert(&mut self, branch: crate::legacy::git::Branch) {
-        let branches = self.branches.entry(branch.id).or_insert_with(Vec::new);
+        let branches = self.branches.entry(branch.id).or_default();
         if !branches
             .iter()
             .any(|b| b.remote == branch.remote && b.name == branch.name)

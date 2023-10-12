@@ -62,7 +62,8 @@ pub fn protect_large_branches(graph: &mut Graph, max: usize) -> Vec<String> {
                     .get(branch_id)
                     .unwrap_or(&[])
                     .iter()
-                    .filter_map(|branch| branch.kind().has_user_commits().then(|| branch.name())),
+                    .filter(|&branch| branch.kind().has_user_commits())
+                    .map(|branch| branch.name()),
             );
         }
     }
@@ -803,7 +804,7 @@ pub fn merge_stacks_by_tree_id(graph: &mut Graph, repo: &dyn crate::git::Repo) {
                 .expect("all commits in graph present in git");
             unprotected_children
                 .entry(commit.tree_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push((commit.time, child_id));
         }
         for mut commits in unprotected_children.into_values() {

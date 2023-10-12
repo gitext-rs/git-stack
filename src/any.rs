@@ -86,7 +86,7 @@ impl Eq for AnyId {}
 
 impl PartialOrd for AnyId {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.type_id.partial_cmp(&other.type_id)
+        Some(self.cmp(other))
     }
 }
 
