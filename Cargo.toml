@@ -46,7 +46,7 @@ pre-release-replacements = [
 [dependencies]
 git2 = { version = ">=0.16, <=0.18", default-features = false, features = ["vendored-libgit2"] }
 git-config-env = "0.2.0"
-clap = { version = "4.4.7", features = ["derive"] }
+clap = { version = "4.4.10", features = ["derive"] }
 clap-verbosity-flag = "2.1.0"
 log = "0.4.20"
 env_logger = { version = "0.10", default-features = false, features = ["humantime", "color"] }
@@ -54,8 +54,8 @@ colorchoice-clap = "1.0.3"
 anstyle = "1.0.4"
 anstream = "0.6.4"
 proc-exit = "2.0.1"
-eyre = "0.6.8"
-human-panic = "1.2.1"
+eyre = "0.6.9"
+human-panic = "1.2.2"
 termtree = "0.4.1"
 indexmap = "2.1.0"
 
@@ -63,8 +63,8 @@ git2-ext = "0.6.1"
 git-branch-stash = "0.10.1"
 humantime = "2.1.0"
 itertools = "0.11.0"
-ignore = "0.4.20"
-bstr = "1.7.0"
+ignore = "0.4.21"
+bstr = "1.8.0"
 maplit = "1.0.2"
 petgraph = "0.6.4"
 downcast-rs = "1.2.0"
