@@ -84,6 +84,13 @@ Cons:
 Cons:
 - Blackbox: no explanation for how the PRs are stacked or if any relationship data is shown to the user
 
+## `spr`
+
+[Website](https://getcord.github.io/spr/index.html)
+
+Cons:
+- Blackbox: no explanation for how the PRs are stacked or if any relationship data is shown to the user
+
 ## `ghstack`
 
 [Website](https://github.com/ezyang/ghstack)
