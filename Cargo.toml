@@ -1,5 +1,5 @@
 [workspace]
-resolver = "2"
+resolver = "2a"
 
 [workspace.package]
 license = "MIT OR Apache-2.0"
