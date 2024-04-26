@@ -1,7 +1,4 @@
-#![allow(clippy::collapsible_else_if)]
-#![allow(clippy::let_and_return)]
-#![allow(clippy::if_same_then_else)]
-#![allow(clippy::bool_to_int_with_if)]
+#![allow(clippy::single_match_else)] // avoid large clean up
 
 use clap::Parser;
 use proc_exit::WithCodeResultExt;

@@ -331,7 +331,7 @@ fn is_personal_branch(graph: &Graph, node_id: git2::Oid, user: &str, ignore: &[g
 }
 
 /// Pre-requisites:
-/// - Running protect_branches
+/// - Running `protect_branches`
 ///
 /// # Panics
 ///
@@ -447,7 +447,7 @@ pub fn pushable(graph: &mut Graph) {
 /// Quick pass for what is droppable
 ///
 /// We get into this state when a branch is squashed.  The id would be different due to metadata
-/// but the tree_id, associated with the repo, is the same if your branch is up-to-date.
+/// but the `tree_id`, associated with the repo, is the same if your branch is up-to-date.
 ///
 /// The big risk is if a commit was reverted.  To protect against this, we only look at the final
 /// state of the branch and then check if it looks like a revert.
@@ -456,7 +456,7 @@ pub fn pushable(graph: &mut Graph) {
 /// could have been squash-merged.
 ///
 /// This assumes that the Node was rebased onto all of the new potentially squash-merged Nodes and
-/// we extract the potential tree_id's from those protected commits.
+/// we extract the potential `tree_id`'s from those protected commits.
 pub fn drop_squashed_by_tree_id(
     graph: &mut Graph,
     pulled_tree_ids: impl Iterator<Item = git2::Oid>,
@@ -649,7 +649,7 @@ fn fixup_node(
     base_id: git2::Oid,
     node_id: git2::Oid,
     effect: crate::config::Fixup,
-    outstanding: &mut std::collections::BTreeMap<bstr::BString, Vec<git2::Oid>>,
+    outstanding: &mut BTreeMap<bstr::BString, Vec<git2::Oid>>,
 ) {
     debug_assert_ne!(effect, crate::config::Fixup::Ignore);
 
@@ -713,7 +713,7 @@ fn splice_between(
     node_ids: Vec<git2::Oid>,
 ) -> git2::Oid {
     let mut new_child_id = child_id;
-    for node_id in node_ids.into_iter() {
+    for node_id in node_ids {
         let node = graph.get_mut(node_id).expect("all children exist");
         debug_assert!(node.children.is_empty());
         node.children.insert(new_child_id);

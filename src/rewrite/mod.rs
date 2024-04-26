@@ -387,7 +387,7 @@ impl Executor {
                     self.abandon();
                     let dependent_branches = script.batches[(i + 1)..]
                         .iter()
-                        .flat_map(|b| b.branch())
+                        .filter_map(|b| b.branch())
                         .collect::<Vec<_>>();
                     failures.push((err, branch_name, dependent_branches));
                 }
@@ -572,7 +572,7 @@ impl Executor {
         self.delete_branches.clear();
 
         if let Some(tx) = reference_transaction {
-            tx.committed()
+            tx.committed();
         }
         self.post_rewrite.retain(|(old, new)| old != new);
         if !self.post_rewrite.is_empty() {

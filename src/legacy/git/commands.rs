@@ -284,7 +284,7 @@ impl Executor {
         self.delete_branches.clear();
 
         if let Some(tx) = reference_transaction {
-            tx.committed()
+            tx.committed();
         }
         self.post_rewrite.retain(|(old, new)| old != new);
         if !self.post_rewrite.is_empty() {

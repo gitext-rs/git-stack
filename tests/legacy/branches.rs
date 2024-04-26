@@ -2,11 +2,11 @@ use git_stack::legacy::git::*;
 
 use crate::fixture;
 
-fn no_protect() -> git_stack::legacy::git::ProtectedBranches {
+fn no_protect() -> ProtectedBranches {
     git_stack::legacy::git::ProtectedBranches::new(vec![]).unwrap()
 }
 
-fn protect() -> git_stack::legacy::git::ProtectedBranches {
+fn protect() -> ProtectedBranches {
     git_stack::legacy::git::ProtectedBranches::new(vec!["master"]).unwrap()
 }
 

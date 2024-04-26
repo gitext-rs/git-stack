@@ -179,7 +179,7 @@ pub fn tag_stale_commits(
         }
         let commit = repo.find_commit(id)?;
         (commit.time < earlier_than).then(|| StaleCommit.into())
-    })
+    });
 }
 
 pub fn trim_stale_branches(
@@ -220,7 +220,7 @@ pub fn tag_foreign_commits(
         let commit = repo.find_commit(id)?;
         (commit.committer.as_deref() != Some(user) && commit.author.as_deref() != Some(user))
             .then(|| ForeignCommit.into())
-    })
+    });
 }
 
 pub fn trim_foreign_branches(
@@ -249,7 +249,7 @@ pub struct ForeignCommit;
 impl crate::any::ResourceTag for ForeignCommit {}
 
 /// Pre-requisites:
-/// - Running protect_branches
+/// - Running `protect_branches`
 ///
 /// # Panics
 ///
@@ -518,7 +518,7 @@ impl crate::any::ResourceTag for Hidden {}
 /// Quick pass for what is droppable
 ///
 /// We get into this state when a branch is squashed.  The id would be different due to metadata
-/// but the tree_id, associated with the repo, is the same if your branch is up-to-date.
+/// but the `tree_id`, associated with the repo, is the same if your branch is up-to-date.
 ///
 /// The big risk is if a commit was reverted.  To protect against this, we only look at the final
 /// state of the branch and then check if it looks like a revert.
@@ -527,7 +527,7 @@ impl crate::any::ResourceTag for Hidden {}
 /// could have been squash-merged.
 ///
 /// This assumes that the Node was rebased onto all of the new potentially squash-merged Nodes and
-/// we extract the potential tree_id's from those protected commits.
+/// we extract the potential `tree_id`'s from those protected commits.
 pub fn delete_squashed_branches_by_tree_id(
     graph: &mut Graph,
     repo: &dyn crate::git::Repo,

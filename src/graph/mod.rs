@@ -111,8 +111,8 @@ impl Graph {
             let commit = self.commits.remove(&id);
             Node {
                 id,
-                branches,
                 commit,
+                branches,
             }
         })
     }
@@ -143,8 +143,7 @@ impl Graph {
     pub fn primary_parent_of(&self, root_id: git2::Oid) -> Option<git2::Oid> {
         self.graph
             .edges_directed(root_id, petgraph::Direction::Outgoing)
-            .filter_map(|(_child, parent, weight)| (*weight == 0).then_some(parent))
-            .next()
+            .find_map(|(_child, parent, weight)| (*weight == 0).then_some(parent))
     }
 
     pub fn parents_of(
@@ -169,7 +168,7 @@ impl Graph {
             .filter_map(|(child, _parent, weight)| (*weight == 0).then_some(child))
     }
 
-    pub fn ancestors_of(&self, root_id: git2::Oid) -> AncestorsIter {
+    pub fn ancestors_of(&self, root_id: git2::Oid) -> AncestorsIter<'_> {
         let cursor = AncestorsCursor::new(self, root_id);
         AncestorsIter {
             cursor,
@@ -177,11 +176,11 @@ impl Graph {
         }
     }
 
-    pub fn descendants(&self) -> DescendantsIter {
+    pub fn descendants(&self) -> DescendantsIter<'_> {
         self.descendants_of(self.root_id)
     }
 
-    pub fn descendants_of(&self, root_id: git2::Oid) -> DescendantsIter {
+    pub fn descendants_of(&self, root_id: git2::Oid) -> DescendantsIter<'_> {
         let cursor = DescendantsCursor::new(self, root_id);
         DescendantsIter {
             cursor,

@@ -315,15 +315,14 @@ impl RepoConfig {
             protect_commit_count,
             protect_commit_age,
             auto_base_commit_count,
+            stack,
             push_remote,
             pull_remote,
-            stack,
             show_format,
             show_commits,
             show_stacked,
             auto_fixup,
             auto_repair,
-
             capacity,
         }
     }
@@ -563,7 +562,7 @@ impl std::fmt::Display for Format {
     }
 }
 
-impl std::str::FromStr for Format {
+impl FromStr for Format {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -600,7 +599,7 @@ impl std::fmt::Display for ShowCommits {
     }
 }
 
-impl std::str::FromStr for ShowCommits {
+impl FromStr for ShowCommits {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -642,7 +641,7 @@ impl std::fmt::Display for Stack {
     }
 }
 
-impl std::str::FromStr for Stack {
+impl FromStr for Stack {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
@@ -688,7 +687,7 @@ impl std::fmt::Display for Fixup {
     }
 }
 
-impl std::str::FromStr for Fixup {
+impl FromStr for Fixup {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {

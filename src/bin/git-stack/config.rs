@@ -2,7 +2,7 @@ use std::io::Write;
 
 use proc_exit::prelude::*;
 
-pub fn dump_config(
+pub(crate) fn dump_config(
     args: &crate::args::Args,
     output_path: &std::path::Path,
 ) -> proc_exit::ExitResult {
@@ -27,7 +27,7 @@ pub fn dump_config(
     Ok(())
 }
 
-pub fn protect(args: &crate::args::Args, ignore: &str) -> proc_exit::ExitResult {
+pub(crate) fn protect(args: &crate::args::Args, ignore: &str) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
@@ -47,7 +47,7 @@ pub fn protect(args: &crate::args::Args, ignore: &str) -> proc_exit::ExitResult 
     Ok(())
 }
 
-pub fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
+pub(crate) fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;

@@ -21,7 +21,7 @@ impl Clone for Box<dyn Resource> {
 
 #[derive(Clone)]
 #[repr(transparent)]
-pub struct BoxedResource(Box<dyn Resource>);
+pub(crate) struct BoxedResource(Box<dyn Resource>);
 
 impl BoxedResource {
     pub(crate) fn as_ref<R: Resource>(&self) -> &R {
@@ -60,14 +60,14 @@ impl<R: Resource> From<R> for BoxedEntry {
 }
 
 #[derive(Copy, Clone)]
-pub struct AnyId {
+pub(crate) struct AnyId {
     type_id: std::any::TypeId,
     #[cfg(debug_assertions)]
     type_name: &'static str,
 }
 
 impl AnyId {
-    pub fn of<A: ?Sized + 'static>() -> Self {
+    pub(crate) fn of<A: ?Sized + 'static>() -> Self {
         Self {
             type_id: std::any::TypeId::of::<A>(),
             #[cfg(debug_assertions)]

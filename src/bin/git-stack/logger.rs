@@ -1,6 +1,6 @@
 use std::io::Write;
 
-pub fn init_logging(
+pub(crate) fn init_logging(
     level: clap_verbosity_flag::Verbosity<clap_verbosity_flag::InfoLevel>,
     colored: bool,
 ) {
@@ -53,7 +53,7 @@ struct Palette {
 }
 
 impl Palette {
-    pub fn colored() -> Self {
+    pub(crate) fn colored() -> Self {
         Self {
             error: anstyle::AnsiColor::Red.on_default() | anstyle::Effects::BOLD,
             warn: anstyle::AnsiColor::Yellow.on_default(),
@@ -62,7 +62,7 @@ impl Palette {
         }
     }
 
-    pub fn plain() -> Self {
+    pub(crate) fn plain() -> Self {
         Self::default()
     }
 

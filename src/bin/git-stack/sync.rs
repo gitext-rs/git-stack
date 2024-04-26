@@ -3,14 +3,14 @@ use proc_exit::prelude::*;
 
 /// Rebase local branches on top of pull remotes
 #[derive(clap::Args)]
-pub struct SyncArgs {
+pub(crate) struct SyncArgs {
     /// Don't actually switch
     #[arg(short = 'n', long)]
     dry_run: bool,
 }
 
 impl SyncArgs {
-    pub const fn alias() -> crate::alias::Alias {
+    pub(crate) const fn alias() -> crate::alias::Alias {
         let alias = "sync";
         let action = "stack sync";
         crate::alias::Alias {
@@ -20,7 +20,7 @@ impl SyncArgs {
         }
     }
 
-    pub fn exec(&self) -> proc_exit::ExitResult {
+    pub(crate) fn exec(&self) -> proc_exit::ExitResult {
         let stderr_palette = crate::ops::Palette::colored();
 
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;

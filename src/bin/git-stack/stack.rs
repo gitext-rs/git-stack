@@ -308,7 +308,7 @@ impl StackState {
     }
 }
 
-pub fn stack(args: &crate::args::Args) -> proc_exit::ExitResult {
+pub(crate) fn stack(args: &crate::args::Args) -> proc_exit::ExitResult {
     log::trace!("Initializing");
     let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
     let repo = git2::Repository::discover(&cwd).with_code(proc_exit::sysexits::USAGE_ERR)?;
@@ -1086,7 +1086,7 @@ fn git_push_node(
 }
 
 fn list(
-    writer: &mut dyn std::io::Write,
+    writer: &mut dyn Write,
     repo: &git_stack::legacy::git::GitRepo,
     graph: &git_stack::legacy::graph::Graph,
     protected_branches: &git_stack::legacy::git::Branches,
@@ -1123,7 +1123,7 @@ struct DisplayTree<'r> {
 }
 
 impl<'r> DisplayTree<'r> {
-    pub fn new(
+    pub(crate) fn new(
         repo: &'r git_stack::legacy::git::GitRepo,
         graph: &'r git_stack::legacy::graph::Graph,
     ) -> Self {
@@ -1136,17 +1136,17 @@ impl<'r> DisplayTree<'r> {
         }
     }
 
-    pub fn show(mut self, show: git_stack::config::ShowCommits) -> Self {
+    pub(crate) fn show(mut self, show: git_stack::config::ShowCommits) -> Self {
         self.show = show;
         self
     }
 
-    pub fn stacked(mut self, stacked: bool) -> Self {
+    pub(crate) fn stacked(mut self, stacked: bool) -> Self {
         self.stacked = stacked;
         self
     }
 
-    pub fn protected_branches(
+    pub(crate) fn protected_branches(
         mut self,
         protected_branches: &git_stack::legacy::git::Branches,
     ) -> Self {
@@ -1364,7 +1364,7 @@ impl<'r> Tree<'r> {
         for (i, stack) in self.stacks.into_iter().enumerate() {
             if i < stacks_len - 1 {
                 let mut stack_tree = termtree::Tree::new(joint).with_glyphs(JOINT_GLYPHS);
-                for child_tree in stack.into_iter() {
+                for child_tree in stack {
                     stack_tree.push(child_tree.into_display(repo, head_branch, protected_branches));
                 }
                 tree.push(stack_tree);
@@ -1382,10 +1382,10 @@ impl<'r> Tree<'r> {
                     };
                     tree.push(termtree::Tree::new(child).with_glyphs(GLYPHS));
                     if !child_tree.stacks.is_empty() {
-                        for child_stack in child_tree.stacks.into_iter() {
+                        for child_stack in child_tree.stacks {
                             let mut stack_tree =
                                 termtree::Tree::new(joint).with_glyphs(JOINT_GLYPHS);
-                            for child_tree in child_stack.into_iter() {
+                            for child_tree in child_stack {
                                 stack_tree.push(child_tree.into_display(
                                     repo,
                                     head_branch,
