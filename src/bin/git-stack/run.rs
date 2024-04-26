@@ -4,7 +4,7 @@ use proc_exit::prelude::*;
 
 /// Run across commands in the current stack
 #[derive(clap::Args)]
-pub struct RunArgs {
+pub(crate) struct RunArgs {
     #[arg(value_names = ["COMMAND", "ARG"], trailing_var_arg = true, required=true)]
     command: Vec<std::ffi::OsString>,
 
@@ -24,7 +24,7 @@ pub struct RunArgs {
 }
 
 impl RunArgs {
-    pub const fn alias() -> crate::alias::Alias {
+    pub(crate) const fn alias() -> crate::alias::Alias {
         let alias = "run";
         let action = "stack run";
         crate::alias::Alias {
@@ -34,7 +34,7 @@ impl RunArgs {
         }
     }
 
-    pub fn exec(&self) -> proc_exit::ExitResult {
+    pub(crate) fn exec(&self) -> proc_exit::ExitResult {
         let stderr_palette = crate::ops::Palette::colored();
 
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;

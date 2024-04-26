@@ -13,7 +13,7 @@ use git_stack::git::Repo;
 /// When you amend a commit that has descendants, those descendants are rebased on top of the
 /// amended version of the commit, unless doing so would result in merge conflicts.
 #[derive(clap::Args)]
-pub struct AmendArgs {
+pub(crate) struct AmendArgs {
     /// Commit to rewrite
     #[arg(default_value = "HEAD")]
     rev: String,
@@ -46,7 +46,7 @@ pub struct AmendArgs {
 }
 
 impl AmendArgs {
-    pub const fn alias() -> crate::alias::Alias {
+    pub(crate) const fn alias() -> crate::alias::Alias {
         let alias = "amend";
         let action = "stack amend";
         crate::alias::Alias {
@@ -56,7 +56,7 @@ impl AmendArgs {
         }
     }
 
-    pub fn exec(&self) -> proc_exit::ExitResult {
+    pub(crate) fn exec(&self) -> proc_exit::ExitResult {
         let stderr_palette = crate::ops::Palette::colored();
 
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;
@@ -312,6 +312,7 @@ fn stage_fixup(
     stderr_palette: crate::ops::Palette,
     dry_run: bool,
 ) -> Result<git2::Oid, eyre::Error> {
+    #![allow(clippy::todo)]
     let mut index = repo.raw().index()?;
     if all {
         index.update_all(

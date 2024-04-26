@@ -26,9 +26,9 @@ mod test_rebase {
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
         let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
-        git_stack::legacy::graph::protect_branches(&mut graph, &repo, &protected_branches);
-        git_stack::legacy::graph::rebase_development_branches(&mut graph, master_commit.id);
-        let script = git_stack::legacy::graph::to_script(&graph);
+        protect_branches(&mut graph, &repo, &protected_branches);
+        rebase_development_branches(&mut graph, master_commit.id);
+        let script = to_script(&graph);
         dbg!(&script);
 
         let mut executor = git_stack::legacy::git::Executor::new(&repo, false);
@@ -68,9 +68,9 @@ mod test_rebase {
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
         let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
-        git_stack::legacy::graph::protect_branches(&mut graph, &repo, &protected_branches);
-        git_stack::legacy::graph::rebase_development_branches(&mut graph, master_commit.id);
-        let script = git_stack::legacy::graph::to_script(&graph);
+        protect_branches(&mut graph, &repo, &protected_branches);
+        rebase_development_branches(&mut graph, master_commit.id);
+        let script = to_script(&graph);
         dbg!(&script);
 
         let mut executor = git_stack::legacy::git::Executor::new(&repo, false);
@@ -116,9 +116,9 @@ mod test_fixup {
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
         let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
-        git_stack::legacy::graph::protect_branches(&mut graph, &repo, &protected_branches);
-        git_stack::legacy::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
-        let script = git_stack::legacy::graph::to_script(&graph);
+        protect_branches(&mut graph, &repo, &protected_branches);
+        fixup(&mut graph, git_stack::config::Fixup::Move);
+        let script = to_script(&graph);
         dbg!(&script);
 
         let mut executor = git_stack::legacy::git::Executor::new(&repo, false);
@@ -158,9 +158,9 @@ mod test_fixup {
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
         let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
-        git_stack::legacy::graph::protect_branches(&mut graph, &repo, &protected_branches);
-        git_stack::legacy::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
-        let script = git_stack::legacy::graph::to_script(&graph);
+        protect_branches(&mut graph, &repo, &protected_branches);
+        fixup(&mut graph, git_stack::config::Fixup::Move);
+        let script = to_script(&graph);
         dbg!(&script);
 
         let mut executor = git_stack::legacy::git::Executor::new(&repo, false);
@@ -231,9 +231,9 @@ mod test_fixup {
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
         let mut graph = Graph::from_branches(&repo, graphed_branches).unwrap();
-        git_stack::legacy::graph::protect_branches(&mut graph, &repo, &protected_branches);
-        git_stack::legacy::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
-        let script = git_stack::legacy::graph::to_script(&graph);
+        protect_branches(&mut graph, &repo, &protected_branches);
+        fixup(&mut graph, git_stack::config::Fixup::Move);
+        let script = to_script(&graph);
         dbg!(&script);
 
         let mut executor = git_stack::legacy::git::Executor::new(&repo, false);
@@ -348,13 +348,13 @@ fn overflow() {
 
     let mut graph =
         git_stack::legacy::graph::Graph::from_branches(&repo, graphed_branches).unwrap();
-    git_stack::legacy::graph::protect_branches(&mut graph, &repo, &protected_branches);
-    git_stack::legacy::graph::protect_large_branches(&mut graph, 50);
-    git_stack::legacy::graph::protect_foreign_branches(&mut graph, "Myself", &[]);
+    protect_branches(&mut graph, &repo, &protected_branches);
+    protect_large_branches(&mut graph, 50);
+    protect_foreign_branches(&mut graph, "Myself", &[]);
 
-    git_stack::legacy::graph::fixup(&mut graph, git_stack::config::Fixup::Move);
+    fixup(&mut graph, git_stack::config::Fixup::Move);
 
-    let script = git_stack::legacy::graph::to_script(&graph);
+    let script = to_script(&graph);
     let mut executor = git_stack::legacy::git::Executor::new(&repo, false);
     let result = executor.run_script(&mut repo, &script);
     assert_eq!(result, vec![]);

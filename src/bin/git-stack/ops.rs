@@ -2,24 +2,24 @@ use bstr::ByteSlice;
 use eyre::WrapErr;
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
-pub struct AnnotatedOid {
-    pub id: git2::Oid,
-    pub branch: Option<git_stack::git::Branch>,
+pub(crate) struct AnnotatedOid {
+    pub(crate) id: git2::Oid,
+    pub(crate) branch: Option<git_stack::git::Branch>,
 }
 
 impl AnnotatedOid {
-    pub fn new(id: git2::Oid) -> Self {
+    pub(crate) fn new(id: git2::Oid) -> Self {
         Self { id, branch: None }
     }
 
-    pub fn with_branch(branch: git_stack::git::Branch) -> Self {
+    pub(crate) fn with_branch(branch: git_stack::git::Branch) -> Self {
         Self {
             id: branch.id,
             branch: Some(branch),
         }
     }
 
-    pub fn update(&mut self, repo: &dyn git_stack::git::Repo) -> eyre::Result<()> {
+    pub(crate) fn update(&mut self, repo: &dyn git_stack::git::Repo) -> eyre::Result<()> {
         let branch = self.branch.as_ref().and_then(|branch| {
             if let Some(remote) = &branch.remote {
                 repo.find_remote_branch(remote, &branch.name)
@@ -44,7 +44,7 @@ impl std::fmt::Display for AnnotatedOid {
     }
 }
 
-pub fn resolve_explicit_base(
+pub(crate) fn resolve_explicit_base(
     repo: &git_stack::git::GitRepo,
     base: &str,
 ) -> eyre::Result<AnnotatedOid> {
@@ -79,7 +79,7 @@ pub fn resolve_explicit_base(
     }
 }
 
-pub fn resolve_implicit_base(
+pub(crate) fn resolve_implicit_base(
     repo: &dyn git_stack::git::Repo,
     head_oid: git2::Oid,
     branches: &git_stack::graph::BranchSet,
@@ -151,7 +151,10 @@ pub fn resolve_implicit_base(
     }
 }
 
-pub fn resolve_base_from_onto(repo: &git_stack::git::GitRepo, onto: &AnnotatedOid) -> AnnotatedOid {
+pub(crate) fn resolve_base_from_onto(
+    repo: &git_stack::git::GitRepo,
+    onto: &AnnotatedOid,
+) -> AnnotatedOid {
     // HACK: Assuming the local branch is the current base for all the commits
     onto.branch
         .as_ref()
@@ -161,7 +164,7 @@ pub fn resolve_base_from_onto(repo: &git_stack::git::GitRepo, onto: &AnnotatedOi
         .unwrap_or_else(|| onto.clone())
 }
 
-pub fn git_prune_development(
+pub(crate) fn git_prune_development(
     repo: &mut git_stack::git::GitRepo,
     branches: &[&str],
     dry_run: bool,
@@ -213,7 +216,7 @@ pub fn git_prune_development(
     Ok(())
 }
 
-pub fn git_fetch_upstream(remote: &str, branch_name: &str) -> eyre::Result<()> {
+pub(crate) fn git_fetch_upstream(remote: &str, branch_name: &str) -> eyre::Result<()> {
     log::debug!("git fetch {} {}", remote, branch_name);
     // A little uncertain about some of the weirder authentication needs, just deferring to `git`
     // instead of using `libgit2`
@@ -235,7 +238,7 @@ pub fn git_fetch_upstream(remote: &str, branch_name: &str) -> eyre::Result<()> {
 /// # Panic
 ///
 /// Panics if `current_id` is not present
-pub fn switch(
+pub(crate) fn switch(
     repo: &mut git_stack::git::GitRepo,
     branches: &git_stack::graph::BranchSet,
     current_id: git2::Oid,
@@ -287,7 +290,7 @@ pub fn switch(
     Ok(())
 }
 
-pub fn render_id(
+pub(crate) fn render_id(
     repo: &git_stack::git::GitRepo,
     branches: &git_stack::graph::BranchSet,
     id: git2::Oid,
@@ -310,7 +313,7 @@ pub fn render_id(
     }
 }
 
-pub fn edit_commit(
+pub(crate) fn edit_commit(
     git_path: &std::path::Path,
     editor: &str,
     initial: &str,
@@ -412,17 +415,17 @@ impl<'a> Iterator for LinesWithTerminator<'a> {
 
 #[derive(Copy, Clone, Debug, Default)]
 #[non_exhaustive]
-pub struct Palette {
-    pub error: anstyle::Style,
-    pub warn: anstyle::Style,
-    pub info: anstyle::Style,
-    pub good: anstyle::Style,
-    pub highlight: anstyle::Style,
-    pub hint: anstyle::Style,
+pub(crate) struct Palette {
+    pub(crate) error: anstyle::Style,
+    pub(crate) warn: anstyle::Style,
+    pub(crate) info: anstyle::Style,
+    pub(crate) good: anstyle::Style,
+    pub(crate) highlight: anstyle::Style,
+    pub(crate) hint: anstyle::Style,
 }
 
 impl Palette {
-    pub fn colored() -> Self {
+    pub(crate) fn colored() -> Self {
         Self {
             error: anstyle::AnsiColor::Red.on_default() | anstyle::Effects::BOLD,
             warn: anstyle::AnsiColor::Yellow.on_default() | anstyle::Effects::BOLD,
@@ -480,4 +483,4 @@ impl<D: std::fmt::Display> std::fmt::Display for Styled<D> {
     }
 }
 
-pub const STASH_STACK_NAME: &str = "git-stack";
+pub(crate) const STASH_STACK_NAME: &str = "git-stack";

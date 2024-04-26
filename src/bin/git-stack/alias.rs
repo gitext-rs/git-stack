@@ -3,7 +3,7 @@ use std::io::Write;
 use proc_exit::prelude::*;
 
 #[derive(clap::Args)]
-pub struct AliasArgs {
+pub(crate) struct AliasArgs {
     #[arg(long)]
     register: bool,
 
@@ -12,7 +12,7 @@ pub struct AliasArgs {
 }
 
 impl AliasArgs {
-    pub fn exec(&self) -> proc_exit::ExitResult {
+    pub(crate) fn exec(&self) -> proc_exit::ExitResult {
         if self.register {
             register()?;
         } else if self.unregister {
@@ -234,10 +234,10 @@ fn status() -> proc_exit::ExitResult {
     Ok(())
 }
 
-pub struct Alias {
-    pub alias: &'static str,
-    pub action: &'static str,
-    pub action_base: &'static str,
+pub(crate) struct Alias {
+    pub(crate) alias: &'static str,
+    pub(crate) action: &'static str,
+    pub(crate) action_base: &'static str,
 }
 
 const ALIASES: &[Alias] = &[

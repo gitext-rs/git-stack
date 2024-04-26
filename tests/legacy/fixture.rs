@@ -1,6 +1,6 @@
 use bstr::ByteSlice;
 
-pub fn populate_repo(
+pub(crate) fn populate_repo(
     repo: &mut git_stack::legacy::git::InMemoryRepo,
     fixture: git_fixture::TodoList,
 ) {
@@ -10,7 +10,7 @@ pub fn populate_repo(
 
     let mut last_oid = None;
     let mut labels: std::collections::HashMap<git_fixture::Label, git2::Oid> = Default::default();
-    for command in fixture.commands.into_iter() {
+    for command in fixture.commands {
         match command {
             git_fixture::Command::Label(label) => {
                 let current_oid = last_oid.unwrap();

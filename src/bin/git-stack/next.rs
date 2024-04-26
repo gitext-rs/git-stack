@@ -4,7 +4,7 @@ use proc_exit::prelude::*;
 
 /// Switch to a descendant commit
 #[derive(clap::Args)]
-pub struct NextArgs {
+pub(crate) struct NextArgs {
     /// Jump back the specified number of commits or branches
     #[arg(default_value = "1")]
     num_commits: usize,
@@ -27,7 +27,7 @@ pub struct NextArgs {
 }
 
 impl NextArgs {
-    pub const fn alias() -> crate::alias::Alias {
+    pub(crate) const fn alias() -> crate::alias::Alias {
         let alias = "next";
         let action = "stack next";
         crate::alias::Alias {
@@ -37,7 +37,7 @@ impl NextArgs {
         }
     }
 
-    pub fn exec(&self) -> proc_exit::ExitResult {
+    pub(crate) fn exec(&self) -> proc_exit::ExitResult {
         let stderr_palette = crate::ops::Palette::colored();
 
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;

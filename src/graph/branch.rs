@@ -170,7 +170,7 @@ impl BranchSet {
                 }
             })
             .map(|(oid, branches)| {
-                let branches: Vec<_> = branches.to_vec();
+                let branches: Vec<_> = branches.clone();
                 (*oid, branches)
             })
             .collect();
@@ -216,7 +216,7 @@ impl BranchSet {
                 }
             })
             .map(|(oid, branches)| {
-                let branches: Vec<_> = branches.to_vec();
+                let branches: Vec<_> = branches.clone();
                 (*oid, branches)
             })
             .collect();
@@ -262,7 +262,7 @@ impl BranchSet {
                 }
             })
             .map(|(oid, branches)| {
-                let branches: Vec<_> = branches.to_vec();
+                let branches: Vec<_> = branches.clone();
                 (*oid, branches)
             })
             .collect();

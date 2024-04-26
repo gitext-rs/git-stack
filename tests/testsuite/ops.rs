@@ -25,9 +25,9 @@ mod test_rebase {
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
         let mut graph = Graph::from_branches(&repo, branches).unwrap();
-        git_stack::graph::protect_branches(&mut graph);
-        git_stack::graph::rebase_development_branches(&mut graph, master_commit.id);
-        let scripts = git_stack::graph::to_scripts(&graph, vec![]);
+        protect_branches(&mut graph);
+        rebase_development_branches(&mut graph, master_commit.id);
+        let scripts = to_scripts(&graph, vec![]);
         dbg!(&scripts);
 
         let mut executor = git_stack::rewrite::Executor::new(false);
@@ -62,9 +62,9 @@ mod test_rebase {
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
         let mut graph = Graph::from_branches(&repo, branches).unwrap();
-        git_stack::graph::protect_branches(&mut graph);
-        git_stack::graph::rebase_development_branches(&mut graph, master_commit.id);
-        let scripts = git_stack::graph::to_scripts(&graph, vec![]);
+        protect_branches(&mut graph);
+        rebase_development_branches(&mut graph, master_commit.id);
+        let scripts = to_scripts(&graph, vec![]);
         dbg!(&scripts);
 
         let mut executor = git_stack::rewrite::Executor::new(false);
@@ -107,9 +107,9 @@ mod test_fixup {
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
         let mut graph = Graph::from_branches(&repo, branches).unwrap();
-        git_stack::graph::protect_branches(&mut graph);
-        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Move);
-        let scripts = git_stack::graph::to_scripts(&graph, vec![]);
+        protect_branches(&mut graph);
+        fixup(&mut graph, &repo, git_stack::config::Fixup::Move);
+        let scripts = to_scripts(&graph, vec![]);
         dbg!(&scripts);
 
         let mut executor = git_stack::rewrite::Executor::new(false);
@@ -144,9 +144,9 @@ mod test_fixup {
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
         let mut graph = Graph::from_branches(&repo, branches).unwrap();
-        git_stack::graph::protect_branches(&mut graph);
-        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Move);
-        let scripts = git_stack::graph::to_scripts(&graph, vec![]);
+        protect_branches(&mut graph);
+        fixup(&mut graph, &repo, git_stack::config::Fixup::Move);
+        let scripts = to_scripts(&graph, vec![]);
         dbg!(&scripts);
 
         let mut executor = git_stack::rewrite::Executor::new(false);
@@ -217,9 +217,9 @@ mod test_fixup {
         let master_commit = repo.find_commit(master_branch.id).unwrap();
 
         let mut graph = Graph::from_branches(&repo, branches).unwrap();
-        git_stack::graph::protect_branches(&mut graph);
-        git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Move);
-        let scripts = git_stack::graph::to_scripts(&graph, vec![]);
+        protect_branches(&mut graph);
+        fixup(&mut graph, &repo, git_stack::config::Fixup::Move);
+        let scripts = to_scripts(&graph, vec![]);
         dbg!(&scripts);
 
         let mut executor = git_stack::rewrite::Executor::new(false);
@@ -330,13 +330,13 @@ fn overflow() {
     let branches = git_stack::graph::BranchSet::from_repo(&repo, &protect).unwrap();
 
     let mut graph = git_stack::graph::Graph::from_branches(&repo, branches).unwrap();
-    git_stack::graph::protect_branches(&mut graph);
-    git_stack::graph::protect_large_branches(&mut graph, 50);
-    git_stack::graph::protect_foreign_branches(&mut graph, &repo, "Myself", &[]);
+    protect_branches(&mut graph);
+    protect_large_branches(&mut graph, 50);
+    protect_foreign_branches(&mut graph, &repo, "Myself", &[]);
 
-    git_stack::graph::fixup(&mut graph, &repo, git_stack::config::Fixup::Move);
+    fixup(&mut graph, &repo, git_stack::config::Fixup::Move);
 
-    let scripts = git_stack::graph::to_scripts(&graph, vec![]);
+    let scripts = to_scripts(&graph, vec![]);
     let mut executor = git_stack::rewrite::Executor::new(false);
     for script in scripts {
         let result = executor.run(&mut repo, &script);

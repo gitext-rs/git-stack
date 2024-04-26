@@ -136,7 +136,7 @@ impl Graph {
         repo: &dyn crate::legacy::git::Repo,
         base_oid: git2::Oid,
         head_oid: git2::Oid,
-        default_action: crate::legacy::graph::Action,
+        default_action: Action,
     ) -> Result<(), git2::Error> {
         log::trace!("Populating data for {}..{}", base_oid, head_oid);
         debug_assert_eq!(

@@ -10,7 +10,7 @@ use git_stack::git::Repo;
 /// When you reword a commit that has descendants, those descendants are rebased on top of the
 /// reworded version of the commit.
 #[derive(clap::Args)]
-pub struct RewordArgs {
+pub(crate) struct RewordArgs {
     /// Commit to rewrite
     #[arg(default_value = "HEAD")]
     rev: String,
@@ -25,7 +25,7 @@ pub struct RewordArgs {
 }
 
 impl RewordArgs {
-    pub const fn alias() -> crate::alias::Alias {
+    pub(crate) const fn alias() -> crate::alias::Alias {
         let alias = "reword";
         let action = "stack reword";
         crate::alias::Alias {
@@ -35,7 +35,7 @@ impl RewordArgs {
         }
     }
 
-    pub fn exec(&self) -> proc_exit::ExitResult {
+    pub(crate) fn exec(&self) -> proc_exit::ExitResult {
         let stderr_palette = crate::ops::Palette::colored();
 
         let cwd = std::env::current_dir().with_code(proc_exit::sysexits::USAGE_ERR)?;

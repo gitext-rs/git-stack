@@ -94,15 +94,12 @@ impl Commit {
             // Very informal
             Some(b"".as_bstr())
         } else {
-            WIP_PREFIXES
-                .iter()
-                .filter_map(|prefix| {
-                    self.summary
-                        .strip_prefix(*prefix)
-                        .map(ByteSlice::trim)
-                        .map(ByteSlice::as_bstr)
-                })
-                .next()
+            WIP_PREFIXES.iter().find_map(|prefix| {
+                self.summary
+                    .strip_prefix(*prefix)
+                    .map(ByteSlice::trim)
+                    .map(ByteSlice::as_bstr)
+            })
         }
     }
 
@@ -189,7 +186,7 @@ impl GitRepo {
                 "Repository is dirty: {}",
                 status
                     .iter()
-                    .flat_map(|s| s.path().map(|s| s.to_owned()))
+                    .filter_map(|s| s.path().map(|s| s.to_owned()))
                     .join(", ")
             );
             true
@@ -386,10 +383,11 @@ impl GitRepo {
                 .repo
                 .signature()
                 .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
-            match rebase.commit(None, &sig, None).map_err(|e| {
+            let result = rebase.commit(None, &sig, None).map_err(|e| {
                 let _ = rebase.abort();
                 e
-            }) {
+            });
+            match result {
                 // Created commit, must be unique
                 Ok(_) => Ok(false),
                 Err(err) => {
@@ -492,7 +490,7 @@ impl GitRepo {
             .branches(Some(git2::BranchType::Local))
             .into_iter()
             .flatten()
-            .flat_map(move |branch| {
+            .filter_map(move |branch| {
                 let (branch, _) = branch.ok()?;
                 let name = if let Some(name) = branch.name().ok().flatten() {
                     name
@@ -513,7 +511,7 @@ impl GitRepo {
             .branches(Some(git2::BranchType::Remote))
             .into_iter()
             .flatten()
-            .flat_map(move |branch| {
+            .filter_map(move |branch| {
                 let (branch, _) = branch.ok()?;
                 let name = if let Some(name) = branch.name().ok().flatten() {
                     name
@@ -529,7 +527,7 @@ impl GitRepo {
             })
     }
 
-    fn load_local_branch(&self, branch: &git2::Branch, name: &str) -> Result<Branch> {
+    fn load_local_branch(&self, branch: &git2::Branch<'_>, name: &str) -> Result<Branch> {
         let id = branch.get().target().unwrap();
 
         Ok(Branch {
@@ -541,7 +539,7 @@ impl GitRepo {
 
     fn load_remote_branch(
         &self,
-        branch: &git2::Branch,
+        branch: &git2::Branch<'_>,
         remote: &str,
         name: &str,
     ) -> Result<Branch> {
@@ -761,7 +759,7 @@ impl InMemoryRepo {
     }
 
     pub fn clear(&mut self) {
-        *self = InMemoryRepo::new()
+        *self = InMemoryRepo::new();
     }
 
     pub fn gen_id(&mut self) -> git2::Oid {
@@ -787,7 +785,7 @@ impl InMemoryRepo {
 
     pub fn set_head(&mut self, head_id: git2::Oid) {
         assert!(self.commits.contains_key(&head_id));
-        self.head_id = Some(head_id)
+        self.head_id = Some(head_id);
     }
 
     pub fn mark_branch(&mut self, branch: Branch) {

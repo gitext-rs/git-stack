@@ -2,34 +2,34 @@
 #[command(about, author, version)]
 #[command(group = clap::ArgGroup::new("mode").multiple(false))]
 #[command(args_conflicts_with_subcommands = true)]
-pub struct Args {
+pub(crate) struct Args {
     /// Rebase the selected stacks
     #[arg(short, long, group = "mode")]
-    pub rebase: bool,
+    pub(crate) rebase: bool,
 
     /// Pull the parent branch and rebase onto it.
     #[arg(long)]
-    pub pull: bool,
+    pub(crate) pull: bool,
 
     /// Push all ready branches
     #[arg(long)]
-    pub push: bool,
+    pub(crate) push: bool,
 
     /// Which branch stacks to include
     #[arg(short, long, value_enum)]
-    pub stack: Option<git_stack::config::Stack>,
+    pub(crate) stack: Option<git_stack::config::Stack>,
 
     /// Branch to evaluate from (default: most-recent protected branch)
     #[arg(long)]
-    pub base: Option<String>,
+    pub(crate) base: Option<String>,
 
     /// Branch to rebase onto (default: base)
     #[arg(long)]
-    pub onto: Option<String>,
+    pub(crate) onto: Option<String>,
 
     /// Action to perform with fixup-commits
     #[arg(long, value_enum)]
-    pub fixup: Option<git_stack::config::Fixup>,
+    pub(crate) fixup: Option<git_stack::config::Fixup>,
 
     /// Repair diverging branches.
     #[arg(long, overrides_with("no_repair"))]
@@ -38,21 +38,21 @@ pub struct Args {
     no_repair: bool,
 
     #[arg(short = 'n', long)]
-    pub dry_run: bool,
+    pub(crate) dry_run: bool,
 
     #[arg(long, value_enum)]
-    pub format: Option<git_stack::config::Format>,
+    pub(crate) format: Option<git_stack::config::Format>,
 
     #[arg(long, value_enum)]
-    pub show_commits: Option<git_stack::config::ShowCommits>,
+    pub(crate) show_commits: Option<git_stack::config::ShowCommits>,
 
     /// See what branches are protected
     #[arg(long, group = "mode")]
-    pub protected: bool,
+    pub(crate) protected: bool,
 
     /// Append a protected branch to the repository's config (gitignore syntax)
     #[arg(long, group = "mode")]
-    pub protect: Option<String>,
+    pub(crate) protect: Option<String>,
 
     /// Run as if git was started in `PATH` instead of the current working directory.
     ///
@@ -66,24 +66,24 @@ pub struct Args {
     ///     git --git-dir=a.git --work-tree=b -C c status
     ///     git --git-dir=c/a.git --work-tree=c/b status
     #[arg(short = 'C', hide = true, value_name = "PATH")]
-    pub current_dir: Option<Vec<std::path::PathBuf>>,
+    pub(crate) current_dir: Option<Vec<std::path::PathBuf>>,
 
     /// Write the current configuration to file with `-` for stdout
     #[arg(long, group = "mode")]
-    pub dump_config: Option<std::path::PathBuf>,
+    pub(crate) dump_config: Option<std::path::PathBuf>,
 
     #[command(flatten)]
     pub(crate) color: colorchoice_clap::Color,
 
     #[command(flatten)]
-    pub verbose: clap_verbosity_flag::Verbosity<clap_verbosity_flag::InfoLevel>,
+    pub(crate) verbose: clap_verbosity_flag::Verbosity<clap_verbosity_flag::InfoLevel>,
 
     #[command(subcommand)]
     command: Option<Command>,
 }
 
 #[derive(clap::Subcommand)]
-pub enum Command {
+pub(crate) enum Command {
     #[command(alias = "prev")]
     Previous(crate::prev::PrevArgs),
     Next(crate::next::NextArgs),
@@ -95,7 +95,7 @@ pub enum Command {
 }
 
 impl Args {
-    pub fn exec(&self) -> proc_exit::ExitResult {
+    pub(crate) fn exec(&self) -> proc_exit::ExitResult {
         match &self.command {
             Some(Command::Previous(c)) => c.exec(),
             Some(Command::Next(c)) => c.exec(),
@@ -118,7 +118,7 @@ impl Args {
         }
     }
 
-    pub fn to_config(&self) -> git_stack::config::RepoConfig {
+    pub(crate) fn to_config(&self) -> git_stack::config::RepoConfig {
         git_stack::config::RepoConfig {
             editor: None,
             protected_branches: None,
@@ -138,7 +138,7 @@ impl Args {
         }
     }
 
-    pub fn repair(&self) -> Option<bool> {
+    pub(crate) fn repair(&self) -> Option<bool> {
         resolve_bool_arg(self.repair, self.no_repair)
     }
 }
@@ -159,6 +159,6 @@ mod test {
     #[test]
     fn verify_app() {
         use clap::CommandFactory;
-        Args::command().debug_assert()
+        Args::command().debug_assert();
     }
 }
