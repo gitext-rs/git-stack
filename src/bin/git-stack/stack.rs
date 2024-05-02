@@ -406,7 +406,7 @@ pub(crate) fn stack(args: &crate::args::Args) -> proc_exit::ExitResult {
                         .map(|b| b.name.as_str())
                         .filter(|n| state.repo.find_local_branch(n).is_some())
                     {
-                        head_branch = local_name.to_owned();
+                        local_name.clone_into(&mut head_branch);
                     }
                 }
                 Ok(script)

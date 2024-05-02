@@ -612,7 +612,7 @@ fn fixup_branch(
 ) {
     debug_assert_ne!(effect, crate::config::Fixup::Ignore);
 
-    let mut outstanding = std::collections::BTreeMap::new();
+    let mut outstanding = BTreeMap::new();
     let node_children = graph
         .get(node_id)
         .expect("all children exist")

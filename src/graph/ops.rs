@@ -884,7 +884,7 @@ pub fn to_scripts(
         .collect::<std::collections::HashMap<_, _>>();
 
     let mut descendants = graph.descendants().into_cursor();
-    let mut seen = std::collections::HashSet::new();
+    let mut seen = HashSet::new();
     while let Some(descendant_id) = descendants.next(graph) {
         for child_id in graph.children_of(descendant_id) {
             let action = graph

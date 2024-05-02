@@ -138,14 +138,14 @@ mod test_branches {
         assert_eq!(
             names,
             [
-                ("base".to_owned(), git_stack::graph::BranchKind::Mutable),
-                ("feature1".to_owned(), git_stack::graph::BranchKind::Mutable),
-                ("feature2".to_owned(), git_stack::graph::BranchKind::Deleted),
-                ("initial".to_owned(), git_stack::graph::BranchKind::Mutable),
-                ("master".to_owned(), git_stack::graph::BranchKind::Protected),
+                ("base".to_owned(), BranchKind::Mutable),
+                ("feature1".to_owned(), BranchKind::Mutable),
+                ("feature2".to_owned(), BranchKind::Deleted),
+                ("initial".to_owned(), BranchKind::Mutable),
+                ("master".to_owned(), BranchKind::Protected),
                 (
                     "off_master".to_owned(),
-                    git_stack::graph::BranchKind::Deleted
+                    BranchKind::Deleted
                 ),
             ]
         );

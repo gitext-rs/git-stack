@@ -347,7 +347,7 @@ fn overflow() {
     protected_branches.insert(repo.find_local_branch("master").unwrap());
 
     let mut graph =
-        git_stack::legacy::graph::Graph::from_branches(&repo, graphed_branches).unwrap();
+        Graph::from_branches(&repo, graphed_branches).unwrap();
     protect_branches(&mut graph, &repo, &protected_branches);
     protect_large_branches(&mut graph, 50);
     protect_foreign_branches(&mut graph, "Myself", &[]);

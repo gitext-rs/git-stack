@@ -19,7 +19,7 @@ mod test_rebase {
         fixture::populate_repo(&mut repo, plan);
 
         let protect = protect();
-        let branches = git_stack::graph::BranchSet::from_repo(&repo, &protect).unwrap();
+        let branches = BranchSet::from_repo(&repo, &protect).unwrap();
 
         let master_branch = repo.find_local_branch("master").unwrap();
         let master_commit = repo.find_commit(master_branch.id).unwrap();
@@ -56,7 +56,7 @@ mod test_rebase {
         fixture::populate_repo(&mut repo, plan);
 
         let protect = protect();
-        let branches = git_stack::graph::BranchSet::from_repo(&repo, &protect).unwrap();
+        let branches = BranchSet::from_repo(&repo, &protect).unwrap();
 
         let master_branch = repo.find_local_branch("master").unwrap();
         let master_commit = repo.find_commit(master_branch.id).unwrap();
@@ -101,7 +101,7 @@ mod test_fixup {
         fixture::populate_repo(&mut repo, plan);
 
         let protect = protect();
-        let branches = git_stack::graph::BranchSet::from_repo(&repo, &protect).unwrap();
+        let branches = BranchSet::from_repo(&repo, &protect).unwrap();
 
         let master_branch = repo.find_local_branch("master").unwrap();
         let master_commit = repo.find_commit(master_branch.id).unwrap();
@@ -138,7 +138,7 @@ mod test_fixup {
         fixture::populate_repo(&mut repo, plan);
 
         let protect = protect();
-        let branches = git_stack::graph::BranchSet::from_repo(&repo, &protect).unwrap();
+        let branches = BranchSet::from_repo(&repo, &protect).unwrap();
 
         let master_branch = repo.find_local_branch("master").unwrap();
         let master_commit = repo.find_commit(master_branch.id).unwrap();
@@ -211,7 +211,7 @@ mod test_fixup {
         fixture::populate_repo(&mut repo, plan);
 
         let protect = protect();
-        let branches = git_stack::graph::BranchSet::from_repo(&repo, &protect).unwrap();
+        let branches = BranchSet::from_repo(&repo, &protect).unwrap();
 
         let master_branch = repo.find_local_branch("feature1").unwrap();
         let master_commit = repo.find_commit(master_branch.id).unwrap();
@@ -327,9 +327,9 @@ fn overflow() {
     fixture::populate_repo(&mut repo, plan);
 
     let protect = protect();
-    let branches = git_stack::graph::BranchSet::from_repo(&repo, &protect).unwrap();
+    let branches = BranchSet::from_repo(&repo, &protect).unwrap();
 
-    let mut graph = git_stack::graph::Graph::from_branches(&repo, branches).unwrap();
+    let mut graph = Graph::from_branches(&repo, branches).unwrap();
     protect_branches(&mut graph);
     protect_large_branches(&mut graph, 50);
     protect_foreign_branches(&mut graph, &repo, "Myself", &[]);
