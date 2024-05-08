@@ -152,6 +152,10 @@ Cons:
 - Working with multiple remotes requires many manual steps to manage
   branches
 
+## Revup
+
+[Website](https://github.com/Skydio/revup)
+
 ## Stacked Git
 
 [Website](https://stacked-git.github.io/)
@@ -172,6 +176,10 @@ Cons:
 ## `git-series`
 
 [Website](https://github.com/git-series/git-series)
+
+## `git-stacked-rebase`
+
+[Website](https://github.com/kiprasmel/git-stacked-rebase)
 
 ## `git-chain`
 
