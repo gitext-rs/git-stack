@@ -52,8 +52,8 @@ fn amend_noop() {
         .current_dir(root_path)
         .assert()
         .failure()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 error: nothing to amend to [..]: C
 
 "#]]);
@@ -102,8 +102,8 @@ fn reword_protected_fails() {
         .current_dir(root_path)
         .assert()
         .failure()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(
+        .stdout_eq(str![].raw())
+        .stderr_eq(
             str![[r#"
 cannot amend protected commits
 
@@ -172,8 +172,8 @@ fn reword() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Saved working directory and index state WIP on target (amend): [..]
 Amended to [..]: C
 Dropped refs/stash [..]
@@ -244,8 +244,8 @@ fn reword_rebases() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Saved working directory and index state WIP on local (amend): [..]
 Amended to [..]: B
 Dropped refs/stash [..]
@@ -321,8 +321,8 @@ fn amend_add() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Adding c
 Amended to [..]: C
 note: to undo, run `git branch-stash pop git-stack`
@@ -391,8 +391,8 @@ fn amend_staged() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Saved working directory and index state WIP on target (amend): [..]
 Amended to [..]: C
 Dropped refs/stash [..]
@@ -468,8 +468,8 @@ fn amend_detached() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Saved working directory and index state WIP on HEAD (amend): [..]
 Amended to [..]: B
 Dropped refs/stash [..]
@@ -552,8 +552,8 @@ fn amend_explicit_head() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Saved working directory and index state WIP on target (amend): [..]
 Amended to [..]: C
 Dropped refs/stash [..]
@@ -630,8 +630,8 @@ fn amend_ancestor() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Saved working directory and index state WIP on local (amend): [..]
 Amended to [..]: B
 Dropped refs/stash [..]
@@ -715,8 +715,8 @@ fn amend_conflict() {
         .current_dir(root_path)
         .assert()
         .failure()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Saved working directory and index state WIP on local (amend): [..]
 ERROR: Failed to re-stack branch `local`: squash conflicts:
   c

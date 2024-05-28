@@ -21,7 +21,8 @@ fn list_no_config() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq_(str![[r#"
+        .stdout_eq(
+            str![[r#"
 [alias]
 #   next = stack next  # unregistered
 #   prev = stack previous  # unregistered
@@ -30,8 +31,10 @@ fn list_no_config() {
 #   sync = stack sync  # unregistered
 #   run = stack run  # unregistered
 
-"#]].raw())
-        .stderr_eq_(str![[r#"
+"#]]
+            .raw(),
+        )
+        .stderr_eq(str![[r#"
 note: To register, pass `--register`
 
 "#]]);
@@ -64,7 +67,8 @@ fn list_global_config() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq_(str![[r#"
+        .stdout_eq(
+            str![[r#"
 [alias]
     next = foo  # instead of `stack next`
 #   prev = stack previous  # unregistered
@@ -73,8 +77,10 @@ fn list_global_config() {
 #   sync = stack sync  # unregistered
 #   run = stack run  # unregistered
 
-"#]].raw())
-        .stderr_eq_(str![[r#"
+"#]]
+            .raw(),
+        )
+        .stderr_eq(str![[r#"
 note: To register, pass `--register`
 
 "#]]);
@@ -100,8 +106,8 @@ fn register_no_config() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Registering: next="stack next"
 Registering: prev="stack previous"
 Registering: reword="stack reword"
@@ -117,7 +123,8 @@ Registering: run="stack run"
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq_(str![[r#"
+        .stdout_eq(
+            str![[r#"
 [alias]
     next = stack next  # registered
     prev = stack previous  # registered
@@ -126,8 +133,10 @@ Registering: run="stack run"
     sync = stack sync  # registered
     run = stack run  # registered
 
-"#]].raw())
-        .stderr_eq_(str![[r#"
+"#]]
+            .raw(),
+        )
+        .stderr_eq(str![[r#"
 note: To unregister, pass `--unregister`
 
 "#]]);
@@ -162,8 +171,8 @@ fn register_no_overwrite_alias() {
         .env("HOME", &home_root)
         .assert()
         .failure()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 error: next="foo" is registered, not overwriting with "stack next"
 Registering: reword="stack reword"
 Registering: amend="stack amend"
@@ -178,7 +187,8 @@ Registering: run="stack run"
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq_(str![[r#"
+        .stdout_eq(
+            str![[r#"
 [alias]
     next = foo  # instead of `stack next`
     prev = stack previous -v  # diverged from "stack previous"
@@ -187,8 +197,10 @@ Registering: run="stack run"
     sync = stack sync  # registered
     run = stack run  # registered
 
-"#]].raw())
-        .stderr_eq_(str![[r#"
+"#]]
+            .raw(),
+        )
+        .stderr_eq(str![[r#"
 note: To unregister, pass `--unregister`
 
 "#]]);
@@ -222,8 +234,8 @@ fn register_unregister() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq_(str![])
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![])
+        .stderr_eq(str![[r#"
 Unregistering: next="stack next"
 Unregistering: prev="stack previous"
 Unregistering: reword="stack reword"
@@ -262,8 +274,8 @@ fn reregister() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![]);
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![]);
 
     root.close().unwrap();
 }
@@ -286,8 +298,8 @@ fn unregister_no_config() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![]);
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![]);
 
     root.close().unwrap();
 }
@@ -320,8 +332,8 @@ fn unregister_existing_config() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Unregistering: prev="stack previous -v"
 Unregistering: reword="stack reword"
 
@@ -333,7 +345,8 @@ Unregistering: reword="stack reword"
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq_(str![[r#"
+        .stdout_eq(
+            str![[r#"
 [alias]
     next = foo  # instead of `stack next`
 #   prev = stack previous  # unregistered
@@ -342,8 +355,10 @@ Unregistering: reword="stack reword"
 #   sync = stack sync  # unregistered
 #   run = stack run  # unregistered
 
-"#]].raw())
-        .stderr_eq_(str![[r#"
+"#]]
+            .raw(),
+        )
+        .stderr_eq(str![[r#"
 note: To register, pass `--register`
 
 "#]]);

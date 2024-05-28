@@ -34,8 +34,8 @@ fn reword_protected_fails() {
         .current_dir(root_path)
         .assert()
         .failure()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(
+        .stdout_eq(str![].raw())
+        .stderr_eq(
             str![[r#"
 cannot reword protected commits
 
@@ -99,8 +99,8 @@ fn reword_implicit_head() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(
+        .stdout_eq(str![].raw())
+        .stderr_eq(
             str![[r#"
 note: to undo, run `git branch-stash pop git-stack`
 
@@ -171,8 +171,8 @@ fn reword_explicit_head() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(
+        .stdout_eq(str![].raw())
+        .stderr_eq(
             str![[r#"
 note: to undo, run `git branch-stash pop git-stack`
 
@@ -246,8 +246,8 @@ fn reword_branch() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq_(str![].raw())
-        .stderr_eq_(str![[r#"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Saved working directory and index state WIP on local (reword): [..]
 Dropped refs/stash [..]
 note: to undo, run `git branch-stash pop git-stack`
