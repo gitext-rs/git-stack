@@ -1,8 +1,11 @@
 use bstr::ByteSlice as _;
+use snapbox::assert_data_eq;
+use snapbox::prelude::*;
+use snapbox::str;
 
 #[test]
 fn amend_noop() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -49,27 +52,25 @@ fn amend_noop() {
         .current_dir(root_path)
         .assert()
         .failure()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            "\
-error: nothing to amend to [..]: C
-",
-        );
+        .stdout_eq_(str![].raw())
+        .stderr_eq_(str![[r#"
+            error: nothing to amend to [..]: C
+        "#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_eq!(old_head_id, new_head_id);
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+    assert_data_eq!(
+        std::fs::read(root_path.join("a")).unwrap(),
+        str!["unstaged a"].raw()
+    );
 
     root.close().unwrap();
 }
 
 #[test]
 fn reword_protected_fails() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -100,27 +101,28 @@ fn reword_protected_fails() {
         .current_dir(root_path)
         .assert()
         .failure()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_eq(
-            "\
-cannot amend protected commits
-",
+        .stdout_eq_(str![].raw())
+        .stderr_eq_(
+            str![[r#"
+            cannot amend protected commits
+        "#]]
+            .raw(),
         );
 
     let new_head_id = repo.head_commit().id;
     assert_eq!(old_head_id, new_head_id);
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+    assert_data_eq!(
+        std::fs::read(root_path.join("a")).unwrap(),
+        str!["unstaged a"].raw()
+    );
 
     root.close().unwrap();
 }
 
 #[test]
 fn reword() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -168,30 +170,28 @@ fn reword() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            "\
-Saved working directory and index state WIP on target (amend): [..]
-Amended to [..]: C
-Dropped refs/stash [..]
-note: to undo, run `git branch-stash pop git-stack`
-",
-        );
+        .stdout_eq_(str![].raw())
+        .stderr_eq_(str![[r#"
+            Saved working directory and index state WIP on target (amend): [..]
+            Amended to [..]: C
+            Dropped refs/stash [..]
+            note: to undo, run `git branch-stash pop git-stack`
+        "#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+    assert_data_eq!(
+        std::fs::read(root_path.join("a")).unwrap(),
+        str!["unstaged a"].raw()
+    );
 
     root.close().unwrap();
 }
 
 #[test]
 fn reword_rebases() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -241,34 +241,35 @@ fn reword_rebases() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            "\
-Saved working directory and index state WIP on local (amend): [..]
-Amended to [..]: B
-Dropped refs/stash [..]
-note: to undo, run `git branch-stash pop git-stack`
-",
-        );
+        .stdout_eq_(str![].raw())
+        .stderr_eq_(str![[r#"
+            Saved working directory and index state WIP on local (amend): [..]
+            Amended to [..]: B
+            Dropped refs/stash [..]
+            note: to undo, run `git branch-stash pop git-stack`
+        "#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
     let local_branch = repo.find_local_branch("local").unwrap();
     let local_commit = repo.find_commit(local_branch.id).unwrap();
-    snapbox::assert_eq(local_commit.summary.to_str_lossy().into_owned(), "C");
+    assert_data_eq!(
+        local_commit.summary.to_str_lossy().into_owned(),
+        str!["C"].raw()
+    );
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+    assert_data_eq!(
+        std::fs::read(root_path.join("a")).unwrap(),
+        str!["unstaged a"].raw()
+    );
 
     root.close().unwrap();
 }
 
 #[test]
 fn amend_add() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -316,17 +317,12 @@ fn amend_add() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            "\
-Adding c
-Amended to [..]: C
-note: to undo, run `git branch-stash pop git-stack`
-",
-        );
+        .stdout_eq_(str![].raw())
+        .stderr_eq_(str![[r#"
+            Adding c
+            Amended to [..]: C
+            note: to undo, run `git branch-stash pop git-stack`
+        "#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
@@ -336,7 +332,7 @@ note: to undo, run `git branch-stash pop git-stack`
 
 #[test]
 fn amend_staged() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -390,30 +386,28 @@ fn amend_staged() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            "\
-Saved working directory and index state WIP on target (amend): [..]
-Amended to [..]: C
-Dropped refs/stash [..]
-note: to undo, run `git branch-stash pop git-stack`
-",
-        );
+        .stdout_eq_(str![].raw())
+        .stderr_eq_(str![[r#"
+            Saved working directory and index state WIP on target (amend): [..]
+            Amended to [..]: C
+            Dropped refs/stash [..]
+            note: to undo, run `git branch-stash pop git-stack`
+        "#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+    assert_data_eq!(
+        std::fs::read(root_path.join("a")).unwrap(),
+        str!["unstaged a"].raw()
+    );
 
     root.close().unwrap();
 }
 
 #[test]
 fn amend_detached() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -468,34 +462,35 @@ fn amend_detached() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            "\
-Saved working directory and index state WIP on HEAD (amend): [..]
-Amended to [..]: B
-Dropped refs/stash [..]
-note: to undo, run `git branch-stash pop git-stack`
-",
-        );
+        .stdout_eq_(str![].raw())
+        .stderr_eq_(str![[r#"
+            Saved working directory and index state WIP on HEAD (amend): [..]
+            Amended to [..]: B
+            Dropped refs/stash [..]
+            note: to undo, run `git branch-stash pop git-stack`
+        "#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
     let local_branch = repo.find_local_branch("local").unwrap();
     let local_commit = repo.find_commit(local_branch.id).unwrap();
-    snapbox::assert_eq(local_commit.summary.to_str_lossy().into_owned(), "C");
+    assert_data_eq!(
+        local_commit.summary.to_str_lossy().into_owned(),
+        str!["C"].raw()
+    );
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+    assert_data_eq!(
+        std::fs::read(root_path.join("a")).unwrap(),
+        str!["unstaged a"].raw()
+    );
 
     root.close().unwrap();
 }
 
 #[test]
 fn amend_explicit_head() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -550,30 +545,28 @@ fn amend_explicit_head() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            "\
-Saved working directory and index state WIP on target (amend): [..]
-Amended to [..]: C
-Dropped refs/stash [..]
-note: to undo, run `git branch-stash pop git-stack`
-",
-        );
+        .stdout_eq_(str![].raw())
+        .stderr_eq_(str![[r#"
+            Saved working directory and index state WIP on target (amend): [..]
+            Amended to [..]: C
+            Dropped refs/stash [..]
+            note: to undo, run `git branch-stash pop git-stack`
+        "#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+    assert_data_eq!(
+        std::fs::read(root_path.join("a")).unwrap(),
+        str!["unstaged a"]
+    );
 
     root.close().unwrap();
 }
 
 #[test]
 fn amend_ancestor() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -629,34 +622,35 @@ fn amend_ancestor() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            "\
-Saved working directory and index state WIP on local (amend): [..]
-Amended to [..]: B
-Dropped refs/stash [..]
-note: to undo, run `git branch-stash pop git-stack`
-",
-        );
+        .stdout_eq_(str![].raw())
+        .stderr_eq_(str![[r#"
+            Saved working directory and index state WIP on local (amend): [..]
+            Amended to [..]: B
+            Dropped refs/stash [..]
+            note: to undo, run `git branch-stash pop git-stack`
+        "#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
     let local_branch = repo.find_local_branch("local").unwrap();
     let local_commit = repo.find_commit(local_branch.id).unwrap();
-    snapbox::assert_eq(local_commit.summary.to_str_lossy().into_owned(), "C");
+    assert_data_eq!(
+        local_commit.summary.to_str_lossy().into_owned(),
+        str!["C"].raw()
+    );
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+    assert_data_eq!(
+        std::fs::read(root_path.join("a")).unwrap(),
+        str!["unstaged a"].raw()
+    );
 
     root.close().unwrap();
 }
 
 #[test]
 fn amend_conflict() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -712,31 +706,35 @@ fn amend_conflict() {
         .current_dir(root_path)
         .assert()
         .failure()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            "\
-Saved working directory and index state WIP on local (amend): [..]
-ERROR: Failed to re-stack branch `local`: squash conflicts:
-  c
-; class=Index (10); code=Unmerged (-10)
-Dropped refs/stash [..]
-note: to undo, run `git branch-stash pop git-stack`
-",
-        );
+        .stdout_eq_(str![].raw())
+        .stderr_eq_(str![[r#"
+            Saved working directory and index state WIP on local (amend): [..]
+            ERROR: Failed to re-stack branch `local`: squash conflicts:
+              c
+            ; class=Index (10); code=Unmerged (-10)
+            Dropped refs/stash [..]
+            note: to undo, run `git branch-stash pop git-stack`
+        "#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
-    snapbox::assert_eq(repo.head_commit().summary.to_str().unwrap(), "fixup! B");
+    assert_data_eq!(
+        repo.head_commit().summary.to_str().unwrap(),
+        str!["fixup! B"].raw()
+    );
 
     let local_branch = repo.find_local_branch("local").unwrap();
     let local_commit = repo.find_commit(local_branch.id).unwrap();
-    snapbox::assert_eq(local_commit.summary.to_str_lossy().into_owned(), "fixup! B");
+    assert_data_eq!(
+        local_commit.summary.to_str_lossy().into_owned(),
+        str!["fixup! B"].raw()
+    );
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+    assert_data_eq!(
+        std::fs::read(root_path.join("a")).unwrap(),
+        str!["unstaged a"].raw()
+    );
 
     root.close().unwrap();
 }
