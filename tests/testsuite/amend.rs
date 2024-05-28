@@ -54,8 +54,9 @@ fn amend_noop() {
         .failure()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            error: nothing to amend to [..]: C
-        "#]]);
+error: nothing to amend to [..]: C
+
+"#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_eq!(old_head_id, new_head_id);
@@ -104,8 +105,9 @@ fn reword_protected_fails() {
         .stdout_eq_(str![].raw())
         .stderr_eq_(
             str![[r#"
-            cannot amend protected commits
-        "#]]
+cannot amend protected commits
+
+"#]]
             .raw(),
         );
 
@@ -172,11 +174,12 @@ fn reword() {
         .success()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Saved working directory and index state WIP on target (amend): [..]
-            Amended to [..]: C
-            Dropped refs/stash [..]
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]);
+Saved working directory and index state WIP on target (amend): [..]
+Amended to [..]: C
+Dropped refs/stash [..]
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
@@ -243,11 +246,12 @@ fn reword_rebases() {
         .success()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Saved working directory and index state WIP on local (amend): [..]
-            Amended to [..]: B
-            Dropped refs/stash [..]
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]);
+Saved working directory and index state WIP on local (amend): [..]
+Amended to [..]: B
+Dropped refs/stash [..]
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
@@ -319,10 +323,11 @@ fn amend_add() {
         .success()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Adding c
-            Amended to [..]: C
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]);
+Adding c
+Amended to [..]: C
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
@@ -388,11 +393,12 @@ fn amend_staged() {
         .success()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Saved working directory and index state WIP on target (amend): [..]
-            Amended to [..]: C
-            Dropped refs/stash [..]
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]);
+Saved working directory and index state WIP on target (amend): [..]
+Amended to [..]: C
+Dropped refs/stash [..]
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
@@ -464,11 +470,12 @@ fn amend_detached() {
         .success()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Saved working directory and index state WIP on HEAD (amend): [..]
-            Amended to [..]: B
-            Dropped refs/stash [..]
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]);
+Saved working directory and index state WIP on HEAD (amend): [..]
+Amended to [..]: B
+Dropped refs/stash [..]
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
@@ -547,11 +554,12 @@ fn amend_explicit_head() {
         .success()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Saved working directory and index state WIP on target (amend): [..]
-            Amended to [..]: C
-            Dropped refs/stash [..]
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]);
+Saved working directory and index state WIP on target (amend): [..]
+Amended to [..]: C
+Dropped refs/stash [..]
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
@@ -624,11 +632,12 @@ fn amend_ancestor() {
         .success()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Saved working directory and index state WIP on local (amend): [..]
-            Amended to [..]: B
-            Dropped refs/stash [..]
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]);
+Saved working directory and index state WIP on local (amend): [..]
+Amended to [..]: B
+Dropped refs/stash [..]
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
@@ -708,13 +717,14 @@ fn amend_conflict() {
         .failure()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Saved working directory and index state WIP on local (amend): [..]
-            ERROR: Failed to re-stack branch `local`: squash conflicts:
-              c
-            ; class=Index (10); code=Unmerged (-10)
-            Dropped refs/stash [..]
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]);
+Saved working directory and index state WIP on local (amend): [..]
+ERROR: Failed to re-stack branch `local`: squash conflicts:
+  c
+; class=Index (10); code=Unmerged (-10)
+Dropped refs/stash [..]
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]);
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);

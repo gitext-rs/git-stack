@@ -37,8 +37,9 @@ fn reword_protected_fails() {
         .stdout_eq_(str![].raw())
         .stderr_eq_(
             str![[r#"
-            cannot reword protected commits
-        "#]]
+cannot reword protected commits
+
+"#]]
             .raw(),
         );
 
@@ -101,8 +102,9 @@ fn reword_implicit_head() {
         .stdout_eq_(str![].raw())
         .stderr_eq_(
             str![[r#"
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]
             .raw(),
         );
 
@@ -172,8 +174,9 @@ fn reword_explicit_head() {
         .stdout_eq_(str![].raw())
         .stderr_eq_(
             str![[r#"
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]
             .raw(),
         );
 
@@ -245,10 +248,11 @@ fn reword_branch() {
         .success()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Saved working directory and index state WIP on local (reword): [..]
-            Dropped refs/stash [..]
-            note: to undo, run `git branch-stash pop git-stack`
-        "#]]);
+Saved working directory and index state WIP on local (reword): [..]
+Dropped refs/stash [..]
+note: to undo, run `git branch-stash pop git-stack`
+
+"#]]);
 
     let branch = repo.find_local_branch("target").unwrap();
     let commit = repo.find_commit(branch.id).unwrap();

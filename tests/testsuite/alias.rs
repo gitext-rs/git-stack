@@ -22,17 +22,19 @@ fn list_no_config() {
         .assert()
         .success()
         .stdout_eq_(str![[r#"
-            [alias]
-            #   next = stack next  # unregistered
-            #   prev = stack previous  # unregistered
-            #   reword = stack reword  # unregistered
-            #   amend = stack amend  # unregistered
-            #   sync = stack sync  # unregistered
-            #   run = stack run  # unregistered
-        "#]].raw())
+[alias]
+#   next = stack next  # unregistered
+#   prev = stack previous  # unregistered
+#   reword = stack reword  # unregistered
+#   amend = stack amend  # unregistered
+#   sync = stack sync  # unregistered
+#   run = stack run  # unregistered
+
+"#]].raw())
         .stderr_eq_(str![[r#"
-            note: To register, pass `--register`
-        "#]]);
+note: To register, pass `--register`
+
+"#]]);
 
     root.close().unwrap();
 }
@@ -63,17 +65,19 @@ fn list_global_config() {
         .assert()
         .success()
         .stdout_eq_(str![[r#"
-            [alias]
-                next = foo  # instead of `stack next`
-            #   prev = stack previous  # unregistered
-            #   reword = stack reword  # unregistered
-            #   amend = stack amend  # unregistered
-            #   sync = stack sync  # unregistered
-            #   run = stack run  # unregistered
-        "#]].raw())
+[alias]
+    next = foo  # instead of `stack next`
+#   prev = stack previous  # unregistered
+#   reword = stack reword  # unregistered
+#   amend = stack amend  # unregistered
+#   sync = stack sync  # unregistered
+#   run = stack run  # unregistered
+
+"#]].raw())
         .stderr_eq_(str![[r#"
-            note: To register, pass `--register`
-        "#]]);
+note: To register, pass `--register`
+
+"#]]);
 
     root.close().unwrap();
 }
@@ -98,13 +102,14 @@ fn register_no_config() {
         .success()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Registering: next="stack next"
-            Registering: prev="stack previous"
-            Registering: reword="stack reword"
-            Registering: amend="stack amend"
-            Registering: sync="stack sync"
-            Registering: run="stack run"
-        "#]]);
+Registering: next="stack next"
+Registering: prev="stack previous"
+Registering: reword="stack reword"
+Registering: amend="stack amend"
+Registering: sync="stack sync"
+Registering: run="stack run"
+
+"#]]);
 
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("alias")
@@ -113,17 +118,19 @@ fn register_no_config() {
         .assert()
         .success()
         .stdout_eq_(str![[r#"
-            [alias]
-                next = stack next  # registered
-                prev = stack previous  # registered
-                reword = stack reword  # registered
-                amend = stack amend  # registered
-                sync = stack sync  # registered
-                run = stack run  # registered
-        "#]].raw())
+[alias]
+    next = stack next  # registered
+    prev = stack previous  # registered
+    reword = stack reword  # registered
+    amend = stack amend  # registered
+    sync = stack sync  # registered
+    run = stack run  # registered
+
+"#]].raw())
         .stderr_eq_(str![[r#"
-            note: To unregister, pass `--unregister`
-        "#]]);
+note: To unregister, pass `--unregister`
+
+"#]]);
 
     root.close().unwrap();
 }
@@ -157,12 +164,13 @@ fn register_no_overwrite_alias() {
         .failure()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            error: next="foo" is registered, not overwriting with "stack next"
-            Registering: reword="stack reword"
-            Registering: amend="stack amend"
-            Registering: sync="stack sync"
-            Registering: run="stack run"
-        "#]]);
+error: next="foo" is registered, not overwriting with "stack next"
+Registering: reword="stack reword"
+Registering: amend="stack amend"
+Registering: sync="stack sync"
+Registering: run="stack run"
+
+"#]]);
 
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("alias")
@@ -171,17 +179,19 @@ fn register_no_overwrite_alias() {
         .assert()
         .success()
         .stdout_eq_(str![[r#"
-            [alias]
-                next = foo  # instead of `stack next`
-                prev = stack previous -v  # diverged from "stack previous"
-                reword = stack reword  # registered
-                amend = stack amend  # registered
-                sync = stack sync  # registered
-                run = stack run  # registered
-        "#]].raw())
+[alias]
+    next = foo  # instead of `stack next`
+    prev = stack previous -v  # diverged from "stack previous"
+    reword = stack reword  # registered
+    amend = stack amend  # registered
+    sync = stack sync  # registered
+    run = stack run  # registered
+
+"#]].raw())
         .stderr_eq_(str![[r#"
-            note: To unregister, pass `--unregister`
-        "#]]);
+note: To unregister, pass `--unregister`
+
+"#]]);
 
     root.close().unwrap();
 }
@@ -214,13 +224,14 @@ fn register_unregister() {
         .success()
         .stdout_eq_(str![])
         .stderr_eq_(str![[r#"
-            Unregistering: next="stack next"
-            Unregistering: prev="stack previous"
-            Unregistering: reword="stack reword"
-            Unregistering: amend="stack amend"
-            Unregistering: sync="stack sync"
-            Unregistering: run="stack run"
-        "#]]);
+Unregistering: next="stack next"
+Unregistering: prev="stack previous"
+Unregistering: reword="stack reword"
+Unregistering: amend="stack amend"
+Unregistering: sync="stack sync"
+Unregistering: run="stack run"
+
+"#]]);
 
     root.close().unwrap();
 }
@@ -311,9 +322,10 @@ fn unregister_existing_config() {
         .success()
         .stdout_eq_(str![].raw())
         .stderr_eq_(str![[r#"
-            Unregistering: prev="stack previous -v"
-            Unregistering: reword="stack reword"
-        "#]]);
+Unregistering: prev="stack previous -v"
+Unregistering: reword="stack reword"
+
+"#]]);
 
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("alias")
@@ -322,17 +334,19 @@ fn unregister_existing_config() {
         .assert()
         .success()
         .stdout_eq_(str![[r#"
-            [alias]
-                next = foo  # instead of `stack next`
-            #   prev = stack previous  # unregistered
-            #   reword = stack reword  # unregistered
-            #   amend = stack amend  # unregistered
-            #   sync = stack sync  # unregistered
-            #   run = stack run  # unregistered
-        "#]].raw())
+[alias]
+    next = foo  # instead of `stack next`
+#   prev = stack previous  # unregistered
+#   reword = stack reword  # unregistered
+#   amend = stack amend  # unregistered
+#   sync = stack sync  # unregistered
+#   run = stack run  # unregistered
+
+"#]].raw())
         .stderr_eq_(str![[r#"
-            note: To register, pass `--register`
-        "#]]);
+note: To register, pass `--register`
+
+"#]]);
 
     root.close().unwrap();
 }
