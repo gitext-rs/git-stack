@@ -1,9 +1,12 @@
 // Not correctly overriding on Windows
 #![cfg(target_os = "linux")]
 
+use snapbox::prelude::*;
+use snapbox::str;
+
 #[test]
 fn list_no_config() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
 
     let home_root = root_path.join("home");
@@ -19,7 +22,7 @@ fn list_no_config() {
         .assert()
         .success()
         .stdout_eq(
-            "\
+            str![[r#"
 [alias]
 #   next = stack next  # unregistered
 #   prev = stack previous  # unregistered
@@ -27,20 +30,21 @@ fn list_no_config() {
 #   amend = stack amend  # unregistered
 #   sync = stack sync  # unregistered
 #   run = stack run  # unregistered
-",
+
+"#]]
+            .raw(),
         )
-        .stderr_matches(
-            "\
+        .stderr_eq(str![[r#"
 note: To register, pass `--register`
-",
-        );
+
+"#]]);
 
     root.close().unwrap();
 }
 
 #[test]
 fn list_global_config() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
 
     let home_root = root_path.join("home");
@@ -64,7 +68,7 @@ fn list_global_config() {
         .assert()
         .success()
         .stdout_eq(
-            "\
+            str![[r#"
 [alias]
     next = foo  # instead of `stack next`
 #   prev = stack previous  # unregistered
@@ -72,20 +76,21 @@ fn list_global_config() {
 #   amend = stack amend  # unregistered
 #   sync = stack sync  # unregistered
 #   run = stack run  # unregistered
-",
+
+"#]]
+            .raw(),
         )
-        .stderr_matches(
-            "\
+        .stderr_eq(str![[r#"
 note: To register, pass `--register`
-",
-        );
+
+"#]]);
 
     root.close().unwrap();
 }
 
 #[test]
 fn register_no_config() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
 
     let home_root = root_path.join("home");
@@ -101,19 +106,16 @@ fn register_no_config() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            r#"Registering: next="stack next"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
+Registering: next="stack next"
 Registering: prev="stack previous"
 Registering: reword="stack reword"
 Registering: amend="stack amend"
 Registering: sync="stack sync"
 Registering: run="stack run"
-"#,
-        );
+
+"#]]);
 
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("alias")
@@ -122,7 +124,7 @@ Registering: run="stack run"
         .assert()
         .success()
         .stdout_eq(
-            "\
+            str![[r#"
 [alias]
     next = stack next  # registered
     prev = stack previous  # registered
@@ -130,20 +132,21 @@ Registering: run="stack run"
     amend = stack amend  # registered
     sync = stack sync  # registered
     run = stack run  # registered
-",
+
+"#]]
+            .raw(),
         )
-        .stderr_matches(
-            "\
+        .stderr_eq(str![[r#"
 note: To unregister, pass `--unregister`
-",
-        );
+
+"#]]);
 
     root.close().unwrap();
 }
 
 #[test]
 fn register_no_overwrite_alias() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
 
     let home_root = root_path.join("home");
@@ -168,18 +171,15 @@ fn register_no_overwrite_alias() {
         .env("HOME", &home_root)
         .assert()
         .failure()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            r#"error: next="foo" is registered, not overwriting with "stack next"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
+error: next="foo" is registered, not overwriting with "stack next"
 Registering: reword="stack reword"
 Registering: amend="stack amend"
 Registering: sync="stack sync"
 Registering: run="stack run"
-"#,
-        );
+
+"#]]);
 
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("alias")
@@ -188,27 +188,29 @@ Registering: run="stack run"
         .assert()
         .success()
         .stdout_eq(
-            r#"[alias]
+            str![[r#"
+[alias]
     next = foo  # instead of `stack next`
     prev = stack previous -v  # diverged from "stack previous"
     reword = stack reword  # registered
     amend = stack amend  # registered
     sync = stack sync  # registered
     run = stack run  # registered
-"#,
+
+"#]]
+            .raw(),
         )
-        .stderr_matches(
-            "\
+        .stderr_eq(str![[r#"
 note: To unregister, pass `--unregister`
-",
-        );
+
+"#]]);
 
     root.close().unwrap();
 }
 
 #[test]
 fn register_unregister() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
 
     let home_root = root_path.join("home");
@@ -232,23 +234,23 @@ fn register_unregister() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_matches("")
-        .stderr_matches(
-            r#"Unregistering: next="stack next"
+        .stdout_eq(str![])
+        .stderr_eq(str![[r#"
+Unregistering: next="stack next"
 Unregistering: prev="stack previous"
 Unregistering: reword="stack reword"
 Unregistering: amend="stack amend"
 Unregistering: sync="stack sync"
 Unregistering: run="stack run"
-"#,
-        );
+
+"#]]);
 
     root.close().unwrap();
 }
 
 #[test]
 fn reregister() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
 
     let home_root = root_path.join("home");
@@ -272,18 +274,15 @@ fn reregister() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(r#""#);
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![]);
 
     root.close().unwrap();
 }
 
 #[test]
 fn unregister_no_config() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
 
     let home_root = root_path.join("home");
@@ -299,18 +298,15 @@ fn unregister_no_config() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(r#""#);
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![]);
 
     root.close().unwrap();
 }
 
 #[test]
 fn unregister_existing_config() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
 
     let home_root = root_path.join("home");
@@ -336,15 +332,12 @@ fn unregister_existing_config() {
         .env("HOME", &home_root)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            r#"Unregistering: prev="stack previous -v"
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
+Unregistering: prev="stack previous -v"
 Unregistering: reword="stack reword"
-"#,
-        );
+
+"#]]);
 
     snapbox::cmd::Command::new(snapbox::cmd::cargo_bin!("git-stack"))
         .arg("alias")
@@ -353,7 +346,7 @@ Unregistering: reword="stack reword"
         .assert()
         .success()
         .stdout_eq(
-            "\
+            str![[r#"
 [alias]
     next = foo  # instead of `stack next`
 #   prev = stack previous  # unregistered
@@ -361,13 +354,14 @@ Unregistering: reword="stack reword"
 #   amend = stack amend  # unregistered
 #   sync = stack sync  # unregistered
 #   run = stack run  # unregistered
-",
+
+"#]]
+            .raw(),
         )
-        .stderr_matches(
-            "\
+        .stderr_eq(str![[r#"
 note: To register, pass `--register`
-",
-        );
+
+"#]]);
 
     root.close().unwrap();
 }

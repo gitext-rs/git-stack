@@ -1,8 +1,11 @@
 use bstr::ByteSlice;
+use snapbox::assert_data_eq;
+use snapbox::prelude::*;
+use snapbox::str;
 
 #[test]
 fn reword_protected_fails() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -31,14 +34,13 @@ fn reword_protected_fails() {
         .current_dir(root_path)
         .assert()
         .failure()
-        .stdout_eq(
-            "\
-",
-        )
+        .stdout_eq(str![].raw())
         .stderr_eq(
-            "\
+            str![[r#"
 cannot reword protected commits
-",
+
+"#]]
+            .raw(),
         );
 
     let new_head_id = repo.head_commit().id;
@@ -47,7 +49,7 @@ cannot reword protected commits
 
 #[test]
 fn reword_implicit_head() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -87,7 +89,7 @@ fn reword_implicit_head() {
 
     let branch = repo.find_local_branch("target").unwrap();
     let commit = repo.find_commit(branch.id).unwrap();
-    snapbox::assert_eq(commit.summary.to_str().unwrap(), "C");
+    assert_data_eq!(commit.summary.to_str().unwrap(), str!["C"].raw());
 
     let old_head_id = repo.head_commit().id;
 
@@ -97,19 +99,18 @@ fn reword_implicit_head() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
+        .stdout_eq(str![].raw())
         .stderr_eq(
-            "\
+            str![[r#"
 note: to undo, run `git branch-stash pop git-stack`
-",
+
+"#]]
+            .raw(),
         );
 
     let branch = repo.find_local_branch("target").unwrap();
     let commit = repo.find_commit(branch.id).unwrap();
-    snapbox::assert_eq(commit.summary.to_str().unwrap(), "new C");
+    assert_data_eq!(commit.summary.to_str().unwrap(), str!["new C"].raw());
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
@@ -119,7 +120,7 @@ note: to undo, run `git branch-stash pop git-stack`
 
 #[test]
 fn reword_explicit_head() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -159,7 +160,7 @@ fn reword_explicit_head() {
 
     let branch = repo.find_local_branch("target").unwrap();
     let commit = repo.find_commit(branch.id).unwrap();
-    snapbox::assert_eq(commit.summary.to_str().unwrap(), "C");
+    assert_data_eq!(commit.summary.to_str().unwrap(), str!["C"].raw());
 
     let old_head_id = repo.head_commit().id;
 
@@ -170,19 +171,18 @@ fn reword_explicit_head() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
+        .stdout_eq(str![].raw())
         .stderr_eq(
-            "\
+            str![[r#"
 note: to undo, run `git branch-stash pop git-stack`
-",
+
+"#]]
+            .raw(),
         );
 
     let branch = repo.find_local_branch("target").unwrap();
     let commit = repo.find_commit(branch.id).unwrap();
-    snapbox::assert_eq(commit.summary.to_str().unwrap(), "new C");
+    assert_data_eq!(commit.summary.to_str().unwrap(), str!["new C"].raw());
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
@@ -192,7 +192,7 @@ note: to undo, run `git branch-stash pop git-stack`
 
 #[test]
 fn reword_branch() {
-    let root = snapbox::path::PathFixture::mutable_temp().unwrap();
+    let root = snapbox::dir::DirRoot::mutable_temp().unwrap();
     let root_path = root.path().unwrap();
     let plan = git_fixture::TodoList {
         commands: vec![
@@ -233,7 +233,7 @@ fn reword_branch() {
 
     let branch = repo.find_local_branch("target").unwrap();
     let commit = repo.find_commit(branch.id).unwrap();
-    snapbox::assert_eq(commit.summary.to_str().unwrap(), "B");
+    assert_data_eq!(commit.summary.to_str().unwrap(), str!["B"].raw());
 
     let old_head_id = repo.head_commit().id;
 
@@ -246,30 +246,32 @@ fn reword_branch() {
         .current_dir(root_path)
         .assert()
         .success()
-        .stdout_eq(
-            "\
-",
-        )
-        .stderr_matches(
-            "\
+        .stdout_eq(str![].raw())
+        .stderr_eq(str![[r#"
 Saved working directory and index state WIP on local (reword): [..]
 Dropped refs/stash [..]
 note: to undo, run `git branch-stash pop git-stack`
-",
-        );
+
+"#]]);
 
     let branch = repo.find_local_branch("target").unwrap();
     let commit = repo.find_commit(branch.id).unwrap();
-    snapbox::assert_eq(commit.summary.to_str().unwrap(), "new B");
+    assert_data_eq!(commit.summary.to_str().unwrap(), str!["new B"].raw());
 
     let local_branch = repo.find_local_branch("local").unwrap();
     let local_commit = repo.find_commit(local_branch.id).unwrap();
-    snapbox::assert_eq(local_commit.summary.to_str_lossy().into_owned(), "C");
+    assert_data_eq!(
+        local_commit.summary.to_str_lossy().into_owned(),
+        str!["C"].raw()
+    );
 
     let new_head_id = repo.head_commit().id;
     assert_ne!(old_head_id, new_head_id);
 
-    snapbox::assert_eq(std::fs::read(root_path.join("a")).unwrap(), "unstaged a");
+    assert_data_eq!(
+        std::fs::read(root_path.join("a")).unwrap(),
+        str!["unstaged a"].raw()
+    );
 
     root.close().unwrap();
 }
