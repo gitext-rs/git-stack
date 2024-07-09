@@ -1470,6 +1470,7 @@ const SPACE_GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
 
 const JOINT_GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
     item_indent: "─┐",
+    skip_indent: " ",
     ..termtree::GlyphPalette::new()
 };
 
