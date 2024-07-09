@@ -126,7 +126,7 @@ anstream = "0.6.13"
 proc-exit = "2.0.1"
 eyre = "0.6.12"
 human-panic = "2.0.0"
-termtree = "0.4.1"
+termtree = "0.5.0"
 indexmap = "2.2.6"
 
 git2-ext = "0.6.1"
