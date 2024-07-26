@@ -2,6 +2,7 @@
 resolver = "2"
 
 [workspace.package]
+repository = "https://github.com/gitext-rs/git-stack.git"
 license = "MIT OR Apache-2.0"
 edition = "2021"
 rust-version = "1.74"  # MSRV
@@ -17,7 +18,7 @@ include = [
 ]
 
 [workspace.lints.rust]
-rust_2018_idioms = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
 unreachable_pub = "warn"
 unsafe_op_in_unsafe_fn = "warn"
 unused_lifetimes = "warn"
@@ -51,7 +52,6 @@ inconsistent_struct_constructor = "warn"
 inefficient_to_string = "warn"
 infinite_loop = "warn"
 invalid_upcast_comparisons = "warn"
-items_after_statements = "warn"
 large_digit_groups = "warn"
 large_stack_arrays = "warn"
 large_types_passed_by_value = "warn"
@@ -59,7 +59,6 @@ let_and_return = "allow"  # sometimes good to name what you are returning
 linkedlist = "warn"
 lossy_float_literal = "warn"
 macro_use_imports = "warn"
-match_wildcard_for_single_variants = "warn"
 mem_forget = "warn"
 mutex_integer = "warn"
 needless_continue = "warn"
@@ -74,7 +73,6 @@ rest_pat_in_fully_bound_structs = "warn"
 same_functions_in_if_condition = "warn"
 self_named_module_files = "warn"
 semicolon_if_nothing_returned = "warn"
-single_match_else = "warn"
 str_to_string = "warn"
 string_add = "warn"
 string_add_assign = "warn"
@@ -90,11 +88,11 @@ zero_sized_map_values = "warn"
 name = "git-stack"
 description = "Stacked branch management for Git"
 version = "0.10.17"
-repository = "https://github.com/gitext-rs/git-stack.git"
 documentation = "https://github.com/gitext-rs/git-stack.git"
 readme = "README.md"
 categories = ["command-line-interface", "development-tools"]
 keywords = ["git", "cli"]
+repository.workspace = true
 license.workspace = true
 edition.workspace = true
 rust-version.workspace = true
