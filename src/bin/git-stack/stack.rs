@@ -1202,7 +1202,7 @@ fn node_to_tree<'r>(
     mut node_id: git2::Oid,
     is_visible: &dyn Fn(&git_stack::legacy::graph::Node) -> bool,
 ) -> Tree<'r> {
-    for ellide_count in 0.. {
+    for elide_count in 0.. {
         let node = graph.get(node_id).expect("all children exist");
         // The API requires us to handle 0 or many children, so not checking visibility
         if node.children.len() == 1 && !is_visible(node) {
@@ -1218,7 +1218,7 @@ fn node_to_tree<'r>(
 
         append_children(&mut tree, repo, head_branch, graph, node, is_visible);
 
-        tree.weight += ellide_count;
+        tree.weight += elide_count;
 
         return tree;
     }
