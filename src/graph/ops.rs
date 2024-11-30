@@ -893,26 +893,13 @@ pub fn to_scripts(
                 .unwrap_or_default();
             if !seen.insert(child_id) {
             } else if action.is_protected() {
-                let mut batch = crate::rewrite::Batch::new(child_id);
-                if let Some(dropped) = dropped_branches.remove(&descendant_id) {
-                    batch.push(
-                        descendant_id,
-                        crate::rewrite::Command::DeleteBranch(dropped),
-                    );
-                }
-                for branch in graph.branches.get(child_id).into_iter().flatten() {
-                    if branch.kind().has_user_commits() {
-                        if let Some(local_name) = branch.local_name() {
-                            batch.push(
-                                child_id,
-                                crate::rewrite::Command::CreateBranch(local_name.to_owned()),
-                            );
-                        }
-                    }
-                }
-                if !batch.is_empty() {
-                    scripts.push(vec![batch].into());
-                }
+                protected_branches_to_scripts(
+                    graph,
+                    descendant_id,
+                    child_id,
+                    &mut dropped_branches,
+                    &mut scripts,
+                );
             } else {
                 descendants.stop();
                 let mut script = Vec::new();
@@ -937,6 +924,32 @@ pub fn to_scripts(
     }
 
     scripts
+}
+
+fn protected_branches_to_scripts(
+    graph: &Graph,
+    onto_id: git2::Oid,
+    start_id: git2::Oid,
+    dropped_branches: &mut std::collections::HashMap<git2::Oid, String>,
+    scripts: &mut Vec<crate::rewrite::Script>,
+) {
+    let mut batch = crate::rewrite::Batch::new(start_id);
+    if let Some(dropped) = dropped_branches.remove(&onto_id) {
+        batch.push(onto_id, crate::rewrite::Command::DeleteBranch(dropped));
+    }
+    for branch in graph.branches.get(start_id).into_iter().flatten() {
+        if branch.kind().has_user_commits() {
+            if let Some(local_name) = branch.local_name() {
+                batch.push(
+                    start_id,
+                    crate::rewrite::Command::CreateBranch(local_name.to_owned()),
+                );
+            }
+        }
+    }
+    if !batch.is_empty() {
+        scripts.push(vec![batch].into());
+    }
 }
 
 fn gather_script(
