@@ -883,6 +883,15 @@ pub fn to_scripts(
         })
         .collect::<std::collections::HashMap<_, _>>();
 
+    let root_id = graph.root_id();
+    let action = graph
+        .commit_get::<crate::graph::Action>(root_id)
+        .copied()
+        .unwrap_or_default();
+    if action.is_protected() {
+        protected_branches_to_scripts(graph, root_id, &mut dropped_branches, &mut scripts);
+    }
+
     let mut descendants = graph.descendants().into_cursor();
     let mut seen = HashSet::new();
     while let Some(descendant_id) = descendants.next(graph) {
@@ -893,13 +902,7 @@ pub fn to_scripts(
                 .unwrap_or_default();
             if !seen.insert(child_id) {
             } else if action.is_protected() {
-                protected_branches_to_scripts(
-                    graph,
-                    descendant_id,
-                    child_id,
-                    &mut dropped_branches,
-                    &mut scripts,
-                );
+                protected_branches_to_scripts(graph, child_id, &mut dropped_branches, &mut scripts);
             } else {
                 descendants.stop();
                 let mut script = Vec::new();
@@ -928,14 +931,13 @@ pub fn to_scripts(
 
 fn protected_branches_to_scripts(
     graph: &Graph,
-    onto_id: git2::Oid,
     start_id: git2::Oid,
     dropped_branches: &mut std::collections::HashMap<git2::Oid, String>,
     scripts: &mut Vec<crate::rewrite::Script>,
 ) {
     let mut batch = crate::rewrite::Batch::new(start_id);
-    if let Some(dropped) = dropped_branches.remove(&onto_id) {
-        batch.push(onto_id, crate::rewrite::Command::DeleteBranch(dropped));
+    if let Some(dropped) = dropped_branches.remove(&start_id) {
+        batch.push(start_id, crate::rewrite::Command::DeleteBranch(dropped));
     }
     for branch in graph.branches.get(start_id).into_iter().flatten() {
         if branch.kind().has_user_commits() {
