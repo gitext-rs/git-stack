@@ -162,12 +162,6 @@ impl Graph {
             .neighbors_directed(root_id, petgraph::Direction::Incoming)
     }
 
-    pub fn primary_children_of(&self, root_id: git2::Oid) -> impl Iterator<Item = git2::Oid> + '_ {
-        self.graph
-            .edges_directed(root_id, petgraph::Direction::Incoming)
-            .filter_map(|(child, _parent, weight)| (*weight == 0).then_some(child))
-    }
-
     pub fn ancestors_of(&self, root_id: git2::Oid) -> AncestorsIter<'_> {
         let cursor = AncestorsCursor::new(self, root_id);
         AncestorsIter {
@@ -343,7 +337,7 @@ impl DescendantsCursor {
 impl DescendantsCursor {
     pub fn next(&mut self, graph: &Graph) -> Option<git2::Oid> {
         if let Some(prior) = self.prior {
-            self.node_queue.extend(graph.primary_children_of(prior));
+            self.node_queue.extend(graph.children_of(prior));
         }
         let next = self.node_queue.pop_front()?;
         self.prior = Some(next);
