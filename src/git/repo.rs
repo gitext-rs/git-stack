@@ -1054,7 +1054,7 @@ struct CommitsFrom<'c> {
     next: Option<(Option<git2::Oid>, std::rc::Rc<Commit>)>,
 }
 
-impl<'c> Iterator for CommitsFrom<'c> {
+impl Iterator for CommitsFrom<'_> {
     type Item = std::rc::Rc<Commit>;
 
     fn next(&mut self) -> Option<Self::Item> {

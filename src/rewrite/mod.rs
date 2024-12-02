@@ -93,7 +93,7 @@ struct ScriptDisplay<'a> {
     labels: &'a dyn Labels,
 }
 
-impl<'a> std::fmt::Display for ScriptDisplay<'a> {
+impl std::fmt::Display for ScriptDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if !self.script.batches.is_empty() {
             writeln!(f, "label onto")?;
@@ -211,7 +211,7 @@ struct BatchDisplay<'a> {
     labels: &'a dyn Labels,
 }
 
-impl<'a> std::fmt::Display for BatchDisplay<'a> {
+impl std::fmt::Display for BatchDisplay<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let label = self.labels.get(self.batch.onto_mark());
         writeln!(f, "# Formerly {}", self.batch.onto_mark())?;

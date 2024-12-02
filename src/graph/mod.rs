@@ -229,13 +229,13 @@ pub struct AncestorsIter<'g> {
     graph: &'g Graph,
 }
 
-impl<'g> AncestorsIter<'g> {
+impl AncestorsIter<'_> {
     pub fn into_cursor(self) -> AncestorsCursor {
         self.cursor
     }
 }
 
-impl<'g> Iterator for AncestorsIter<'g> {
+impl Iterator for AncestorsIter<'_> {
     type Item = git2::Oid;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -301,13 +301,13 @@ pub struct DescendantsIter<'g> {
     graph: &'g Graph,
 }
 
-impl<'g> DescendantsIter<'g> {
+impl DescendantsIter<'_> {
     pub fn into_cursor(self) -> DescendantsCursor {
         self.cursor
     }
 }
 
-impl<'g> Iterator for DescendantsIter<'g> {
+impl Iterator for DescendantsIter<'_> {
     type Item = git2::Oid;
 
     fn next(&mut self) -> Option<Self::Item> {

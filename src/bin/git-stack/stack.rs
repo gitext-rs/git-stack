@@ -1155,7 +1155,7 @@ impl<'r> DisplayTree<'r> {
     }
 }
 
-impl<'r> std::fmt::Display for DisplayTree<'r> {
+impl std::fmt::Display for DisplayTree<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let head_branch = self.repo.head_branch().unwrap();
 
@@ -1477,7 +1477,7 @@ const JOINT_GLYPHS: termtree::GlyphPalette = termtree::GlyphPalette {
 // Shared implementation doesn't mean shared requirements, we want to track according to
 // requirements
 #[allow(clippy::if_same_then_else)]
-impl<'r> std::fmt::Display for RenderNode<'r> {
+impl std::fmt::Display for RenderNode<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         let palette = crate::ops::Palette::colored();
         if let Some(node) = self.node.as_ref() {
