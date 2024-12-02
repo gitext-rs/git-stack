@@ -156,7 +156,7 @@ impl BranchSet {
                 .map(|merge_oid| merge_oid == base_oid)
                 .unwrap_or(false);
             if is_base_descendant {
-                branches.branches.insert(*branch_oid, branch.clone());
+                branches.insert_entry(self, *branch_oid, branch);
             } else {
                 let first_branch = &branch.first().expect("we always have at least one branch");
                 log::trace!(
@@ -200,7 +200,7 @@ impl BranchSet {
                     base_oid
                 );
             } else {
-                branches.branches.insert(*branch_oid, branch.clone());
+                branches.insert_entry(self, *branch_oid, branch);
             }
         }
         branches
@@ -237,10 +237,29 @@ impl BranchSet {
                     base_oid
                 );
             } else {
-                branches.branches.insert(*branch_oid, branch.clone());
+                branches.insert_entry(self, *branch_oid, branch);
             }
         }
         branches
+    }
+
+    fn insert_entry(&mut self, old: &Self, branch_oid: git2::Oid, branch: &[Branch]) {
+        self.branches.insert(branch_oid, branch.to_vec());
+        for mixed_branch in branch.iter().filter(|b| b.kind() == BranchKind::Mixed) {
+            let Some(remote_branch_oid) = mixed_branch.pull_id() else {
+                continue;
+            };
+            let Some(potential_remotes) = old.get(remote_branch_oid).map(|b| b.to_vec()) else {
+                continue;
+            };
+            for potential_remote in potential_remotes {
+                if potential_remote.kind() == BranchKind::Protected
+                    && potential_remote.base_name() == mixed_branch.base_name()
+                {
+                    self.insert(potential_remote);
+                }
+            }
+        }
     }
 }
 
@@ -362,7 +381,7 @@ pub enum BranchKind {
     Deleted,
     // Completely mutable
     Mutable,
-    // Local is mutable, remove is protected
+    // Local is mutable, remote is protected
     Mixed,
     // Must not touch
     Protected,
