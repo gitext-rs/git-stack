@@ -378,7 +378,7 @@ pub fn rebase_development_branches(graph: &mut Graph, new_base_id: git2::Oid) {
 ///
 /// A normal `rebase_development_branches` only looks at development commits.  If `main` is pristine or if the
 /// user has branches on the same commit as `main`, we should also update these to what we pulled.
-pub fn rebase_pulled_branches(graph: &mut Graph, pull_start: git2::Oid, pull_end: git2::Oid) {
+pub fn fast_forward_pulled_branches(graph: &mut Graph, pull_start: git2::Oid, pull_end: git2::Oid) {
     if pull_start == pull_end {
         return;
     }

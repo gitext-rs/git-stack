@@ -225,7 +225,7 @@ fn plan_changes(
     let pull_start_id = base.id;
     let pull_start_id = repo.merge_base(pull_start_id, onto_id).unwrap_or(onto_id);
     git_stack::graph::rebase_development_branches(&mut graph, onto_id);
-    git_stack::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
+    git_stack::graph::fast_forward_pulled_branches(&mut graph, pull_start_id, onto_id);
 
     let pull_range: Vec<_> = git_stack::git::commit_range(repo, onto_id..pull_start_id)?
         .into_iter()

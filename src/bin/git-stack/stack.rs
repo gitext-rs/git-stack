@@ -508,7 +508,7 @@ fn plan_changes(state: &State, stack: &StackState) -> eyre::Result<git_stack::le
             .unwrap_or(onto_id);
 
         git_stack::legacy::graph::rebase_development_branches(&mut graph, onto_id);
-        git_stack::legacy::graph::rebase_pulled_branches(&mut graph, pull_start_id, onto_id);
+        git_stack::legacy::graph::fast_forward_pulled_branches(&mut graph, pull_start_id, onto_id);
 
         let pull_range: Vec<_> =
             git_stack::legacy::git::commit_range(&state.repo, onto_id..pull_start_id)?
@@ -671,7 +671,7 @@ fn show(state: &State) -> eyre::Result<()> {
                     .unwrap_or(onto_id);
 
                 git_stack::legacy::graph::rebase_development_branches(&mut graph, onto_id);
-                git_stack::legacy::graph::rebase_pulled_branches(
+                git_stack::legacy::graph::fast_forward_pulled_branches(
                     &mut graph,
                     pull_start_id,
                     onto_id,
