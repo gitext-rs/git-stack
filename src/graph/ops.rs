@@ -895,21 +895,27 @@ pub fn to_scripts(
     let mut descendants = graph.descendants().into_cursor();
     let mut seen = HashSet::new();
     while let Some(descendant_id) = descendants.next(graph) {
-        for child_id in graph.children_of(descendant_id) {
-            let action = graph
-                .commit_get::<crate::graph::Action>(child_id)
-                .copied()
-                .unwrap_or_default();
-            if !seen.insert(child_id) {
-            } else if action.is_protected() {
-                protected_branches_to_scripts(graph, child_id, &mut dropped_branches, &mut scripts);
-            } else {
-                descendants.stop();
+        let action = graph
+            .commit_get::<crate::graph::Action>(descendant_id)
+            .copied()
+            .unwrap_or_default();
+        if !seen.insert(descendant_id) {
+            descendants.stop();
+        } else if action.is_protected() {
+            protected_branches_to_scripts(
+                graph,
+                descendant_id,
+                &mut dropped_branches,
+                &mut scripts,
+            );
+        } else {
+            descendants.stop();
+            if let Some(parent_id) = graph.primary_parent_of(descendant_id) {
                 let mut script = Vec::new();
                 gather_script(
                     graph,
+                    parent_id,
                     descendant_id,
-                    child_id,
                     &mut dropped_branches,
                     &mut script,
                 );
