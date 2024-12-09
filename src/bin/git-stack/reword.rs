@@ -65,19 +65,21 @@ impl RewordArgs {
         let branches = git_stack::graph::BranchSet::from_repo(&repo, &protected)
             .with_code(proc_exit::Code::FAILURE)?;
 
-        let head_ann_id = crate::ops::resolve_explicit_base(&repo, &self.rev)
+        let selected_ann_id = crate::ops::resolve_explicit_base(&repo, &self.rev)
             .with_code(proc_exit::Code::FAILURE)?;
-        let head_id = head_ann_id.id;
-        let head = repo.find_commit(head_id).expect("resolve found a commit");
-        let head_branch = head_ann_id.branch.as_ref();
+        let selected_id = selected_ann_id.id;
+        let head = repo
+            .find_commit(selected_id)
+            .expect("resolve found a commit");
+        let selected_branch = selected_ann_id.branch.as_ref();
         let base = crate::ops::resolve_implicit_base(
             &repo,
-            head_id,
+            selected_id,
             &branches,
             repo_config.auto_base_commit_count(),
         );
         let merge_base_oid = repo
-            .merge_base(base.id, head_id)
+            .merge_base(base.id, selected_id)
             .ok_or_else(|| {
                 git2::Error::new(
                     git2::ErrorCode::NotFound,
@@ -107,7 +109,7 @@ impl RewordArgs {
             }
         }
         let action = graph
-            .commit_get::<git_stack::graph::Action>(head_id)
+            .commit_get::<git_stack::graph::Action>(selected_id)
             .copied()
             .unwrap_or_default();
         match action {
@@ -130,7 +132,7 @@ impl RewordArgs {
             let raw_commit = repo
                 .raw()
                 .find_commit(head.id)
-                .expect("head_commit is always valid");
+                .expect("selected_commit is always valid");
             let existing = String::from_utf8_lossy(raw_commit.message_bytes());
             let mut template = String::new();
             writeln!(&mut template, "{existing}").unwrap();
@@ -145,9 +147,9 @@ impl RewordArgs {
                 "# with '#' will be ignored, and an empty message aborts the commit."
             )
             .unwrap();
-            if let Some(head_branch) = &head_branch {
+            if let Some(selected_branch) = &selected_branch {
                 writeln!(&mut template, "#").unwrap();
-                writeln!(&mut template, "# On branch {head_branch}").unwrap();
+                writeln!(&mut template, "# On branch {selected_branch}").unwrap();
             }
             let message = crate::ops::edit_commit(
                 repo.path()
@@ -166,7 +168,7 @@ impl RewordArgs {
             message
         };
 
-        git_stack::graph::reword_commit(&mut graph, &repo, head_id, new_message)
+        git_stack::graph::reword_commit(&mut graph, &repo, selected_id, new_message)
             .with_code(proc_exit::Code::FAILURE)?;
 
         let mut stash_id = None;
@@ -205,7 +207,10 @@ impl RewordArgs {
             }
         }
         executor
-            .close(&mut repo, head_branch.as_ref().and_then(|b| b.local_name()))
+            .close(
+                &mut repo,
+                selected_branch.as_ref().and_then(|b| b.local_name()),
+            )
             .with_code(proc_exit::Code::FAILURE)?;
 
         git_stack::git::stash_pop(&mut repo, stash_id);
