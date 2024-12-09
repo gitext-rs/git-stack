@@ -65,6 +65,10 @@ impl RewordArgs {
         let branches = git_stack::graph::BranchSet::from_repo(&repo, &protected)
             .with_code(proc_exit::Code::FAILURE)?;
 
+        let head_ann_id =
+            crate::ops::resolve_explicit_base(&repo, "HEAD").with_code(proc_exit::Code::FAILURE)?;
+        let head_branch = head_ann_id.branch.as_ref();
+
         let selected_ann_id = crate::ops::resolve_explicit_base(&repo, &self.rev)
             .with_code(proc_exit::Code::FAILURE)?;
         let selected_id = selected_ann_id.id;
@@ -207,10 +211,7 @@ impl RewordArgs {
             }
         }
         executor
-            .close(
-                &mut repo,
-                selected_branch.as_ref().and_then(|b| b.local_name()),
-            )
+            .close(&mut repo, head_branch.as_ref().and_then(|b| b.local_name()))
             .with_code(proc_exit::Code::FAILURE)?;
 
         git_stack::git::stash_pop(&mut repo, stash_id);
