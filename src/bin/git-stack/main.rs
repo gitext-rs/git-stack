@@ -42,7 +42,7 @@ fn run() -> proc_exit::ExitResult {
         anstream::ColorChoice::Never
     );
 
-    logger::init_logging(args.verbose.clone(), colored_stderr);
+    logger::init_logging(args.verbose, colored_stderr);
 
     if let Some(current_dir) = args.current_dir.as_deref() {
         let current_dir = current_dir
