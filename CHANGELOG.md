@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Performance
+
+- Removed inefficient tree walking
+
+### Fixes
+
+- Improved likelihood that an operation will leave you at the correct commit / branch
+
 ## [0.10.17] - 2023-08-09
 
 ### Fixes
