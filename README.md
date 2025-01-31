@@ -45,6 +45,7 @@ Features:
 - Separates out pull/push remotes for working from a fork
 - On `--push`, detects which branches are "ready" (e.g. root of stack, no WIP)
 - Undo support: backs up branch state prior to rewriting history
+- Ability to navigate the stack and perform operations on it
 
 Non-features
 - Conflict resolution: `git-stack` will give up and you'll have to use
@@ -56,19 +57,27 @@ To see how `git-stack` compares to other stacked git tools, see the [Comparison]
 
 From your feature branch, run:
 ```console
-jira-3423423 $ git stack --pull
+jira-3423423 $ git sync
+jira-3423423 $ git stack
+jira-3423423 $ git run cargo test
 ```
 
-`git stack --pull`:
+[`git sync`](docs/reference.md#git-sync):
 1. Auto-detects your parent remote branch (e.g. `main`).
 2. Performs a `git pull --rebase <remote> <parent>`
 3. Rebases `jira-3423423` (and any dev branches on the stack) onto `<parent>`
-4. Shows the stacked branches
+
+[`git stack`](docs/reference.md#git-stack):
+1. Shows the stacked branches
+
+[`git run`](docs/reference.md#git-run):
+1. Walks each commit in the stack, running a command until it fails
 
 See [Getting Start](#using) for a complete workflow example.
 
 The closest equivalent is:
 ```bash
+jira-3423 $ # git sync
 jira-3423 $ git checkout main
 main $ git pull --rebase upstream main
 main $ git checkout jira-3154
@@ -77,7 +86,21 @@ jira-3154 $ git checkout jira-3259
 jira-3259 $ git rebase HEAD~ --onto jira-3154
 jira-3259 $ git checkout jira-3423
 jira-3423 $ git rebase HEAD~ --onto jurao-3259
+jira-3423 $ # git stack
 jira-3423 $ git log --graph --all --oneline --decorate main..HEAD
+jira-3423 $ # git run cargo test
+jira-3423 $ git checkout jira-3423~5
+jira-3423 $ cargo test
+jira-3423 $ git checkout jira-3423~4
+jira-3423 $ cargo test
+jira-3423 $ git checkout jira-3423~3
+jira-3423 $ cargo test
+jira-3423 $ git checkout jira-3423~2
+jira-3423 $ cargo test
+jira-3423 $ git checkout jira-3423~1
+jira-3423 $ cargo test
+jira-3423 $ git checkout jira-3423
+jira-3423 $ cargo test
 ```
 *For more, see [Command Reference](docs/reference.md#commands)*
 
@@ -139,6 +162,11 @@ Removing this is safe and will have no effect.
 
 ## Getting Started
 
+Configure the aliases for `git stack <cmd>` to be `git <cmd>`:
+```console
+$ git stack alias --register
+```
+
 ### Using
 
 ```console
@@ -161,11 +189,22 @@ $ git stack
 $ # Clean up in preparation for a push
 $ git sync
 
+$ # Verify everything
+$ git run cargo test
+
 $ # Push whats ready
 $ git stack --push
 ```
 
-For more, see [Command Reference](docs/reference.md#commands).
+Included [commands](docs/reference.md#commands):
+- [git stack alias](docs/reference.md#git-stack-alias)
+- [git stack](docs/reference.md#git-stack)
+- [git sync](docs/reference.md#git-sync)
+- [git next](docs/reference.md#git-next)
+- [git prev](docs/reference.md#git-prev)
+- [git reword](docs/reference.md#git-reword)
+- [git amend](docs/reference.md#git-ammend)
+- [git run](docs/reference.md#git-run)
 
 ## FAQ
 
