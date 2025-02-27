@@ -5,7 +5,7 @@ resolver = "2"
 repository = "https://github.com/gitext-rs/git-stack.git"
 license = "MIT OR Apache-2.0"
 edition = "2021"
-rust-version = "1.74"  # MSRV
+rust-version = "1.85"  # MSRV
 include = [
   "build.rs",
   "src/**/*",
