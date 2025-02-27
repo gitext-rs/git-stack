@@ -368,9 +368,8 @@ impl GitRepo {
         )?;
 
         if let Some(op) = rebase.next() {
-            op.map_err(|e| {
+            op.inspect_err(|_e| {
                 let _ = rebase.abort();
-                e
             })?;
             let inmemory_index = rebase
                 .inmemory_index()
@@ -383,9 +382,8 @@ impl GitRepo {
                 .repo
                 .signature()
                 .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
-            let result = rebase.commit(None, &sig, None).map_err(|e| {
+            let result = rebase.commit(None, &sig, None).inspect_err(|_e| {
                 let _ = rebase.abort();
-                e
             });
             match result {
                 // Created commit, must be unique
