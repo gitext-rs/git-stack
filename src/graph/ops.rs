@@ -422,7 +422,11 @@ fn mark_push_status(graph: &mut Graph, branch_id: git2::Oid) -> Option<PushStatu
                         break;
                     }
                     Some(PushStatus::Pushed) | Some(PushStatus::Pushable) => {
-                        log::debug!("Branches at {} aren't pushable, parent branch at {} should be pushed first", branch_id, parent_id);
+                        log::debug!(
+                            "Branches at {} aren't pushable, parent branch at {} should be pushed first",
+                            branch_id,
+                            parent_id
+                        );
                         status = Some(PushStatus::Blocked("parent branch"));
                         break;
                     }

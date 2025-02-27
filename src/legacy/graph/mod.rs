@@ -6,9 +6,9 @@ pub use actions::*;
 pub use node::*;
 pub use ops::*;
 
-use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::collections::VecDeque;
+use std::collections::btree_map::Entry;
 
 #[derive(Clone, Debug)]
 pub struct Graph {
