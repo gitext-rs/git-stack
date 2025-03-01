@@ -114,7 +114,7 @@ pre-release-replacements = [
 ]
 
 [dependencies]
-git2 = { version = ">=0.16, <=0.19", default-features = false, features = ["vendored-libgit2"] }
+git2 = { version = ">=0.16, <=0.20", default-features = false, features = ["vendored-libgit2"] }
 git-config-env = "0.2.1"
 clap = { version = "4.5.4", features = ["derive"] }
 clap-verbosity-flag = "3.0.0"
