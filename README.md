@@ -221,7 +221,9 @@ enable that feature
 ### How do I stack another branch on top of an existing one?
 
 - New branch: `git switch feature1 && git switch -c feature2` and start adding commits
-- Moving existing: `git stack --rebase --base feature1 --onto main` moves `feature2` to `main`, from off of `feature1`
+- Stack your current branch onto feature1: `git stack --rebase --stack current --onto feature1`
+  - Rebases your current stack (or just your current branch) onto feature1
+- Restack what is currently stacked on `feature1` onto `main`: `git stack --rebase --base feature1 --onto main` moves `feature2` to `main`, from off of `feature1`
   - Without `git stack`: `git rebase feature1 --onto main`
 
 ### How do I start a new feature?
