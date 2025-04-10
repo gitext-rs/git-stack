@@ -40,7 +40,6 @@ pub fn protect_large_branches(graph: &mut Graph, max: usize) -> Vec<String> {
                     }
                     crate::graph::BranchKind::Protected => {
                         ancestors.stop();
-                        continue;
                     }
                 }
             }
@@ -51,7 +50,6 @@ pub fn protect_large_branches(graph: &mut Graph, max: usize) -> Vec<String> {
                 .unwrap_or_default();
             if action.is_protected() {
                 ancestors.stop();
-                continue;
             }
         }
         if max <= count {
