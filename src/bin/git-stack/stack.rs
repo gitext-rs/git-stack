@@ -1268,7 +1268,6 @@ fn append_children<'r>(
                             tree.stacks[0].push(child_tree);
                         }
                         parent_node = node;
-                        continue;
                     }
                     _ => {
                         let child_tree =
