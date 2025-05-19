@@ -362,7 +362,7 @@ impl Executor {
     ) -> Vec<(git2::Error, &'s str, Vec<&'s str>)> {
         let mut failures = Vec::new();
 
-        self.head_id = Some(repo.head_commit().id);
+        self.head_id.get_or_insert_with(|| repo.head_commit().id);
 
         let onto_id = script.batches[0].onto_mark();
         let labels = NamedLabels::new();
