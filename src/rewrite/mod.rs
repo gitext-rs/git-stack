@@ -337,7 +337,7 @@ pub struct Executor {
     branches: Vec<(git2::Oid, String)>,
     delete_branches: Vec<String>,
     post_rewrite: Vec<(git2::Oid, git2::Oid)>,
-    head_id: git2::Oid,
+    head_id: Option<git2::Oid>,
     dry_run: bool,
     detached: bool,
 }
@@ -349,7 +349,7 @@ impl Executor {
             branches: Default::default(),
             delete_branches: Default::default(),
             post_rewrite: Default::default(),
-            head_id: git2::Oid::zero(),
+            head_id: None,
             dry_run,
             detached: false,
         }
@@ -362,7 +362,7 @@ impl Executor {
     ) -> Vec<(git2::Error, &'s str, Vec<&'s str>)> {
         let mut failures = Vec::new();
 
-        self.head_id = repo.head_commit().id;
+        self.head_id = Some(repo.head_commit().id);
 
         let onto_id = script.batches[0].onto_mark();
         let labels = NamedLabels::new();
@@ -370,7 +370,7 @@ impl Executor {
         for (i, batch) in script.batches.iter().enumerate() {
             let branch_name = batch.branch().unwrap_or("detached");
             if !failures.is_empty() {
-                log::trace!("Ignoring `{}`", branch_name);
+                log::trace!("Igself.noring `{}`", branch_name);
                 log::trace!("Script:\n{}", batch.display(&labels));
                 continue;
             }
@@ -500,9 +500,9 @@ impl Executor {
     }
 
     pub fn update_head(&mut self, old_id: git2::Oid, new_id: git2::Oid) {
-        if self.head_id == old_id && old_id != new_id {
+        if self.head_id.unwrap_or_else(git2::Oid::zero) == old_id && old_id != new_id {
             log::trace!("head changed from {} to {}", old_id, new_id);
-            self.head_id = new_id;
+            self.head_id = Some(new_id);
         }
     }
 
@@ -604,10 +604,10 @@ impl Executor {
             if !self.dry_run && self.detached {
                 repo.switch_branch(restore_branch)?;
             }
-        } else if self.head_id != git2::Oid::zero() {
-            log::trace!("git switch {}", self.head_id);
+        } else if let Some(head_id) = self.head_id {
+            log::trace!("git switch {}", head_id);
             if !self.dry_run && self.detached {
-                repo.switch_commit(self.head_id)?;
+                repo.switch_commit(head_id)?;
             }
         }
 
