@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.10.19] - 2025-05-20
+
 ### Fixes
 
 - Checkout rewritten detached HEAD commit when there are multiple branches
@@ -552,7 +554,8 @@ With `git stack alias` for creating alias for these
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.18...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.19...HEAD
+[0.10.19]: https://github.com/gitext-rs/git-stack/compare/v0.10.18...v0.10.19
 [0.10.18]: https://github.com/gitext-rs/git-stack/compare/v0.10.17...v0.10.18
 [0.10.17]: https://github.com/gitext-rs/git-stack/compare/v0.10.16...v0.10.17
 [0.10.16]: https://github.com/gitext-rs/git-stack/compare/v0.10.15...v0.10.16
