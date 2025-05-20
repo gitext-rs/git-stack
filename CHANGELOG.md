@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+### Fixes
+
+- Checkout rewritten detached HEAD commit when there are multiple branches
+
 ## [0.10.18] - 2025-01-22
 
 ### Performance
