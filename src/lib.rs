@@ -13,3 +13,7 @@ pub mod graph;
 pub mod rewrite;
 
 pub mod legacy;
+
+#[doc = include_str!("../README.md")]
+#[cfg(doctest)]
+pub struct ReadmeDoctests;
