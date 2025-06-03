@@ -5,7 +5,7 @@
 #![warn(clippy::print_stdout)]
 
 #[macro_use]
-mod any;
+pub mod any;
 
 pub mod config;
 pub mod git;
