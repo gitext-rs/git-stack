@@ -5,7 +5,7 @@
 #![warn(clippy::print_stdout)]
 
 #[macro_use]
-mod any;
+pub mod any;
 
 pub mod config;
 pub mod git;
@@ -13,3 +13,7 @@ pub mod graph;
 pub mod rewrite;
 
 pub mod legacy;
+
+#[doc = include_str!("../README.md")]
+#[cfg(doctest)]
+pub struct ReadmeDoctests;
