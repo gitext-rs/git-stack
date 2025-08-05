@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/).
 <!-- next-header -->
 ## [Unreleased] - ReleaseDate
 
+## [0.10.20] - 2025-08-05
+
 ### Internal
 
 - Update libgit2
@@ -558,7 +560,8 @@ With `git stack alias` for creating alias for these
   - `full` -> `commits`
 
 <!-- next-url -->
-[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.19...HEAD
+[Unreleased]: https://github.com/gitext-rs/git-stack/compare/v0.10.20...HEAD
+[0.10.20]: https://github.com/gitext-rs/git-stack/compare/v0.10.19...v0.10.20
 [0.10.19]: https://github.com/gitext-rs/git-stack/compare/v0.10.18...v0.10.19
 [0.10.18]: https://github.com/gitext-rs/git-stack/compare/v0.10.17...v0.10.18
 [0.10.17]: https://github.com/gitext-rs/git-stack/compare/v0.10.16...v0.10.17

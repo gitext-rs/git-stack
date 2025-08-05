@@ -520,7 +520,7 @@ dependencies = [
 
 [[package]]
 name = "git-stack"
-version = "0.10.19"
+version = "0.10.20"
 dependencies = [
  "anstream",
  "anstyle",
