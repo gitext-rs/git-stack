@@ -540,13 +540,14 @@ fn default_branch(config: &git2::Config) -> &str {
     config.get_str("init.defaultBranch").ok().unwrap_or("main")
 }
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ValueEnum, Default)]
 pub enum Format {
     /// No output
     Silent,
     /// List branches in selected stacks
     List,
     /// Render a branch branch
+    #[default]
     Graph,
     /// Internal data for debugging
     Debug,
@@ -576,15 +577,10 @@ impl FromStr for Format {
     }
 }
 
-impl Default for Format {
-    fn default() -> Self {
-        Self::Graph
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ValueEnum, Default)]
 pub enum ShowCommits {
     None,
+    #[default]
     Unprotected,
     All,
 }
@@ -613,13 +609,7 @@ impl FromStr for ShowCommits {
     }
 }
 
-impl Default for ShowCommits {
-    fn default() -> Self {
-        Self::Unprotected
-    }
-}
-
-#[derive(clap::ValueEnum, Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(clap::ValueEnum, Debug, Copy, Clone, PartialEq, Eq, Default)]
 pub enum Stack {
     /// Branches in BASE..HEAD
     Current,
@@ -628,6 +618,7 @@ pub enum Stack {
     /// Branches in BASE..
     Descendants,
     /// Show all branches
+    #[default]
     All,
 }
 
@@ -655,17 +646,12 @@ impl FromStr for Stack {
     }
 }
 
-impl Default for Stack {
-    fn default() -> Self {
-        Self::All
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ValueEnum)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, clap::ValueEnum, Default)]
 pub enum Fixup {
     /// No special processing
     Ignore,
     /// Move them to after the commit they fix
+    #[default]
     Move,
     /// Squash into the commit they fix
     Squash,
@@ -698,11 +684,5 @@ impl FromStr for Fixup {
             }
         }
         Err(format!("Invalid variant: {s}"))
-    }
-}
-
-impl Default for Fixup {
-    fn default() -> Self {
-        Self::Move
     }
 }
