@@ -137,7 +137,7 @@ human-panic = "2.0.0"
 termtree = "0.5.0"
 indexmap = "2.2.6"
 
-git2-ext = "0.6.3"
+git2-ext = "1.0.0"
 git-branch-stash = "0.10.2"
 humantime = "2.1.0"
 itertools = "0.14.0"
