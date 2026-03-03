@@ -65,7 +65,7 @@ pub(crate) fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
     let mut protected_branches = git_stack::legacy::git::Branches::new([]);
     for branch in repo.local_branches() {
         if protected.is_protected(&branch.name) {
-            log::trace!("Branch {} is protected", branch);
+            log::trace!("Branch {branch} is protected");
             protected_branches.insert(branch.clone());
             if let Some(remote) = repo.find_remote_branch(repo.pull_remote(), &branch.name) {
                 protected_branches.insert(remote.clone());
@@ -82,7 +82,7 @@ pub(crate) fn protected(args: &crate::args::Args) -> proc_exit::ExitResult {
             }
         } else {
             for branch in branches {
-                log::debug!("Unprotected: {}", branch);
+                log::debug!("Unprotected: {branch}");
             }
         }
     }

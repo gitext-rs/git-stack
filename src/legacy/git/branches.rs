@@ -91,11 +91,7 @@ impl Branches {
                     true
                 } else {
                     let first_branch = &branch.first().expect("we always have at least one branch");
-                    log::trace!(
-                        "Branch {} is not on the branch of {}",
-                        first_branch,
-                        base_oid
-                    );
+                    log::trace!("Branch {first_branch} is not on the branch of {base_oid}");
                     false
                 }
             })
@@ -127,19 +123,11 @@ impl Branches {
                     .unwrap_or(false);
                 if is_shared_base {
                     let first_branch = &branch.first().expect("we always have at least one branch");
-                    log::trace!(
-                        "Branch {} is not on the branch of HEAD ({})",
-                        first_branch,
-                        head_oid
-                    );
+                    log::trace!("Branch {first_branch} is not on the branch of HEAD ({head_oid})");
                     false
                 } else if !is_base_descendant {
                     let first_branch = &branch.first().expect("we always have at least one branch");
-                    log::trace!(
-                        "Branch {} is not on the branch of {}",
-                        first_branch,
-                        base_oid
-                    );
+                    log::trace!("Branch {first_branch} is not on the branch of {base_oid}");
                     false
                 } else {
                     true
@@ -173,19 +161,11 @@ impl Branches {
                     .unwrap_or(false);
                 if !is_head_ancestor {
                     let first_branch = &branch.first().expect("we always have at least one branch");
-                    log::trace!(
-                        "Branch {} is not on the branch of HEAD ({})",
-                        first_branch,
-                        head_oid
-                    );
+                    log::trace!("Branch {first_branch} is not on the branch of HEAD ({head_oid})");
                     false
                 } else if !is_base_descendant {
                     let first_branch = &branch.first().expect("we always have at least one branch");
-                    log::trace!(
-                        "Branch {} is not on the branch of {}",
-                        first_branch,
-                        base_oid
-                    );
+                    log::trace!("Branch {first_branch} is not on the branch of {base_oid}");
                     false
                 } else {
                     true

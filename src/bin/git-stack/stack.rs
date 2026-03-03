@@ -109,7 +109,7 @@ impl State {
         let mut protected_branches = git_stack::legacy::git::Branches::new([]);
         for branch in repo.local_branches() {
             if protected.is_protected(&branch.name) {
-                log::trace!("Branch {} is protected", branch);
+                log::trace!("Branch {branch} is protected");
                 if let Some(remote) = repo.find_remote_branch(repo.pull_remote(), &branch.name) {
                     protected_branches.insert(remote.clone());
                     branches.insert(remote);
@@ -341,11 +341,11 @@ pub(crate) fn stack(args: &crate::args::Args) -> proc_exit::ExitResult {
                     match git_fetch_upstream(remote, branch.name.as_str()) {
                         Ok(_) => (),
                         Err(err) => {
-                            log::warn!("Skipping pull of `{}`, {}", branch, err);
+                            log::warn!("Skipping pull of `{branch}`, {err}");
                         }
                     }
                 } else {
-                    log::warn!("Skipping pull of `{}` local branch", branch);
+                    log::warn!("Skipping pull of `{branch}` local branch");
                 }
             }
         }
@@ -362,7 +362,7 @@ pub(crate) fn stack(args: &crate::args::Args) -> proc_exit::ExitResult {
         if state.repo.is_dirty() {
             let message = "Working tree is dirty, aborting";
             if state.dry_run {
-                log::error!("{}", message);
+                log::error!("{message}");
             } else {
                 git_stack::legacy::git::stash_pop(&mut state.repo, stash_id);
                 return Err(proc_exit::sysexits::USAGE_ERR.with_message(message));
@@ -419,7 +419,7 @@ pub(crate) fn stack(args: &crate::args::Args) -> proc_exit::ExitResult {
             let results = executor.run_script(&mut state.repo, &script);
             for (err, name, dependents) in results.iter() {
                 success = false;
-                log::error!("Failed to re-stack branch `{}`: {}", name, err);
+                log::error!("Failed to re-stack branch `{name}`: {err}");
                 if !dependents.is_empty() {
                     log::error!("  Blocked dependents: {}", dependents.iter().join(", "));
                 }
@@ -909,9 +909,7 @@ fn resolve_implicit_base(
             let assumed_base_oid =
                 git_stack::legacy::git::infer_base(repo, head_oid).unwrap_or(head_oid);
             log::warn!(
-                "Could not find protected branch for {}, assuming {}",
-                head_oid,
-                assumed_base_oid
+                "Could not find protected branch for {head_oid}, assuming {assumed_base_oid}"
             );
             AnnotatedOid::new(assumed_base_oid)
         }
@@ -977,7 +975,7 @@ fn git_prune_development(
     for branch in branches {
         if !remote_branches.contains(branch) {
             let remote_branch = format!("{remote}/{branch}");
-            log::info!("Pruning {}", remote_branch);
+            log::info!("Pruning {remote_branch}");
             if !dry_run {
                 let mut branch = repo
                     .raw()
@@ -991,7 +989,7 @@ fn git_prune_development(
 }
 
 fn git_fetch_upstream(remote: &str, branch_name: &str) -> eyre::Result<()> {
-    log::debug!("git fetch {} {}", remote, branch_name);
+    log::debug!("git fetch {remote} {branch_name}");
     // A little uncertain about some of the weirder authentication needs, just deferring to `git`
     // instead of using `libgit2`
     let status = std::process::Command::new("git")
@@ -1070,15 +1068,15 @@ fn git_push_node(
                         }
                     }
                     Err(err) => {
-                        log::debug!("`git push` failed with {}", err);
+                        log::debug!("`git push` failed with {err}");
                         failed.push(local_branch.to_owned());
                     }
                 }
             }
         } else if node.action.is_protected() {
-            log::debug!("Skipping push of `{}`, protected", branch);
+            log::debug!("Skipping push of `{branch}`, protected");
         } else {
-            log::debug!("Skipping push of `{}`", branch);
+            log::debug!("Skipping push of `{branch}`");
         }
     }
 

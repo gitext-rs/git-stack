@@ -1195,15 +1195,11 @@ pub fn stash_push(repo: &mut dyn Repo, context: &str) -> Option<git2::Oid> {
     );
     match repo.stash_push(Some(&stash_msg)) {
         Ok(stash_id) => {
-            log::info!(
-                "Saved working directory and index state {}: {}",
-                stash_msg,
-                stash_id
-            );
+            log::info!("Saved working directory and index state {stash_msg}: {stash_id}");
             Some(stash_id)
         }
         Err(err) => {
-            log::debug!("Failed to stash: {}", err);
+            log::debug!("Failed to stash: {err}");
             None
         }
     }
@@ -1213,10 +1209,10 @@ pub fn stash_pop(repo: &mut dyn Repo, stash_id: Option<git2::Oid>) {
     if let Some(stash_id) = stash_id {
         match repo.stash_pop(stash_id) {
             Ok(()) => {
-                log::info!("Dropped refs/stash {}", stash_id);
+                log::info!("Dropped refs/stash {stash_id}");
             }
             Err(err) => {
-                log::error!("Failed to pop {} from stash: {}", stash_id, err);
+                log::error!("Failed to pop {stash_id} from stash: {err}");
             }
         }
     }
