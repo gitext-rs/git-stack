@@ -33,7 +33,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "43d5b281e737544384e969a5ccad3f1cdd24b48086a0fc1b2a5262a26b8f4f4a"
 dependencies = [
  "anstyle",
- "anstyle-parse",
+ "anstyle-parse 0.2.7",
+ "anstyle-query",
+ "anstyle-wincon",
+ "colorchoice",
+ "is_terminal_polyfill",
+ "utf8parse",
+]
+
+[[package]]
+name = "anstream"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "824a212faf96e9acacdbd09febd34438f8f711fb84e09a8916013cd7815ca28d"
+dependencies = [
+ "anstyle",
+ "anstyle-parse 1.0.0",
  "anstyle-query",
  "anstyle-wincon",
  "colorchoice",
@@ -52,6 +67,15 @@ name = "anstyle-parse"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4e7644824f0aa2c7b9384579234ef10eb7efb6a0deb83f9630a49594dd9c15c2"
+dependencies = [
+ "utf8parse",
+]
+
+[[package]]
+name = "anstyle-parse"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "52ce7f38b242319f7cabaa6813055467063ecdc9d355bbb4ce0c68908cd8130e"
 dependencies = [
  "utf8parse",
 ]
@@ -190,7 +214,7 @@ version = "4.5.60"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24a241312cea5059b13574bb9b3861cabf758b879c15190b37b6d6fd63ab6876"
 dependencies = [
- "anstream",
+ "anstream 0.6.21",
  "anstyle",
  "clap_lex",
  "strsim",
@@ -366,7 +390,7 @@ version = "0.11.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "dcaee3d8e3cfc3fd92428d477bc97fc29ec8716d180c0d74c643bb26166660e0"
 dependencies = [
- "anstream",
+ "anstream 0.6.21",
  "anstyle",
  "env_filter",
  "humantime",
@@ -493,9 +517,9 @@ checksum = "d0270affd9c7c81efd6976775341cee00004df04a208cadedff1b45f314f8981"
 dependencies = [
  "bstr",
  "eyre",
- "git-config-env",
+ "git-config-env 0.2.3",
  "git2",
- "git2-ext",
+ "git2-ext 0.6.3",
  "itertools",
  "log",
  "maplit",
@@ -514,10 +538,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "git-fixture"
-version = "0.3.6"
+name = "git-config-env"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c79a9c55d910c25d5e8ac800aeaeed166707346855dd2d92e93dc53c350c8f66"
+checksum = "40a4a6cd260c0225f22fa869baa261a451daa7f77774430925f9f38206ee6402"
+dependencies = [
+ "itertools",
+ "winnow",
+]
+
+[[package]]
+name = "git-fixture"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1eed484b80bd22be5b7e4edff496d833093d87f98d7cb595bd01c2fdc394e553"
 dependencies = [
  "bstr",
  "derive_more",
@@ -536,7 +570,7 @@ dependencies = [
 name = "git-stack"
 version = "0.10.20"
 dependencies = [
- "anstream",
+ "anstream 1.0.0",
  "anstyle",
  "assert_fs",
  "automod",
@@ -549,10 +583,10 @@ dependencies = [
  "env_logger",
  "eyre",
  "git-branch-stash",
- "git-config-env",
+ "git-config-env 1.0.0",
  "git-fixture",
  "git2",
- "git2-ext",
+ "git2-ext 1.0.0",
  "human-panic",
  "humantime",
  "ignore",
@@ -565,7 +599,7 @@ dependencies = [
  "proc-exit",
  "shlex",
  "snapbox",
- "termtree",
+ "termtree 1.0.0",
 ]
 
 [[package]]
@@ -594,7 +628,23 @@ dependencies = [
  "pkg-config",
  "shlex",
  "tempfile",
- "which",
+ "which 7.0.3",
+]
+
+[[package]]
+name = "git2-ext"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b351b3ef9a04bbd24822138469eddbc8db7c85ae81a13acb6cbb803053de19b"
+dependencies = [
+ "bstr",
+ "git2",
+ "itertools",
+ "log",
+ "pkg-config",
+ "shlex",
+ "tempfile",
+ "which 8.0.0",
 ]
 
 [[package]]
@@ -654,7 +704,7 @@ version = "2.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "69c3a5eccb191563dc17c9e350fd7584292ab2910824a5750b117d9c466e1734"
 dependencies = [
- "anstream",
+ "anstream 0.6.21",
  "anstyle",
  "backtrace",
  "serde",
@@ -1089,7 +1139,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0de1b847b39c8131db0467e9df1ff60e6d0562ab8e9a16e568ad0fdb372e2f2"
 dependencies = [
  "predicates-core",
- "termtree",
+ "termtree 0.5.1",
 ]
 
 [[package]]
@@ -1327,11 +1377,11 @@ checksum = "67b1b7a3b5fe4f1376887184045fcf45c69e92af734b7aaddc05fb777b6fbd03"
 
 [[package]]
 name = "snapbox"
-version = "0.6.24"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6c1abc378119f77310836665f8523018532cf7e3faeb3b10b01da5a7321bf8e1"
+checksum = "71d70a71b68054cbe88708f77abfc4bd2daf75028f8f55f4f1cff63565df89ea"
 dependencies = [
- "anstream",
+ "anstream 0.6.21",
  "anstyle",
  "content_inspector",
  "dunce",
@@ -1349,11 +1399,11 @@ dependencies = [
 
 [[package]]
 name = "snapbox-macros"
-version = "0.4.0"
+version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b750c344002d7cc69afb9da00ebd9b5c0f8ac2eb7d115d9d45d5b5f47718d74"
+checksum = "d248cef42e1456ab2f7149c0376985351b7d849ea9ad2a957bf15ddfebf1fdf9"
 dependencies = [
- "anstream",
+ "anstream 0.6.21",
 ]
 
 [[package]]
@@ -1421,6 +1471,12 @@ name = "termtree"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f50febec83f5ee1df3015341d8bd429f2d1cc62bcba7ea2076759d315084683"
+
+[[package]]
+name = "termtree"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d4d1330fe7f7f872cd05165130b10602d667b205fd85be09be2814b115d4ced9"
 
 [[package]]
 name = "tinystr"
@@ -1600,6 +1656,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "24d643ce3fd3e5b54854602a080f34fb10ab75e0b813ee32d00ca2b44fa74762"
 dependencies = [
  "either",
+ "env_home",
+ "rustix",
+ "winsafe",
+]
+
+[[package]]
+name = "which"
+version = "8.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d3fabb953106c3c8eea8306e4393700d7657561cb43122571b172bbfb7c7ba1d"
+dependencies = [
  "env_home",
  "rustix",
  "winsafe",
