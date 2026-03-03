@@ -138,7 +138,7 @@ impl Graph {
         head_oid: git2::Oid,
         default_action: Action,
     ) -> Result<(), git2::Error> {
-        log::trace!("Populating data for {}..{}", base_oid, head_oid);
+        log::trace!("Populating data for {base_oid}..{head_oid}");
         debug_assert_eq!(
             repo.merge_base(base_oid, head_oid),
             Some(base_oid),

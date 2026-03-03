@@ -383,10 +383,7 @@ fn mark_push_status(graph: &mut Graph, branch_id: git2::Oid) -> Option<PushStatu
         .unwrap_or_default()
         .is_protected()
     {
-        log::debug!(
-            "Branches at {} aren't pushable, the commit is protected",
-            branch_id
-        );
+        log::debug!("Branches at {branch_id} aren't pushable, the commit is protected");
         status = None;
     } else {
         let mut ancestors = graph.ancestors_of(branch_id).into_cursor();
@@ -399,11 +396,7 @@ fn mark_push_status(graph: &mut Graph, branch_id: git2::Oid) -> Option<PushStatu
             {
                 ancestors.stop();
             } else if graph.commit_get::<Wip>(parent_id).is_some() {
-                log::debug!(
-                    "Branches at {} aren't pushable, commit {} is WIP",
-                    branch_id,
-                    parent_id,
-                );
+                log::debug!("Branches at {branch_id} aren't pushable, commit {parent_id} is WIP",);
                 status = Some(PushStatus::Blocked("wip"));
                 break;
             } else if branch_id != parent_id && graph.branches.contains_oid(parent_id) {
@@ -411,19 +404,14 @@ fn mark_push_status(graph: &mut Graph, branch_id: git2::Oid) -> Option<PushStatu
                 match parent_status {
                     Some(PushStatus::Blocked(reason)) => {
                         log::debug!(
-                            "Branches at {} aren't pushable, parent commit {} is blocked for {}",
-                            branch_id,
-                            parent_id,
-                            reason
+                            "Branches at {branch_id} aren't pushable, parent commit {parent_id} is blocked for {reason}"
                         );
                         status = Some(PushStatus::Blocked("parent branch"));
                         break;
                     }
                     Some(PushStatus::Pushed) | Some(PushStatus::Pushable) => {
                         log::debug!(
-                            "Branches at {} aren't pushable, parent branch at {} should be pushed first",
-                            branch_id,
-                            parent_id
+                            "Branches at {branch_id} aren't pushable, parent branch at {parent_id} should be pushed first"
                         );
                         status = Some(PushStatus::Blocked("parent branch"));
                         break;
@@ -445,7 +433,7 @@ fn mark_push_status(graph: &mut Graph, branch_id: git2::Oid) -> Option<PushStatu
         .any(|b| Some(b.id()) == b.push_id())
     {
         // User pushed, so trust them.  Consider all other branches as empty branches
-        log::debug!("A branch at {} is already pushed", branch_id);
+        log::debug!("A branch at {branch_id} is already pushed");
         status = Some(PushStatus::Pushed);
     }
 
@@ -663,11 +651,7 @@ pub fn fixup(graph: &mut Graph, repo: &dyn crate::git::Repo, effect: crate::conf
             }
         }
         if !fixed {
-            log::trace!(
-                "Could not find base commit for fixup {} ({})",
-                fixup_id,
-                summary
-            );
+            log::trace!("Could not find base commit for fixup {fixup_id} ({summary})");
         }
     }
 }

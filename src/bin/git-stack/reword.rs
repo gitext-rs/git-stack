@@ -204,7 +204,7 @@ impl RewordArgs {
             let results = executor.run(&mut repo, &script);
             for (err, name, dependents) in results.iter() {
                 success = false;
-                log::error!("Failed to re-stack branch `{}`: {}", name, err);
+                log::error!("Failed to re-stack branch `{name}`: {err}");
                 if !dependents.is_empty() {
                     log::error!("  Blocked dependents: {}", dependents.iter().join(", "));
                 }

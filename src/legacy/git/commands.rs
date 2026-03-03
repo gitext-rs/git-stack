@@ -101,7 +101,7 @@ impl Executor {
         let mut failures = Vec::new();
         let branch_name = script.branch().unwrap_or("detached");
 
-        log::trace!("Applying `{}`", branch_name);
+        log::trace!("Applying `{branch_name}`");
         log::trace!("Script: {:#?}", script.commands);
         #[allow(clippy::disallowed_methods)]
         let res = script
@@ -110,16 +110,16 @@ impl Executor {
             .try_for_each(|command| self.stage_single(repo, command));
         match res.and_then(|_| self.commit(repo)) {
             Ok(()) => {
-                log::trace!("         `{}` succeeded", branch_name);
+                log::trace!("         `{branch_name}` succeeded");
                 for dependent in script.dependents.iter() {
                     failures.extend(self.run_script(repo, dependent));
                 }
                 if !failures.is_empty() {
-                    log::trace!("         `{}`'s dependent failed", branch_name);
+                    log::trace!("         `{branch_name}`'s dependent failed");
                 }
             }
             Err(err) => {
-                log::trace!("         `{}` failed: {}", branch_name, err);
+                log::trace!("         `{branch_name}` failed: {err}");
                 self.abandon(repo);
                 failures.push((err, branch_name, script.dependent_branches()));
             }
@@ -267,7 +267,7 @@ impl Executor {
             for (oid, name) in self.branches.iter() {
                 let commit = repo.find_commit(*oid).unwrap();
                 log::trace!("git checkout {}  # {}", oid, commit.summary);
-                log::trace!("git switch -c {}", name);
+                log::trace!("git switch -c {name}");
                 if !self.dry_run {
                     repo.branch(name, *oid)?;
                 }
@@ -276,7 +276,7 @@ impl Executor {
         self.branches.clear();
 
         for name in self.delete_branches.iter() {
-            log::trace!("git branch -D {}", name);
+            log::trace!("git branch -D {name}");
             if !self.dry_run {
                 repo.delete_branch(name)?;
             }
@@ -312,7 +312,7 @@ impl Executor {
     ) -> Result<(), git2::Error> {
         assert_eq!(&self.branches, &[]);
         assert_eq!(self.delete_branches, Vec::<String>::new());
-        log::trace!("git switch {}", restore_branch);
+        log::trace!("git switch {restore_branch}");
         if !self.dry_run {
             if self.detached {
                 repo.switch(restore_branch)?;

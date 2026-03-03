@@ -121,7 +121,7 @@ impl SyncArgs {
                 match crate::ops::git_fetch_upstream(remote, branch.name.as_str()) {
                     Ok(_) => update_branches = true,
                     Err(err) => {
-                        log::warn!("Skipping pull of `{}`, {}", branch, err);
+                        log::warn!("Skipping pull of `{branch}`, {err}");
                     }
                 }
             }
@@ -168,7 +168,7 @@ impl SyncArgs {
             let results = executor.run(&mut repo, &script);
             for (err, name, dependents) in results.iter() {
                 success = false;
-                log::error!("Failed to re-stack branch `{}`: {}", name, err);
+                log::error!("Failed to re-stack branch `{name}`: {err}");
                 if !dependents.is_empty() {
                     log::error!("  Blocked dependents: {}", dependents.iter().join(", "));
                 }
@@ -206,7 +206,7 @@ fn plan_changes(
     protect_commit_count: Option<usize>,
     protect_commit_time: std::time::SystemTime,
 ) -> eyre::Result<Vec<git_stack::rewrite::Script>> {
-    log::trace!("Planning stack changes with base={}, onto={}", base, onto);
+    log::trace!("Planning stack changes with base={base}, onto={onto}");
     let graphed_branches = branches.clone();
     let mut graph = git_stack::graph::Graph::from_branches(repo, graphed_branches)?;
     git_stack::graph::protect_branches(&mut graph);

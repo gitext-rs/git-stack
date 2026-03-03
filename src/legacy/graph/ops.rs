@@ -413,7 +413,7 @@ pub fn pushable(graph: &mut Graph) {
         if current.action.is_protected() {
             if !current.branches.is_empty() {
                 let branch = &current.branches[0];
-                log::debug!("{} isn't pushable, branch is protected", branch);
+                log::debug!("{branch} isn't pushable, branch is protected");
                 // Don't set `cause` as that will block descendants
             }
         } else {
@@ -430,10 +430,10 @@ pub fn pushable(graph: &mut Graph) {
             if !current.branches.is_empty() {
                 let branch = &current.branches[0];
                 if let Some(c) = cause {
-                    log::debug!("{} isn't pushable, {}", branch, c);
+                    log::debug!("{branch} isn't pushable, {c}");
                     cause = Some("parent isn't pushable");
                 } else {
-                    log::debug!("{} is pushable", branch);
+                    log::debug!("{branch} is pushable");
                     current.pushable = true;
                     cause = Some("parent is pushable");
                 }

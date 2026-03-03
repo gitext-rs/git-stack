@@ -370,20 +370,20 @@ impl Executor {
         for (i, batch) in script.batches.iter().enumerate() {
             let branch_name = batch.branch().unwrap_or("detached");
             if !failures.is_empty() {
-                log::trace!("Igself.noring `{}`", branch_name);
+                log::trace!("Igself.noring `{branch_name}`");
                 log::trace!("Script:\n{}", batch.display(&labels));
                 continue;
             }
 
-            log::trace!("Applying `{}`", branch_name);
+            log::trace!("Applying `{branch_name}`");
             log::trace!("Script:\n{}", batch.display(&labels));
             let res = self.stage_batch(repo, batch);
             match res.and_then(|_| self.commit(repo)) {
                 Ok(()) => {
-                    log::trace!("         `{}` succeeded", branch_name);
+                    log::trace!("         `{branch_name}` succeeded");
                 }
                 Err(err) => {
-                    log::trace!("         `{}` failed: {}", branch_name, err);
+                    log::trace!("         `{branch_name}` failed: {err}");
                     self.abandon();
                     let dependent_branches = script.batches[(i + 1)..]
                         .iter()
@@ -501,7 +501,7 @@ impl Executor {
 
     pub fn update_head(&mut self, old_id: git2::Oid, new_id: git2::Oid) {
         if self.head_id.unwrap_or_else(git2::Oid::zero) == old_id && old_id != new_id {
-            log::trace!("head changed from {} to {}", old_id, new_id);
+            log::trace!("head changed from {old_id} to {new_id}");
             self.head_id = Some(new_id);
         }
     }
@@ -555,7 +555,7 @@ impl Executor {
             for (oid, name) in self.branches.iter() {
                 let commit = repo.find_commit(*oid).unwrap();
                 log::trace!("git checkout {}  # {}", oid, commit.summary);
-                log::trace!("git switch --force-create {}", name);
+                log::trace!("git switch --force-create {name}");
                 if !self.dry_run {
                     repo.branch(name, *oid)?;
                 }
@@ -564,7 +564,7 @@ impl Executor {
         self.branches.clear();
 
         for name in self.delete_branches.iter() {
-            log::trace!("git branch -D {}", name);
+            log::trace!("git branch -D {name}");
             if !self.dry_run {
                 repo.delete_branch(name)?;
             }
@@ -600,12 +600,12 @@ impl Executor {
         assert_eq!(&self.branches, &[]);
         assert_eq!(self.delete_branches, Vec::<String>::new());
         if let Some(restore_branch) = restore_branch {
-            log::trace!("git switch {}", restore_branch);
+            log::trace!("git switch {restore_branch}");
             if !self.dry_run && self.detached {
                 repo.switch_branch(restore_branch)?;
             }
         } else if let Some(head_id) = self.head_id {
-            log::trace!("git switch {}", head_id);
+            log::trace!("git switch {head_id}");
             if !self.dry_run && self.detached {
                 repo.switch_commit(head_id)?;
             }

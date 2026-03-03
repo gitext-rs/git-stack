@@ -259,7 +259,7 @@ impl AmendArgs {
             let results = executor.run(&mut repo, &script);
             for (err, name, dependents) in results.iter() {
                 success = false;
-                log::error!("Failed to re-stack branch `{}`: {}", name, err);
+                log::error!("Failed to re-stack branch `{name}`: {err}");
                 if !dependents.is_empty() {
                     log::error!("  Blocked dependents: {}", dependents.iter().join(", "));
                 }
@@ -379,7 +379,7 @@ fn commit_fixup(
             &[&parent_raw_commit],
             None,
         )?;
-        log::debug!("committed {} {}", id, message);
+        log::debug!("committed {id} {message}");
         id
     };
     if !dry_run {
@@ -398,24 +398,24 @@ fn commit_fixup(
             }
         }
         if let Some(head_branch) = head_branch {
-            log::debug!("switching to {} {}", head_branch, id);
+            log::debug!("switching to {head_branch} {id}");
             repo.switch_branch(
                 head_branch
                     .local_name()
                     .expect("HEAD branch is always local"),
             )?;
         } else {
-            log::debug!("switching to {}", id);
+            log::debug!("switching to {id}");
             repo.switch_commit(id)?;
         }
 
         if let Some(stash_id) = stash_id {
             match repo.stash_pop(stash_id) {
                 Ok(()) => {
-                    log::debug!("Dropped refs/stash {}", stash_id);
+                    log::debug!("Dropped refs/stash {stash_id}");
                 }
                 Err(err) => {
-                    log::error!("Failed to pop {} from stash: {}", stash_id, err);
+                    log::error!("Failed to pop {stash_id} from stash: {err}");
                 }
             }
         }

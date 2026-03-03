@@ -142,9 +142,7 @@ pub(crate) fn resolve_implicit_base(
         None => {
             let assumed_base_oid = git_stack::graph::infer_base(repo, head_oid).unwrap_or(head_oid);
             log::warn!(
-                "Could not find protected branch for {}, assuming {}",
-                head_oid,
-                assumed_base_oid
+                "Could not find protected branch for {head_oid}, assuming {assumed_base_oid}"
             );
             AnnotatedOid::new(assumed_base_oid)
         }
@@ -203,7 +201,7 @@ pub(crate) fn git_prune_development(
     for branch in branches {
         if !remote_branches.contains(branch) {
             let remote_branch = format!("{remote}/{branch}");
-            log::info!("Pruning {}", remote_branch);
+            log::info!("Pruning {remote_branch}");
             if !dry_run {
                 let mut branch = repo
                     .raw()
@@ -217,7 +215,7 @@ pub(crate) fn git_prune_development(
 }
 
 pub(crate) fn git_fetch_upstream(remote: &str, branch_name: &str) -> eyre::Result<()> {
-    log::debug!("git fetch {} {}", remote, branch_name);
+    log::debug!("git fetch {remote} {branch_name}");
     // A little uncertain about some of the weirder authentication needs, just deferring to `git`
     // instead of using `libgit2`
     let status = std::process::Command::new("git")
