@@ -34,10 +34,10 @@ impl Script {
 
     pub fn is_branch_deleted(&self, branch: &str) -> bool {
         for command in &self.commands {
-            if let Command::DeleteBranch(current) = command {
-                if branch == current {
-                    return true;
-                }
+            if let Command::DeleteBranch(current) = command
+                && branch == current
+            {
+                return true;
             }
         }
 

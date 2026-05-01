@@ -116,13 +116,13 @@ impl SyncArgs {
                 }
             }
         }
-        if let Some(branch) = &onto.branch {
-            if let Some(remote) = &branch.remote {
-                match crate::ops::git_fetch_upstream(remote, branch.name.as_str()) {
-                    Ok(_) => update_branches = true,
-                    Err(err) => {
-                        log::warn!("Skipping pull of `{branch}`, {err}");
-                    }
+        if let Some(branch) = &onto.branch
+            && let Some(remote) = &branch.remote
+        {
+            match crate::ops::git_fetch_upstream(remote, branch.name.as_str()) {
+                Ok(_) => update_branches = true,
+                Err(err) => {
+                    log::warn!("Skipping pull of `{branch}`, {err}");
                 }
             }
         }

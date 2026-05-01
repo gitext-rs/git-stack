@@ -637,12 +637,12 @@ pub fn fixup(graph: &mut Graph, repo: &dyn crate::git::Repo, effect: crate::conf
             let anc_commit = repo
                 .find_commit(ancestor_id)
                 .expect("all commits in graph present in git");
-            if let Some(anc_summary) = anc_commit.fixup_summary() {
-                if anc_summary == summary {
-                    fixup_commit(graph, fixup_id, ancestor_id, effect);
-                    fixed = true;
-                    break;
-                }
+            if let Some(anc_summary) = anc_commit.fixup_summary()
+                && anc_summary == summary
+            {
+                fixup_commit(graph, fixup_id, ancestor_id, effect);
+                fixed = true;
+                break;
             }
             if anc_commit.summary == summary {
                 fixup_commit(graph, fixup_id, ancestor_id, effect);
@@ -932,13 +932,13 @@ fn protected_branches_to_scripts(
         batch.push(start_id, crate::rewrite::Command::DeleteBranch(dropped));
     }
     for branch in graph.branches.get(start_id).into_iter().flatten() {
-        if branch.kind().has_user_commits() {
-            if let Some(local_name) = branch.local_name() {
-                batch.push(
-                    start_id,
-                    crate::rewrite::Command::CreateBranch(local_name.to_owned()),
-                );
-            }
+        if branch.kind().has_user_commits()
+            && let Some(local_name) = branch.local_name()
+        {
+            batch.push(
+                start_id,
+                crate::rewrite::Command::CreateBranch(local_name.to_owned()),
+            );
         }
     }
     if !batch.is_empty() {
@@ -971,26 +971,26 @@ fn gather_script(
                     batch.push(id, crate::rewrite::Command::Reword(message.clone()));
                 }
                 for branch in graph.branches.get(id).into_iter().flatten() {
-                    if branch.kind().has_user_commits() {
-                        if let Some(local_name) = branch.local_name() {
-                            batch.push(
-                                id,
-                                crate::rewrite::Command::CreateBranch(local_name.to_owned()),
-                            );
-                        }
+                    if branch.kind().has_user_commits()
+                        && let Some(local_name) = branch.local_name()
+                    {
+                        batch.push(
+                            id,
+                            crate::rewrite::Command::CreateBranch(local_name.to_owned()),
+                        );
                     }
                 }
             }
             crate::graph::Action::Fixup => {
                 batch.push(id, crate::rewrite::Command::Fixup(id));
                 for branch in graph.branches.get(id).into_iter().flatten() {
-                    if branch.kind().has_user_commits() {
-                        if let Some(local_name) = branch.local_name() {
-                            batch.push(
-                                id,
-                                crate::rewrite::Command::CreateBranch(local_name.to_owned()),
-                            );
-                        }
+                    if branch.kind().has_user_commits()
+                        && let Some(local_name) = branch.local_name()
+                    {
+                        batch.push(
+                            id,
+                            crate::rewrite::Command::CreateBranch(local_name.to_owned()),
+                        );
                     }
                 }
             }
