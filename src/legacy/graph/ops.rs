@@ -557,17 +557,17 @@ pub fn drop_merged_branches(
 
     for pulled_id in pulled_ids {
         // HACK: Depending on how merges in master worked out, not all commits will be present
-        if let Some(node) = graph.get_mut(pulled_id) {
-            if !node.branches.is_empty() {
-                for i in (node.branches.len() - 1)..=0 {
-                    let branch = &node.branches[i];
-                    if let Some(local_name) = branch.local_name() {
-                        if !protected_branch_names.contains(local_name) {
-                            let branch = node.branches.remove(i);
-                            assert!(branch.remote.is_none());
-                            removed.push(branch.name);
-                        }
-                    }
+        if let Some(node) = graph.get_mut(pulled_id)
+            && !node.branches.is_empty()
+        {
+            for i in (node.branches.len() - 1)..=0 {
+                let branch = &node.branches[i];
+                if let Some(local_name) = branch.local_name()
+                    && !protected_branch_names.contains(local_name)
+                {
+                    let branch = node.branches.remove(i);
+                    assert!(branch.remote.is_none());
+                    removed.push(branch.name);
                 }
             }
         }

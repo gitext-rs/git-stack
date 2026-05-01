@@ -404,13 +404,12 @@ pub fn find_protected_base<'b>(
     head_oid: git2::Oid,
 ) -> Option<&'b Branch> {
     // We're being asked about a protected branch
-    if let Some(head_branches) = branches.get(head_oid) {
-        if let Some(head_branch) = head_branches
+    if let Some(head_branches) = branches.get(head_oid)
+        && let Some(head_branch) = head_branches
             .iter()
             .find(|b| b.kind() == BranchKind::Protected)
-        {
-            return Some(head_branch);
-        }
+    {
+        return Some(head_branch);
     }
 
     let protected_base_oids = branches
