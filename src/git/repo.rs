@@ -171,7 +171,7 @@ impl GitRepo {
         self.repo
             .signature()
             .ok()
-            .and_then(|s| s.name().map(|n| self.intern_string(n)))
+            .and_then(|s| s.name().map(|n| self.intern_string(n)).ok())
     }
 
     pub fn is_dirty(&self) -> bool {
@@ -186,7 +186,7 @@ impl GitRepo {
                 "Repository is dirty: {}",
                 status
                     .iter()
-                    .filter_map(|s| s.path().map(|s| s.to_owned()))
+                    .filter_map(|s| s.path().map(|s| s.to_owned()).ok())
                     .join(", ")
             );
             true
@@ -220,8 +220,8 @@ impl GitRepo {
             let time = std::time::SystemTime::UNIX_EPOCH
                 + std::time::Duration::from_secs(commit.time().seconds().max(0) as u64);
 
-            let author = commit.author().name().map(|n| self.intern_string(n));
-            let committer = commit.author().name().map(|n| self.intern_string(n));
+            let author = commit.author().name().map(|n| self.intern_string(n)).ok();
+            let committer = commit.author().name().map(|n| self.intern_string(n)).ok();
             let commit = std::rc::Rc::new(Commit {
                 id: commit.id(),
                 tree_id: commit.tree_id(),
@@ -258,7 +258,7 @@ impl GitRepo {
             .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"))
             .resolve()
             .unwrap_or_else(|e| panic!("Unexpected git2 error: {e}"));
-        let name = resolved.shorthand()?;
+        let name = resolved.shorthand().ok()?;
         let id = resolved.target()?;
 
         Some(Branch {
@@ -570,7 +570,7 @@ impl GitRepo {
         let target_tree_id = self
             .find_commit(target_id)
             .map(|c| c.tree_id)
-            .unwrap_or_else(git2::Oid::zero);
+            .unwrap_or(git2::Oid::ZERO_SHA1);
 
         self.repo.set_head(branch.get().name().unwrap())?;
 
@@ -588,7 +588,7 @@ impl GitRepo {
         let target_tree_id = self
             .find_commit(id)
             .map(|c| c.tree_id)
-            .unwrap_or_else(git2::Oid::zero);
+            .unwrap_or(git2::Oid::ZERO_SHA1);
 
         self.repo.set_head_detached(id)?;
 

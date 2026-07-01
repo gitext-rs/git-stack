@@ -500,7 +500,7 @@ impl Executor {
     }
 
     pub fn update_head(&mut self, old_id: git2::Oid, new_id: git2::Oid) {
-        if self.head_id.unwrap_or_else(git2::Oid::zero) == old_id && old_id != new_id {
+        if self.head_id.unwrap_or(git2::Oid::ZERO_SHA1) == old_id && old_id != new_id {
             log::trace!("head changed from {old_id} to {new_id}");
             self.head_id = Some(new_id);
         }
@@ -524,7 +524,7 @@ impl Executor {
             .map(|(new_oid, name)| {
                 // HACK: relying on "force updating the reference regardless of its current value" part
                 // of rules rather than tracking the old value
-                let old_oid = git2::Oid::zero();
+                let old_oid = git2::Oid::ZERO_SHA1;
                 (old_oid, *new_oid, name.as_str())
             })
             .collect();

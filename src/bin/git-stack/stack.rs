@@ -829,7 +829,7 @@ fn resolve_explicit_base(
         let branch = if r.is_remote() {
             let (remote, name) = r
                 .shorthand()
-                .ok_or_else(|| eyre::eyre!("Expected branch, got `{}`", base))?
+                .map_err(|err| eyre::eyre!("Expected branch, got `{}` ({err})", base))?
                 .split_once('/')
                 .expect("removes should always have at least one `/`");
             repo.find_remote_branch(remote, name)
