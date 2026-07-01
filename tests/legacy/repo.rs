@@ -46,7 +46,7 @@ fn shared_branches_fixture() {
 
         {
             let one = repo.find_local_branch("feature1").unwrap();
-            let two = git2::Oid::zero();
+            let two = git2::Oid::ZERO_SHA1;
 
             let actual = repo.merge_base(one.id, two);
             assert!(actual.is_none());
@@ -79,7 +79,7 @@ fn shared_branches_fixture() {
         }
 
         {
-            let actual = repo.find_commit(git2::Oid::zero());
+            let actual = repo.find_commit(git2::Oid::ZERO_SHA1);
             assert!(actual.is_none());
         }
     }
@@ -345,7 +345,7 @@ fn branch() {
     let mut repo = GitRepo::new(repo);
 
     {
-        let actual = repo.branch("new", git2::Oid::zero());
+        let actual = repo.branch("new", git2::Oid::ZERO_SHA1);
         assert!(actual.is_err());
     }
 

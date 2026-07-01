@@ -57,7 +57,7 @@ pub(crate) fn resolve_explicit_base(
         let branch = if r.is_remote() {
             let shorthand = r
                 .shorthand()
-                .ok_or_else(|| eyre::eyre!("Expected branch, got `{}`", base))?;
+                .map_err(|err| eyre::eyre!("Expected branch, got `{}` ({err})", base))?;
             let (remote, name) = shorthand
                 .split_once('/')
                 .expect("removes should always have at least one `/`");
@@ -66,7 +66,7 @@ pub(crate) fn resolve_explicit_base(
         } else {
             let shorthand = r
                 .shorthand()
-                .ok_or_else(|| eyre::eyre!("Expected branch, got `{}`", base))?;
+                .map_err(|err| eyre::eyre!("Expected branch, got `{}` ({err})", base))?;
             if shorthand == "HEAD" {
                 return Ok(AnnotatedOid::new(obj.id()));
             }

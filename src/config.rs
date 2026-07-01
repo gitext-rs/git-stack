@@ -247,7 +247,7 @@ impl RepoConfig {
                 let mut protected_branches = Vec::new();
                 entries
                     .for_each(|entry| {
-                        if let Some(value) = entry.value() {
+                        if let Ok(value) = entry.value() {
                             protected_branches.push(value.to_owned());
                         }
                     })
