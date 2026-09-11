@@ -343,7 +343,7 @@ pub struct Executor {
 }
 
 impl Executor {
-    pub fn new(dry_run: bool) -> Executor {
+    pub fn new(dry_run: bool) -> Self {
         Self {
             marks: Default::default(),
             branches: Default::default(),

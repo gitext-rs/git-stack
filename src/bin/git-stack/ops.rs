@@ -385,7 +385,7 @@ pub(crate) struct LinesWithTerminator<'a> {
 }
 
 impl<'a> LinesWithTerminator<'a> {
-    pub(crate) fn new(data: &'a str) -> LinesWithTerminator<'a> {
+    pub(crate) fn new(data: &'a str) -> Self {
         LinesWithTerminator { data }
     }
 }

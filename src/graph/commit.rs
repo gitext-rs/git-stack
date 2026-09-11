@@ -8,15 +8,15 @@ pub enum Action {
 
 impl Action {
     pub fn is_pick(&self) -> bool {
-        matches!(self, Action::Pick)
+        matches!(self, Self::Pick)
     }
 
     pub fn is_fixup(&self) -> bool {
-        matches!(self, Action::Fixup)
+        matches!(self, Self::Fixup)
     }
 
     pub fn is_protected(&self) -> bool {
-        matches!(self, Action::Protected)
+        matches!(self, Self::Protected)
     }
 }
 
