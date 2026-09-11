@@ -1,7 +1,7 @@
 #[derive(Clone, Default, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Script {
     pub commands: Vec<Command>,
-    pub dependents: Vec<Script>,
+    pub dependents: Vec<Self>,
 }
 
 impl Script {
@@ -80,7 +80,7 @@ pub struct Executor {
 }
 
 impl Executor {
-    pub fn new(repo: &dyn crate::legacy::git::Repo, dry_run: bool) -> Executor {
+    pub fn new(repo: &dyn crate::legacy::git::Repo, dry_run: bool) -> Self {
         let head_oid = repo.head_commit().id;
         Self {
             head_oid,

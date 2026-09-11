@@ -50,7 +50,7 @@ impl Graph {
             )
         })?;
 
-        let mut graph = Graph::with_base_id(root_id);
+        let mut graph = Self::with_base_id(root_id);
         graph.branches = branches;
         for branch_id in graph.branches.oids() {
             for commit_id in crate::git::commit_range(repo, branch_id..root_id)? {

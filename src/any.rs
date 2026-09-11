@@ -49,13 +49,13 @@ impl BoxedEntry {
     pub(crate) fn new(r: impl Resource) -> Self {
         let id = AnyId::from(&r);
         let value = BoxedResource(Box::new(r));
-        BoxedEntry { id, value }
+        Self { id, value }
     }
 }
 
 impl<R: Resource> From<R> for BoxedEntry {
     fn from(inner: R) -> Self {
-        BoxedEntry::new(inner)
+        Self::new(inner)
     }
 }
 

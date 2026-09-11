@@ -778,7 +778,7 @@ impl InMemoryRepo {
     }
 
     pub fn clear(&mut self) {
-        *self = InMemoryRepo::new();
+        *self = Self::new();
     }
 
     pub fn gen_id(&mut self) -> git2::Oid {
