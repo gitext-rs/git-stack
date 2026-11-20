@@ -176,18 +176,20 @@ jobs:
       uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         persist-credentials: false
+    - name: Configure git
+      run: |
+        git config --global user.name "Test User"
+        git config --global user.email "test_user@example.com"
     - name: Install Rust
       run: rustup update --no-self-update stable && rustup default stable
     - name: Initialize cache
       uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2.9.3
     - name: Install cargo-tarpaulin
-      run: cargo install cargo-tarpaulin
-    - name: Configure git
-      run: |
-        git config --global user.name "Test User"
-        git config --global user.email "test_user@example.com"
+      uses: taiki-e/install-action@37f7c5781271959fb65b6b35224e28652ff2b63d  # v2.87.0
+      with:
+        tool: cargo-tarpaulin
     - name: Gather coverage
-      run: cargo tarpaulin --out xml
+      run: cargo tarpaulin --out xml --timeout 120
     - name: Upload coverage report
       if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
       uses: actions/upload-code-coverage@2b21a77928be8d5168c2b9581a67f2adbebacc52 # v1.4.4
